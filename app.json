@@ -2,18 +2,26 @@
   "expo": {
     "name": "msi-expo",
     "slug": "msi-expo",
+    "scheme": "msiexpo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/login-logo.jpg",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.msi.msiexpo",
+      "icon": "./assets/icon.png",
+      "splash": {
+        "image": "./assets/login-logo.jpg",
+        "resizeMode": "contain",
+        "backgroundColor": "#ffffff"
+      }
     },
     "android": {
       "adaptiveIcon": {
