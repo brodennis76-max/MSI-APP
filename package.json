@@ -8,7 +8,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "build": "npx expo export:web"
-  }
+  },
   "dependencies": {
     "@react-native-firebase/app": "^23.3.1",
     "@react-native-firebase/firestore": "^23.3.1",
