@@ -549,15 +549,11 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
 
   const generateWebPDF = async (htmlContent, filename) => {
     try {
-      // Use jsPDF for proper file download
-      const { default: jsPDF } = await import('jspdf');
-      const html2canvas = (await import('html2canvas')).default;
+      // Use html2pdf for much better PDF generation
+      const html2pdf = (await import('html2pdf.js')).default;
       
       // Create a temporary container with proper styling
       const tempContainer = document.createElement('div');
-      tempContainer.style.position = 'absolute';
-      tempContainer.style.left = '-9999px';
-      tempContainer.style.top = '-9999px';
       tempContainer.style.width = '8.5in';
       tempContainer.style.backgroundColor = 'white';
       tempContainer.style.fontFamily = 'Arial, sans-serif';
@@ -568,67 +564,34 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
       tempContainer.style.wordWrap = 'break-word';
       tempContainer.style.overflowWrap = 'break-word';
       tempContainer.style.whiteSpace = 'normal';
+      tempContainer.style.padding = '0.75in';
+      tempContainer.innerHTML = htmlContent;
       
-      // Create the content div with proper margins
-      const contentDiv = document.createElement('div');
-      contentDiv.style.padding = '0.75in';
-      contentDiv.style.width = '100%';
-      contentDiv.style.boxSizing = 'border-box';
-      contentDiv.innerHTML = htmlContent;
-      
-      tempContainer.appendChild(contentDiv);
       document.body.appendChild(tempContainer);
       
       // Wait for fonts and images to load
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Convert HTML to canvas then to PDF
-      const canvas = await html2canvas(tempContainer, {
-        scale: 2, // Higher quality
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        width: tempContainer.offsetWidth,
-        height: tempContainer.offsetHeight,
-        scrollX: 0,
-        scrollY: 0,
-        logging: false
-      });
-      
-      const imgData = canvas.toDataURL('image/png');
-      
-      // Create PDF with proper margins
-      const pdf = new jsPDF('p', 'in', 'letter'); // Letter size
-      const pageWidth = 8.5;
-      const pageHeight = 11;
-      const margin = 0.75; // 0.75 inch margins
-      const contentWidth = pageWidth - (2 * margin);
-      const contentHeight = pageHeight - (2 * margin);
-      
-      const imgWidth = contentWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      // Calculate how many pages we need
-      const totalPages = Math.ceil(imgHeight / contentHeight);
-      
-      // Add each page
-      for (let page = 0; page < totalPages; page++) {
-        if (page > 0) {
-          pdf.addPage();
+      // Generate PDF with html2pdf
+      const pdf = await html2pdf().from(tempContainer).set({
+        margin: [19, 19, 19, 19], // 0.75in margins in mm (0.75 * 25.4)
+        filename: filename,
+        html2canvas: { 
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          logging: false
+        },
+        jsPDF: { 
+          unit: 'mm', 
+          format: 'letter', 
+          orientation: 'portrait' 
         }
-        
-        // Calculate the y-offset for this page
-        const yOffset = -(page * contentHeight);
-        const pageImgHeight = Math.min(contentHeight, imgHeight - (page * contentHeight));
-        
-        pdf.addImage(imgData, 'PNG', margin, margin + yOffset, imgWidth, imgHeight);
-      }
+      }).save();
       
       // Clean up
       document.body.removeChild(tempContainer);
-      
-      // Save the PDF file
-      pdf.save(filename);
       
       return { uri: 'web-pdf-downloaded' };
     } catch (error) {
