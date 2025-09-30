@@ -20,26 +20,71 @@ const WebPDFGenerator = {
 
   generateWebPDF: async (htmlContent, filename) => {
     try {
-      // Create a new window with the HTML content
+      // Use jsPDF for proper file download
+      const { default: jsPDF } = await import('jspdf');
+      const html2canvas = (await import('html2canvas')).default;
+      
+      // Create a temporary div to render the HTML
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlContent;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '-9999px';
+      tempDiv.style.width = '210mm'; // A4 width
+      tempDiv.style.backgroundColor = 'white';
+      document.body.appendChild(tempDiv);
+      
+      // Convert HTML to canvas then to PDF
+      const canvas = await html2canvas(tempDiv, {
+        scale: 2, // Higher quality
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      
+      // Create PDF
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 295; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      
+      let position = 0;
+      
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      
+      // Clean up
+      document.body.removeChild(tempDiv);
+      
+      // Save the PDF file
+      pdf.save(filename);
+      
+      return { uri: 'web-pdf-downloaded' };
+    } catch (error) {
+      console.error('Error generating web PDF:', error);
+      // Fallback to print dialog
       const printWindow = window.open('', '_blank');
       printWindow.document.write(htmlContent);
       printWindow.document.close();
       
-      // Wait for content to load
       printWindow.onload = () => {
-        // Trigger print dialog
         printWindow.print();
-        
-        // Close the window after printing
         setTimeout(() => {
           printWindow.close();
         }, 1000);
       };
       
-      return { uri: 'web-pdf-generated' };
-    } catch (error) {
-      console.error('Error generating web PDF:', error);
-      throw error;
+      return { uri: 'web-pdf-printed' };
     }
   },
 
