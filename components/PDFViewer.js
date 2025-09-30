@@ -79,16 +79,20 @@ const PDFViewer = ({ pdfUri, clientName, clientEmail, onBack, htmlContent }) => 
           let heightLeft = imgHeight;
           let position = margin;
           
-          // Add first page with proper margins
-          pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
-          heightLeft -= contentHeight;
+          // Calculate how many pages we need
+          const totalPages = Math.ceil(imgHeight / contentHeight);
           
-          // Add additional pages if content overflows
-          while (heightLeft > 0) {
-            pdf.addPage();
-            position = margin; // Reset position for new page
-            pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
-            heightLeft -= contentHeight;
+          // Add each page
+          for (let page = 0; page < totalPages; page++) {
+            if (page > 0) {
+              pdf.addPage();
+            }
+            
+            // Calculate the y-offset for this page
+            const yOffset = -(page * contentHeight);
+            const pageImgHeight = Math.min(contentHeight, imgHeight - (page * contentHeight));
+            
+            pdf.addImage(imgData, 'PNG', margin, margin + yOffset, imgWidth, imgHeight);
           }
           
           document.body.removeChild(tempContainer);
