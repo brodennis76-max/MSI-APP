@@ -10,7 +10,11 @@ import {
   Share,
   Platform
 } from 'react-native';
-import { WebView } from 'react-native-webview';
+// Import WebView only for non-web platforms
+let WebView;
+if (Platform.OS !== 'web') {
+  WebView = require('react-native-webview').WebView;
+}
 import * as FileSystem from 'expo-file-system';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -44,23 +48,26 @@ const PDFViewer = ({ pdfUri, clientName, clientEmail, onBack, htmlContent }) => 
           
           await new Promise(resolve => setTimeout(resolve, 1000));
           
-          // Generate PDF with html2pdf
-          const pdf = await html2pdf().from(tempContainer).set({
-            margin: [19, 19, 19, 19], // 0.75in margins in mm (0.75 * 25.4)
+          // Generate PDF with html2pdf using the proven approach
+          const opt = {
+            margin: [25.4, 25.4, 25.4, 25.4], // top, left, bottom, right (in mm = 1 inch)
             filename: `account-instructions-${clientName}.pdf`,
+            image: { type: "jpeg", quality: 0.98 },
             html2canvas: { 
-              scale: 2,
+              scale: 2, 
               useCORS: true,
               allowTaint: true,
               backgroundColor: '#ffffff',
               logging: false
             },
             jsPDF: { 
-              unit: 'mm', 
-              format: 'letter', 
-              orientation: 'portrait' 
+              unit: "mm", 
+              format: "a4", 
+              orientation: "portrait" 
             }
-          }).save();
+          };
+          
+          const pdf = await html2pdf().set(opt).from(tempContainer).save();
           
           document.body.removeChild(tempContainer);
         } else {
@@ -148,22 +155,35 @@ const PDFViewer = ({ pdfUri, clientName, clientEmail, onBack, htmlContent }) => 
       </View>
 
       <View style={styles.pdfContainer}>
-        <WebView
-          source={{ html: htmlContent }}
-          style={styles.webview}
-          scalesPageToFit={true}
-          startInLoadingState={true}
-          onError={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            console.error('WebView error: ', nativeEvent);
-            Alert.alert('Error', 'Failed to load content. Please try again.');
-          }}
-          onHttpError={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            console.error('WebView HTTP error: ', nativeEvent);
-            Alert.alert('Error', 'Failed to load content. Please try again.');
-          }}
-        />
+        {Platform.OS === 'web' ? (
+          <div 
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              border: '1px solid #ccc',
+              padding: '10px',
+              overflow: 'auto'
+            }}
+            dangerouslySetInnerHTML={{ __html: htmlContent }}
+          />
+        ) : (
+          <WebView
+            source={{ html: htmlContent }}
+            style={styles.webview}
+            scalesPageToFit={true}
+            startInLoadingState={true}
+            onError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              console.error('WebView error: ', nativeEvent);
+              Alert.alert('Error', 'Failed to load content. Please try again.');
+            }}
+            onHttpError={(syntheticEvent) => {
+              const { nativeEvent } = syntheticEvent;
+              console.error('WebView HTTP error: ', nativeEvent);
+              Alert.alert('Error', 'Failed to load content. Please try again.');
+            }}
+          />
+        )}
       </View>
 
       <View style={styles.bottomActions}>

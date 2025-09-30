@@ -217,23 +217,26 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
       // Wait for fonts and images to load
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Generate PDF with html2pdf
-      const pdf = await html2pdf().from(tempContainer).set({
-        margin: [19, 19, 19, 19], // 0.75in margins in mm (0.75 * 25.4)
+      // Generate PDF with html2pdf using the proven approach
+      const opt = {
+        margin: [25.4, 25.4, 25.4, 25.4], // top, left, bottom, right (in mm = 1 inch)
         filename: filename,
+        image: { type: "jpeg", quality: 0.98 },
         html2canvas: { 
-          scale: 2,
+          scale: 2, 
           useCORS: true,
           allowTaint: true,
           backgroundColor: '#ffffff',
           logging: false
         },
         jsPDF: { 
-          unit: 'mm', 
-          format: 'letter', 
-          orientation: 'portrait' 
+          unit: "mm", 
+          format: "a4", 
+          orientation: "portrait" 
         }
-      }).save();
+      };
+      
+      const pdf = await html2pdf().set(opt).from(tempContainer).save();
       
       // Clean up
       document.body.removeChild(tempContainer);
@@ -374,6 +377,15 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
             
             .avoid-break {
               page-break-inside: avoid;
+            }
+            
+            @media print {
+              .avoid-break {
+                page-break-inside: avoid;
+              }
+              .page-break {
+                page-break-before: always;
+              }
             }
             
             .subsection-title {
