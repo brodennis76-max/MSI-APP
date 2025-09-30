@@ -1,13 +1,15 @@
 {
   "expo": {
-    "name": "msi-expo",
-    "slug": "msi-expo",
+    "name": "MSI Inventory",
+    "slug": "msi-inventory-app",
     "scheme": "msiexpo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "description": "MSI Inventory Management Application for field teams",
+    "privacy": "public",
     "splash": {
       "image": "./assets/login-logo.jpg",
       "resizeMode": "contain",
@@ -22,7 +24,11 @@
         "resizeMode": "contain",
         "backgroundColor": "#ffffff"
       },
-      "buildConfiguration": "Debug"
+      "buildConfiguration": "Release",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app needs access to camera to take photos for inventory documentation.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select images for inventory documentation."
+      }
     },
     "android": {
       "adaptiveIcon": {
