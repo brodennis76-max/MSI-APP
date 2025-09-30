@@ -40,6 +40,10 @@ const PDFViewer = ({ pdfUri, clientName, clientEmail, onBack, htmlContent }) => 
           tempDiv.style.fontSize = '12px';
           tempDiv.style.lineHeight = '1.4';
           tempDiv.style.color = '#000';
+          tempDiv.style.boxSizing = 'border-box';
+          tempDiv.style.wordWrap = 'break-word';
+          tempDiv.style.overflowWrap = 'break-word';
+          tempDiv.style.whiteSpace = 'normal';
           document.body.appendChild(tempDiv);
           
           await new Promise(resolve => setTimeout(resolve, 1000));

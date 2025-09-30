@@ -136,7 +136,7 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
           <title>Account Instructions - ${client.name}</title>
           <style>
             @page {
-              margin: 1.25in;
+              margin: 0.75in;
               size: 8.5in 11in;
               @bottom-center {
                 content: "Page " counter(page);
@@ -154,18 +154,23 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
               background: white;
               font-size: 12px;
               page-break-inside: avoid;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
             }
             
             
             .header {
+              margin-top: 0;
               margin-bottom: 20px;
               position: relative;
+              padding-top: 0;
             }
             
             .company-name {
               font-size: 18px;
               font-weight: bold;
               text-align: center;
+              margin-top: 0;
               margin-bottom: 10px;
               color: #333;
             }
@@ -174,12 +179,14 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
               font-size: 16px;
               font-weight: bold;
               text-align: center;
+              margin-top: 0;
               margin-bottom: 5px;
             }
             
             .client-name {
               font-size: 14px;
               text-align: center;
+              margin-top: 0;
               margin-bottom: 20px;
             }
             
@@ -200,6 +207,9 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
             
             .info-value {
               flex: 1;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
+              white-space: normal;
             }
             
             .warning-box {
@@ -237,6 +247,9 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
             
             .content {
               margin-bottom: 15px;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
+              white-space: normal;
             }
             
             .bullet-list {

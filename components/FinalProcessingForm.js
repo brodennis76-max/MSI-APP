@@ -212,6 +212,10 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
       tempDiv.style.fontSize = '12px';
       tempDiv.style.lineHeight = '1.4';
       tempDiv.style.color = '#000';
+      tempDiv.style.boxSizing = 'border-box';
+      tempDiv.style.wordWrap = 'break-word';
+      tempDiv.style.overflowWrap = 'break-word';
+      tempDiv.style.whiteSpace = 'normal';
       document.body.appendChild(tempDiv);
       
       // Wait for fonts and images to load
@@ -289,7 +293,7 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
           <title>Account Instructions - ${clientData.name}</title>
           <style>
             @page {
-              margin: 1.25in;
+              margin: 0.75in;
               size: 8.5in 11in;
               @bottom-center {
                 content: "Page " counter(page);
@@ -307,17 +311,22 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
               background: white;
               font-size: 12px;
               page-break-inside: avoid;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
             }
             
             .header {
+              margin-top: 0;
               margin-bottom: 20px;
               position: relative;
+              padding-top: 0;
             }
             
             .company-name {
               font-size: 18px;
               font-weight: bold;
               text-align: center;
+              margin-top: 0;
               margin-bottom: 10px;
               color: #333;
             }
@@ -326,12 +335,14 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
               font-size: 16px;
               font-weight: bold;
               text-align: center;
+              margin-top: 0;
               margin-bottom: 5px;
             }
             
             .client-name {
               font-size: 14px;
               text-align: center;
+              margin-top: 0;
               margin-bottom: 20px;
             }
             
@@ -352,6 +363,9 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
             
             .info-value {
               flex: 1;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
+              white-space: normal;
             }
             
             .warning-box {
@@ -399,11 +413,17 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
             .content {
               margin-bottom: 15px;
               page-break-inside: avoid;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
+              white-space: normal;
             }
             
             .section {
               page-break-inside: avoid;
               margin-bottom: 20px;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
+              white-space: normal;
             }
             
             .warning-box {
