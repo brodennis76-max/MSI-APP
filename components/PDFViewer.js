@@ -79,12 +79,14 @@ const PDFViewer = ({ pdfUri, clientName, clientEmail, onBack, htmlContent }) => 
           let heightLeft = imgHeight;
           let position = margin;
           
+          // Add first page with proper margins
           pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
           heightLeft -= contentHeight;
           
-          while (heightLeft >= 0) {
-            position = heightLeft - imgHeight + margin;
+          // Add additional pages if content overflows
+          while (heightLeft > 0) {
             pdf.addPage();
+            position = margin; // Reset position for new page
             pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
             heightLeft -= contentHeight;
           }

@@ -256,12 +256,14 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
       
       let position = margin;
       
+      // Add first page with proper margins
       pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
       heightLeft -= contentHeight;
       
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight + margin;
+      // Add additional pages if content overflows
+      while (heightLeft > 0) {
         pdf.addPage();
+        position = margin; // Reset position for new page
         pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
         heightLeft -= contentHeight;
       }
@@ -431,7 +433,7 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
             }
             
             .section {
-              page-break-inside: avoid;
+              page-break-inside: auto;
               margin-bottom: 20px;
               word-wrap: break-word;
               overflow-wrap: break-word;
@@ -443,16 +445,26 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
               margin: 15px 0;
             }
             
+            .section-title {
+              page-break-after: avoid;
+              page-break-inside: avoid;
+            }
+            
+            .subsection-title {
+              page-break-after: avoid;
+              page-break-inside: avoid;
+            }
+            
             .bullet-list {
               margin: 8px 0;
               padding-left: 0.5in;
-              page-break-inside: avoid;
+              page-break-inside: auto;
             }
             
             .numbered-list {
               margin: 8px 0;
               padding-left: 0.5in;
-              page-break-inside: avoid;
+              page-break-inside: auto;
             }
             
             .bullet-list li {
@@ -470,7 +482,7 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
             
             .area-mapping {
               margin: 8px 0;
-              page-break-inside: avoid;
+              page-break-inside: auto;
             }
             
             .area-item {
@@ -478,7 +490,7 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
             }
             
             .subsection-group {
-              page-break-inside: avoid;
+              page-break-inside: auto;
               margin-bottom: 15px;
             }
             

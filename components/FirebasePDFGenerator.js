@@ -250,11 +250,23 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
               word-wrap: break-word;
               overflow-wrap: break-word;
               white-space: normal;
+              page-break-inside: auto;
+            }
+            
+            .section-title {
+              page-break-after: avoid;
+              page-break-inside: avoid;
+            }
+            
+            .subsection-title {
+              page-break-after: avoid;
+              page-break-inside: avoid;
             }
             
             .bullet-list {
               margin: 8px 0;
               padding-left: 0.5in;
+              page-break-inside: auto;
             }
             
             .bullet-list li {
@@ -599,12 +611,14 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
       
       let position = margin;
       
+      // Add first page with proper margins
       pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
       heightLeft -= contentHeight;
       
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight + margin;
+      // Add additional pages if content overflows
+      while (heightLeft > 0) {
         pdf.addPage();
+        position = margin; // Reset position for new page
         pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
         heightLeft -= contentHeight;
       }
