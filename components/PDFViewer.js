@@ -26,37 +26,44 @@ const PDFViewer = ({ pdfUri, clientName, clientEmail, onBack, htmlContent }) => 
           const { default: jsPDF } = await import('jspdf');
           const html2canvas = (await import('html2canvas')).default;
           
-          // Create a temporary div to render the HTML
-          const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = htmlContent;
-          tempDiv.style.position = 'absolute';
-          tempDiv.style.left = '-9999px';
-          tempDiv.style.top = '-9999px';
-          tempDiv.style.width = '8.5in';
-          tempDiv.style.minHeight = '11in';
-          tempDiv.style.backgroundColor = 'white';
-          tempDiv.style.padding = '0.75in';
-          tempDiv.style.fontFamily = 'Arial, sans-serif';
-          tempDiv.style.fontSize = '12px';
-          tempDiv.style.lineHeight = '1.4';
-          tempDiv.style.color = '#000';
-          tempDiv.style.boxSizing = 'border-box';
-          tempDiv.style.wordWrap = 'break-word';
-          tempDiv.style.overflowWrap = 'break-word';
-          tempDiv.style.whiteSpace = 'normal';
-          document.body.appendChild(tempDiv);
+          // Create a temporary container with proper styling
+          const tempContainer = document.createElement('div');
+          tempContainer.style.position = 'absolute';
+          tempContainer.style.left = '-9999px';
+          tempContainer.style.top = '-9999px';
+          tempContainer.style.width = '8.5in';
+          tempContainer.style.backgroundColor = 'white';
+          tempContainer.style.fontFamily = 'Arial, sans-serif';
+          tempContainer.style.fontSize = '12px';
+          tempContainer.style.lineHeight = '1.4';
+          tempContainer.style.color = '#000';
+          tempContainer.style.boxSizing = 'border-box';
+          tempContainer.style.wordWrap = 'break-word';
+          tempContainer.style.overflowWrap = 'break-word';
+          tempContainer.style.whiteSpace = 'normal';
           
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Create the content div with proper margins
+          const contentDiv = document.createElement('div');
+          contentDiv.style.padding = '0.75in';
+          contentDiv.style.width = '100%';
+          contentDiv.style.boxSizing = 'border-box';
+          contentDiv.innerHTML = htmlContent;
           
-          const canvas = await html2canvas(tempDiv, {
+          tempContainer.appendChild(contentDiv);
+          document.body.appendChild(tempContainer);
+          
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          
+          const canvas = await html2canvas(tempContainer, {
             scale: 2,
             useCORS: true,
             allowTaint: true,
             backgroundColor: '#ffffff',
-            width: tempDiv.offsetWidth,
-            height: tempDiv.offsetHeight,
+            width: tempContainer.offsetWidth,
+            height: tempContainer.offsetHeight,
             scrollX: 0,
-            scrollY: 0
+            scrollY: 0,
+            logging: false
           });
           
           const imgData = canvas.toDataURL('image/png');
@@ -82,7 +89,7 @@ const PDFViewer = ({ pdfUri, clientName, clientEmail, onBack, htmlContent }) => 
             heightLeft -= contentHeight;
           }
           
-          document.body.removeChild(tempDiv);
+          document.body.removeChild(tempContainer);
           pdf.save(`account-instructions-${clientName}.pdf`);
         } else {
           Alert.alert('Error', 'No PDF content available to save');
