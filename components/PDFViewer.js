@@ -7,7 +7,8 @@ import {
   ScrollView, 
   Image,
   Alert,
-  Share
+  Share,
+  Platform
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import * as FileSystem from 'expo-file-system';
@@ -19,13 +20,79 @@ const PDFViewer = ({ pdfUri, clientName, clientEmail, onBack, htmlContent }) => 
   
   const handleSaveToDevice = async () => {
     try {
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(pdfUri, {
-          mimeType: 'application/pdf',
-          dialogTitle: `Save ${clientName} Account Instructions`,
-        });
+      if (Platform.OS === 'web') {
+        // For web, regenerate and download the PDF
+        if (htmlContent) {
+          const { default: jsPDF } = await import('jspdf');
+          const html2canvas = (await import('html2canvas')).default;
+          
+          // Create a temporary div to render the HTML
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = htmlContent;
+          tempDiv.style.position = 'absolute';
+          tempDiv.style.left = '-9999px';
+          tempDiv.style.top = '-9999px';
+          tempDiv.style.width = '8.5in';
+          tempDiv.style.minHeight = '11in';
+          tempDiv.style.backgroundColor = 'white';
+          tempDiv.style.padding = '0.75in';
+          tempDiv.style.fontFamily = 'Arial, sans-serif';
+          tempDiv.style.fontSize = '12px';
+          tempDiv.style.lineHeight = '1.4';
+          tempDiv.style.color = '#000';
+          document.body.appendChild(tempDiv);
+          
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          const canvas = await html2canvas(tempDiv, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#ffffff',
+            width: tempDiv.offsetWidth,
+            height: tempDiv.offsetHeight,
+            scrollX: 0,
+            scrollY: 0
+          });
+          
+          const imgData = canvas.toDataURL('image/png');
+          const pdf = new jsPDF('p', 'in', 'letter');
+          const pageWidth = 8.5;
+          const pageHeight = 11;
+          const margin = 0.75;
+          const contentWidth = pageWidth - (2 * margin);
+          const contentHeight = pageHeight - (2 * margin);
+          
+          const imgWidth = contentWidth;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          let heightLeft = imgHeight;
+          let position = margin;
+          
+          pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+          heightLeft -= contentHeight;
+          
+          while (heightLeft >= 0) {
+            position = heightLeft - imgHeight + margin;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+            heightLeft -= contentHeight;
+          }
+          
+          document.body.removeChild(tempDiv);
+          pdf.save(`account-instructions-${clientName}.pdf`);
+        } else {
+          Alert.alert('Error', 'No PDF content available to save');
+        }
       } else {
-        Alert.alert('Error', 'Sharing is not available on this device');
+        // For mobile, use the existing sharing functionality
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(pdfUri, {
+            mimeType: 'application/pdf',
+            dialogTitle: `Save ${clientName} Account Instructions`,
+          });
+        } else {
+          Alert.alert('Error', 'Sharing is not available on this device');
+        }
       }
     } catch (error) {
       console.error('Error saving PDF:', error);

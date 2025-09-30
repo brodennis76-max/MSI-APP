@@ -198,43 +198,61 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
       const { default: jsPDF } = await import('jspdf');
       const html2canvas = (await import('html2canvas')).default;
       
-      // Create a temporary div to render the HTML
+      // Create a temporary div to render the HTML with proper styling
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = htmlContent;
       tempDiv.style.position = 'absolute';
       tempDiv.style.left = '-9999px';
       tempDiv.style.top = '-9999px';
-      tempDiv.style.width = '210mm'; // A4 width
+      tempDiv.style.width = '8.5in'; // Letter size width
+      tempDiv.style.minHeight = '11in'; // Letter size height
       tempDiv.style.backgroundColor = 'white';
+      tempDiv.style.padding = '0.75in'; // Proper margins
+      tempDiv.style.fontFamily = 'Arial, sans-serif';
+      tempDiv.style.fontSize = '12px';
+      tempDiv.style.lineHeight = '1.4';
+      tempDiv.style.color = '#000';
       document.body.appendChild(tempDiv);
+      
+      // Wait for fonts and images to load
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Convert HTML to canvas then to PDF
       const canvas = await html2canvas(tempDiv, {
         scale: 2, // Higher quality
         useCORS: true,
         allowTaint: true,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        width: tempDiv.offsetWidth,
+        height: tempDiv.offsetHeight,
+        scrollX: 0,
+        scrollY: 0
       });
       
       const imgData = canvas.toDataURL('image/png');
       
-      // Create PDF
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 210; // A4 width in mm
-      const pageHeight = 295; // A4 height in mm
+      // Create PDF with proper margins
+      const pdf = new jsPDF('p', 'in', 'letter'); // Letter size
+      const pageWidth = 8.5;
+      const pageHeight = 11;
+      const margin = 0.75; // 0.75 inch margins
+      const contentWidth = pageWidth - (2 * margin);
+      const contentHeight = pageHeight - (2 * margin);
+      
+      const imgWidth = contentWidth;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       let heightLeft = imgHeight;
       
-      let position = 0;
+      let position = margin;
       
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+      heightLeft -= contentHeight;
       
       while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
+        position = heightLeft - imgHeight + margin;
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+        pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+        heightLeft -= contentHeight;
       }
       
       // Clean up
