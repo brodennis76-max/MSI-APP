@@ -6,7 +6,8 @@ import {
   TouchableOpacity, 
   Alert,
   ActivityIndicator,
-  Image
+  Image,
+  Platform
 } from 'react-native';
 import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system';
@@ -493,15 +494,24 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
     try {
       const html = await generateHTML(clientData);
       
-      const { uri } = await Print.printToFileAsync({
-        html,
-        base64: false,
-      });
+      // Check if running on web
+      if (Platform.OS === 'web') {
+        console.log('Web platform detected, using web PDF generation...');
+        await generateWebPDF(html, `account-instructions-${clientData.name}.pdf`);
+        setPdfUri('web-pdf-generated');
+        setHtmlContent(html);
+        setShowPDFViewer(true);
+      } else {
+        const { uri } = await Print.printToFileAsync({
+          html,
+          base64: false,
+        });
 
-      // Store the PDF URI and HTML content, then show the viewer
-      setPdfUri(uri);
-      setHtmlContent(html);
-      setShowPDFViewer(true);
+        // Store the PDF URI and HTML content, then show the viewer
+        setPdfUri(uri);
+        setHtmlContent(html);
+        setShowPDFViewer(true);
+      }
 
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -509,6 +519,31 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
       Alert.alert('Error', `Failed to generate PDF: ${error.message}`);
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const generateWebPDF = async (htmlContent, filename) => {
+    try {
+      // Create a new window with the HTML content
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      
+      // Wait for content to load
+      printWindow.onload = () => {
+        // Trigger print dialog
+        printWindow.print();
+        
+        // Close the window after printing
+        setTimeout(() => {
+          printWindow.close();
+        }, 1000);
+      };
+      
+      return { uri: 'web-pdf-generated' };
+    } catch (error) {
+      console.error('Error generating web PDF:', error);
+      throw error;
     }
   };
 

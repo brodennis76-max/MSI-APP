@@ -8,7 +8,8 @@ import {
   ScrollView, 
   Alert,
   ActivityIndicator,
-  Image
+  Image,
+  Platform
 } from 'react-native';
 import { db } from '../firebase-config';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
@@ -168,19 +169,50 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
       const htmlContent = generateHTMLContent(clientData, logoBase64);
       console.log('HTML content generated, length:', htmlContent.length);
 
-      // Generate PDF
-      console.log('Calling Print.printToFileAsync...');
-      const { uri } = await Print.printToFileAsync({
-        html: htmlContent,
-        base64: false,
-      });
-      
-      console.log('PDF generated successfully, URI:', uri);
-      return uri;
+      // Check if running on web
+      if (Platform.OS === 'web') {
+        console.log('Web platform detected, using web PDF generation...');
+        return await generateWebPDF(htmlContent, `account-instructions-${clientData.name}.pdf`);
+      } else {
+        // Generate PDF for mobile
+        console.log('Calling Print.printToFileAsync...');
+        const { uri } = await Print.printToFileAsync({
+          html: htmlContent,
+          base64: false,
+        });
+        
+        console.log('PDF generated successfully, URI:', uri);
+        return uri;
+      }
     } catch (error) {
       console.error('Error generating PDF:', error);
       console.error('Error details:', error.message);
       console.error('Error stack:', error.stack);
+      throw error;
+    }
+  };
+
+  const generateWebPDF = async (htmlContent, filename) => {
+    try {
+      // Create a new window with the HTML content
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      
+      // Wait for content to load
+      printWindow.onload = () => {
+        // Trigger print dialog
+        printWindow.print();
+        
+        // Close the window after printing
+        setTimeout(() => {
+          printWindow.close();
+        }, 1000);
+      };
+      
+      return { uri: 'web-pdf-generated' };
+    } catch (error) {
+      console.error('Error generating web PDF:', error);
       throw error;
     }
   };

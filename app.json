@@ -21,7 +21,8 @@
         "image": "./assets/login-logo.jpg",
         "resizeMode": "contain",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "buildConfiguration": "Debug"
     },
     "android": {
       "adaptiveIcon": {
