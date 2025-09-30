@@ -569,9 +569,9 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
       // Use html2pdf for much better PDF generation
       const html2pdf = (await import('html2pdf.js')).default;
       
-      // Create a temporary container with proper styling
+      // Create a temporary container with proper styling for letter size
       const tempContainer = document.createElement('div');
-      tempContainer.style.width = '8.5in';
+      tempContainer.style.width = '8.5in'; // Letter width
       tempContainer.style.backgroundColor = 'white';
       tempContainer.style.fontFamily = 'Arial, sans-serif';
       tempContainer.style.fontSize = '12px';
@@ -603,7 +603,7 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
         },
         jsPDF: { 
           unit: "mm", 
-          format: "a4", 
+          format: "letter", 
           orientation: "portrait" 
         }
       };

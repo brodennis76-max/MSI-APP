@@ -194,12 +194,12 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
 
   const generateWebPDF = async (htmlContent, filename) => {
     try {
-      // Use html2pdf for much better PDF generation
+      // Use html2pdf for much better PDF generation (web only)
       const html2pdf = (await import('html2pdf.js')).default;
       
-      // Create a temporary container with proper styling
+      // Create a temporary container with proper styling for letter size
       const tempContainer = document.createElement('div');
-      tempContainer.style.width = '8.5in';
+      tempContainer.style.width = '8.5in'; // Letter width
       tempContainer.style.backgroundColor = 'white';
       tempContainer.style.fontFamily = 'Arial, sans-serif';
       tempContainer.style.fontSize = '12px';
@@ -231,7 +231,7 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
         },
         jsPDF: { 
           unit: "mm", 
-          format: "a4", 
+          format: "letter", 
           orientation: "portrait" 
         }
       };
