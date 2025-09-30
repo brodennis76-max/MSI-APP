@@ -170,7 +170,7 @@ export default function App() {
         <View style={styles.content}>
           <Text style={styles.contentText}>Welcome to MSI Dashboard</Text>
           
-          <View style={styles.buttonContainer}>
+          <View style={styles.topButtonsContainer}>
             <TouchableOpacity 
               style={styles.dashboardButton}
               onPress={() => {
@@ -200,9 +200,9 @@ export default function App() {
             </TouchableOpacity>
           </View>
           
-          <View style={styles.singleButtonContainer}>
+          <View style={styles.calendarContainer}>
             <TouchableOpacity 
-              style={styles.singleButton}
+              style={styles.calendarButton}
               onPress={() => {
                 setCurrentScreen('calendar');
                 setMenuOpen(false);
@@ -302,27 +302,29 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: 'flex-start',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     padding: 20,
     paddingTop: 40,
   },
   contentText: {
     fontSize: 18,
     color: '#666',
-    marginBottom: 5,
+    marginBottom: 20,
+    alignSelf: 'center',
   },
-  buttonContainer: {
+  topButtonsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     paddingHorizontal: 5,
     width: '100%',
+    marginBottom: 5,
   },
   dashboardButton: {
     width: '48%',
     padding: 5,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     backgroundColor: 'transparent',
   },
   buttonImage: {
@@ -330,19 +332,16 @@ const styles = StyleSheet.create({
     height: undefined,
     aspectRatio: 1.875, // Maintains the original aspect ratio (150/80)
   },
-  singleButtonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start', // Left justified
-    alignItems: 'center',
-    paddingHorizontal: 5,
+  calendarContainer: {
     width: '100%',
-    marginTop: 10,
+    alignItems: 'flex-start',
+    paddingLeft: 5,
   },
-  singleButton: {
+  calendarButton: {
     width: '48%',
     padding: 5,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     backgroundColor: 'transparent',
   },
   backButton: {

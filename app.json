@@ -27,7 +27,8 @@
       "buildConfiguration": "Release",
       "infoPlist": {
         "NSCameraUsageDescription": "This app needs access to camera to take photos for inventory documentation.",
-        "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select images for inventory documentation."
+        "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select images for inventory documentation.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -40,6 +41,15 @@
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
-    }
+    },
+    "plugins": [
+      "expo-dev-client"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ebf527d7-aca4-454e-a924-ed7e9a766f85"
+      }
+    },
+    "owner": "brodennis76"
   }
 }
