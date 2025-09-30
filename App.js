@@ -25,7 +25,7 @@ export default function App() {
     return (
       <SafeAreaProvider>
         <SafeAreaView style={styles.splashContainer}>
-          <Image source={require('./assets/login-logo.jpg')} style={styles.splashLogo} />
+          <Image source={require('./assets/login-logo.png')} style={styles.splashLogo} />
           <Text style={styles.tagline}>Best Service.</Text>
           <Text style={styles.tagline}>Competitive Prices.</Text>
         </SafeAreaView>

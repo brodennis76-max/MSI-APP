@@ -9,9 +9,8 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
     "description": "MSI Inventory Management Application for field teams",
-    "privacy": "public",
     "splash": {
-      "image": "./assets/login-logo.jpg",
+      "image": "./assets/login-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -20,11 +19,10 @@
       "bundleIdentifier": "com.msi.msiexpo",
       "icon": "./assets/icon.png",
       "splash": {
-        "image": "./assets/login-logo.jpg",
+        "image": "./assets/login-logo.png",
         "resizeMode": "contain",
         "backgroundColor": "#ffffff"
       },
-      "buildConfiguration": "Release",
       "infoPlist": {
         "NSCameraUsageDescription": "This app needs access to camera to take photos for inventory documentation.",
         "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select images for inventory documentation.",

@@ -7,9 +7,14 @@ import {
   ScrollView, 
   Alert,
   ActivityIndicator,
-  Image
+  Image,
+  Platform
 } from 'react-native';
-import { WebView } from 'react-native-webview';
+// Import WebView only for non-web platforms
+let WebView;
+if (Platform.OS !== 'web') {
+  WebView = require('react-native-webview').WebView;
+}
 import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system';
 import { db } from '../firebase-config';
@@ -319,11 +324,24 @@ const ClientPDFViewer = ({ clientId, onBack }) => {
       </View>
 
       <ScrollView style={styles.content}>
-        <WebView
-          source={{ html: generateHTML(clientData) }}
-          style={styles.webview}
-          scalesPageToFit={true}
-        />
+        {Platform.OS === 'web' ? (
+          <div 
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              border: '1px solid #ccc',
+              padding: '10px',
+              overflow: 'auto'
+            }}
+            dangerouslySetInnerHTML={{ __html: generateHTML(clientData) }}
+          />
+        ) : (
+          <WebView
+            source={{ html: generateHTML(clientData) }}
+            style={styles.webview}
+            scalesPageToFit={true}
+          />
+        )}
       </ScrollView>
     </View>
   );

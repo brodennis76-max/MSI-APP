@@ -75,9 +75,9 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
     try {
       // Try multiple paths for the logo file
       const possiblePaths = [
-        FileSystem.bundleDirectory + 'assets/login-logo.jpg',
-        FileSystem.documentDirectory + 'assets/login-logo.jpg',
-        'file:///Users/dennisellingburg/Documents/MSI/msi-expo/assets/login-logo.jpg'
+        FileSystem.bundleDirectory + 'assets/login-logo.png',
+        FileSystem.documentDirectory + 'assets/login-logo.png',
+        'file:///Users/dennisellingburg/Documents/MSI/msi-expo/assets/login-logo.png'
       ];
       
       for (const logoPath of possiblePaths) {

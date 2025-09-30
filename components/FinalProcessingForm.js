@@ -152,7 +152,7 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
       // Load logo as base64
       let logoBase64 = '';
       try {
-        const logoPath = FileSystem.bundleDirectory + 'assets/login-logo.jpg';
+        const logoPath = FileSystem.bundleDirectory + 'assets/login-logo.png';
         console.log('Attempting to load logo from:', logoPath);
         const logoData = await FileSystem.readAsStringAsync(logoPath, {
           encoding: 'base64',

@@ -6,9 +6,14 @@ import {
   TouchableOpacity, 
   ScrollView, 
   Image,
-  Alert
+  Alert,
+  Platform
 } from 'react-native';
-import { WebView } from 'react-native-webview';
+// Import WebView only for non-web platforms
+let WebView;
+if (Platform.OS !== 'web') {
+  WebView = require('react-native-webview').WebView;
+}
 
 const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
   const [showPreview, setShowPreview] = useState(true);
@@ -355,11 +360,24 @@ const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
       </View>
 
       <ScrollView style={styles.content}>
-        <WebView
-          source={{ html: generateHTML(clientData) }}
-          style={styles.webview}
-          scalesPageToFit={true}
-        />
+        {Platform.OS === 'web' ? (
+          <div 
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              border: '1px solid #ccc',
+              padding: '10px',
+              overflow: 'auto'
+            }}
+            dangerouslySetInnerHTML={{ __html: generateHTML(clientData) }}
+          />
+        ) : (
+          <WebView
+            source={{ html: generateHTML(clientData) }}
+            style={styles.webview}
+            scalesPageToFit={true}
+          />
+        )}
       </ScrollView>
     </View>
   );
