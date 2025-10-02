@@ -15,6 +15,12 @@ import { Picker } from '@react-native-picker/picker';
 import { db } from '../firebase-config';
 import { collection, onSnapshot, doc, setDoc } from 'firebase/firestore';
 import PreInventoryForm from './PreInventoryForm';
+import InventoryProceduresForm from './InventoryProceduresForm';
+import AuditsInventoryFlowForm from './AuditsInventoryFlowForm';
+import PreInventoryTeamInstructionsForm from './PreInventoryTeamInstructionsForm';
+import NonCountProductsForm from './NonCountProductsForm';
+import ReportsSection from './ReportsSection';
+import CompletionScreen from './CompletionScreen';
 
 const AddAccountForm = ({ onBack, onMenuPress }) => {
   const [clients, setClients] = useState([]);
@@ -26,6 +32,12 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
   const [clientAction, setClientAction] = useState(null); // 'new' or 'edit'
   const [showForm, setShowForm] = useState(false);
   const [showPreInventoryForm, setShowPreInventoryForm] = useState(false);
+  const [showInventoryProcedures, setShowInventoryProcedures] = useState(false);
+  const [showAuditsInventoryFlow, setShowAuditsInventoryFlow] = useState(false);
+  const [showPreInventoryTeamInstructions, setShowPreInventoryTeamInstructions] = useState(false);
+  const [showNonCountProducts, setShowNonCountProducts] = useState(false);
+  const [showReports, setShowReports] = useState(false);
+  const [showCompletion, setShowCompletion] = useState(false);
   const [createdClient, setCreatedClient] = useState(null);
 
 
@@ -135,6 +147,117 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
     );
   }
 
+  // Show completion screen
+  if (showCompletion && createdClient) {
+    return (
+      <CompletionScreen 
+        clientData={createdClient}
+        onBack={() => {
+          setShowCompletion(false);
+          setShowReports(true);
+        }}
+        onComplete={() => {
+          setShowCompletion(false);
+          setShowReports(false);
+          setShowNonCountProducts(false);
+          setShowPreInventoryTeamInstructions(false);
+          setShowAuditsInventoryFlow(false);
+          setShowInventoryProcedures(false);
+          setShowPreInventoryForm(false);
+          setCreatedClient(null);
+          setShowForm(false);
+          setClientAction(null);
+          onBack(); // Return to dashboard
+        }}
+      />
+    );
+  }
+
+  // Show reports section
+  if (showReports && createdClient) {
+    return (
+      <ReportsSection 
+        clientData={createdClient}
+        onBack={() => {
+          setShowReports(false);
+          setShowNonCountProducts(true);
+        }}
+        onComplete={() => {
+          setShowReports(false);
+          setShowCompletion(true);
+        }}
+      />
+    );
+  }
+
+  // Show non-count products form
+  if (showNonCountProducts && createdClient) {
+    return (
+      <NonCountProductsForm 
+        clientData={createdClient}
+        onBack={() => {
+          setShowNonCountProducts(false);
+          setShowPreInventoryTeamInstructions(true);
+        }}
+        onComplete={() => {
+          setShowNonCountProducts(false);
+          setShowReports(true);
+        }}
+      />
+    );
+  }
+
+  // Show team instructions form
+  if (showPreInventoryTeamInstructions && createdClient) {
+    return (
+      <PreInventoryTeamInstructionsForm 
+        clientData={createdClient}
+        onBack={() => {
+          setShowPreInventoryTeamInstructions(false);
+          setShowAuditsInventoryFlow(true);
+        }}
+        onComplete={() => {
+          setShowPreInventoryTeamInstructions(false);
+          setShowNonCountProducts(true);
+        }}
+      />
+    );
+  }
+
+  // Show audits and inventory flow form
+  if (showAuditsInventoryFlow && createdClient) {
+    return (
+      <AuditsInventoryFlowForm 
+        clientData={createdClient}
+        onBack={() => {
+          setShowAuditsInventoryFlow(false);
+          setShowInventoryProcedures(true);
+        }}
+        onComplete={() => {
+          setShowAuditsInventoryFlow(false);
+          setShowPreInventoryTeamInstructions(true);
+        }}
+      />
+    );
+  }
+
+  // Show inventory procedures form
+  if (showInventoryProcedures && createdClient) {
+    return (
+      <InventoryProceduresForm 
+        clientData={createdClient}
+        onBack={() => {
+          setShowInventoryProcedures(false);
+          setShowPreInventoryForm(true);
+        }}
+        onComplete={() => {
+          setShowInventoryProcedures(false);
+          setShowAuditsInventoryFlow(true);
+        }}
+      />
+    );
+  }
+
   // Show PreInventoryForm if a new client was created
   if (showPreInventoryForm && createdClient && createdClient.id && createdClient.name) {
     console.log('AddAccountForm: Rendering PreInventoryForm with clientData:', createdClient);
@@ -149,9 +272,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
         }}
         onComplete={() => {
           setShowPreInventoryForm(false);
-          setCreatedClient(null);
-          setShowForm(false);
-          setClientAction(null);
+          setShowInventoryProcedures(true);
         }}
       />
     );
@@ -210,6 +331,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
           email: newClientData.email,
           inventoryType: newClientData.inventoryType,
           storeType: newClientData.storeType,
+          accountType: newClientData.storeType,
           PIC: newClientData.PIC,
           startTime: newClientData.startTime,
           verification: newClientData.verification,
@@ -242,6 +364,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
           email: newClientData.email,
           inventoryType: newClientData.inventoryType,
           storeType: newClientData.storeType,
+          accountType: newClientData.storeType,
           PIC: newClientData.PIC,
           startTime: newClientData.startTime,
           verification: newClientData.verification,
