@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ProgressiveReportsForm from './ProgressiveReportsForm';
 import FinalizingCountForm from './FinalizingCountForm';
 import FinalReportsForm from './FinalReportsForm';
@@ -9,8 +9,14 @@ const ReportsSection = ({ clientData, onBack, onComplete }) => {
   const [currentReport, setCurrentReport] = useState('progressive');
   const [showCompletionScreen, setShowCompletionScreen] = useState(false);
 
+  // Debug state changes
+  useEffect(() => {
+    console.log('ReportsSection: State changed - currentReport:', currentReport, 'showCompletionScreen:', showCompletionScreen);
+  }, [currentReport, showCompletionScreen]);
+
   const handleNext = () => {
     console.log('ReportsSection: handleNext called, currentReport:', currentReport);
+    console.log('ReportsSection: showCompletionScreen:', showCompletionScreen);
     switch (currentReport) {
       case 'progressive':
         console.log('ReportsSection: Advancing from progressive to finalizing');
