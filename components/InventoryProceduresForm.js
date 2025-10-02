@@ -12,12 +12,9 @@ import {
 } from 'react-native';
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
-import AuditsInventoryFlowForm from './AuditsInventoryFlowForm';
-
 const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
   const [additionalProcedures, setAdditionalProcedures] = useState('');
-  const [showAuditsInventoryFlow, setShowAuditsInventoryFlow] = useState(false);
 
   // Ref for keyboard navigation
   const additionalProceduresRef = React.useRef(null);
@@ -83,7 +80,7 @@ const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
         'Success!', 
         `Inventory procedures saved for ${clientData.name}`,
         [
-          { text: 'OK', onPress: () => setShowAuditsInventoryFlow(true) }
+          { text: 'OK', onPress: () => onComplete() }
         ]
       );
     } catch (error) {
@@ -94,16 +91,7 @@ const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
     }
   };
 
-  // Show Audits & Inventory Flow form if needed
-  if (showAuditsInventoryFlow) {
-    return (
-      <AuditsInventoryFlowForm 
-        clientData={clientData}
-        onBack={() => setShowAuditsInventoryFlow(false)}
-        onComplete={onComplete}
-      />
-    );
-  }
+  // Navigation is handled by parent component
 
   return (
     <View style={styles.container}>

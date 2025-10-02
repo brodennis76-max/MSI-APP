@@ -10,11 +10,8 @@ import {
 } from 'react-native';
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
-import NonCountProductsForm from './NonCountProductsForm';
-
 const PreInventoryTeamInstructionsForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
-  const [showNonCountProducts, setShowNonCountProducts] = useState(false);
 
   const teamInstructions = [
     "The Inventory Manager will brief the team on the proper counting procedures and their responsibilities to the customer and their customers. Below are the guidelines that must always be followed:",
@@ -52,8 +49,8 @@ const PreInventoryTeamInstructionsForm = ({ clientData, onBack, onComplete }) =>
         `Team instructions saved for ${clientData.name}`,
         [
           { text: 'OK', onPress: () => {
-            console.log('OK pressed, setting showNonCountProducts to true');
-            setShowNonCountProducts(true);
+            console.log('OK pressed, calling onComplete');
+            onComplete();
           }}
         ]
       );
@@ -65,18 +62,7 @@ const PreInventoryTeamInstructionsForm = ({ clientData, onBack, onComplete }) =>
     }
   };
 
-  // Show Non-Count Products form if needed
-  console.log('showNonCountProducts state:', showNonCountProducts);
-  if (showNonCountProducts) {
-    console.log('Rendering NonCountProductsForm');
-    return (
-      <NonCountProductsForm 
-        clientData={clientData}
-        onBack={() => setShowNonCountProducts(false)}
-        onComplete={onComplete}
-      />
-    );
-  }
+  // Navigation is handled by parent component
 
   return (
     <View style={styles.container}>

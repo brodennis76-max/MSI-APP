@@ -96,7 +96,7 @@ Audit trails will be provided as requested based on posting sheet results, withi
         'Success!', 
         `Audits and Inventory Flow data saved for ${clientData.name}`,
         [
-          { text: 'OK', onPress: () => setShowTeamInstructions(true) }
+          { text: 'OK', onPress: () => onComplete() }
         ]
       );
     } catch (error) {
