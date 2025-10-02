@@ -242,7 +242,9 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
   }
 
   // Show inventory procedures form
+  console.log('AddAccountForm: Checking inventory procedures - showInventoryProcedures:', showInventoryProcedures, 'createdClient:', !!createdClient);
   if (showInventoryProcedures && createdClient) {
+    console.log('AddAccountForm: Rendering InventoryProceduresForm');
     return (
       <InventoryProceduresForm 
         clientData={createdClient}
@@ -271,8 +273,12 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
           setClientAction(null);
         }}
         onComplete={() => {
+          console.log('AddAccountForm: PreInventoryForm onComplete called');
+          console.log('AddAccountForm: Setting showPreInventoryForm to false');
           setShowPreInventoryForm(false);
+          console.log('AddAccountForm: Setting showInventoryProcedures to true');
           setShowInventoryProcedures(true);
+          console.log('AddAccountForm: State changes completed');
         }}
       />
     );

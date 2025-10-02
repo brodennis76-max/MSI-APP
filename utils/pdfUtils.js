@@ -210,46 +210,38 @@ export const generateUniversalPDF = async (clientData, options = {}) => {
         <div class="pdf-container">
           <div class="header">
             <div class="company-name">MSI INVENTORY</div>
-            <div class="title">ACCOUNT INSTRUCTIONS:</div>
+            <div class="title">ACCOUNT INSTRUCTIONS</div>
             <div class="client-name">${clientData.name}</div>
           </div>
 
           <div class="info-section avoid-break">
-            ${clientData.name ? `
-              <div class="info-row">
-                <div class="info-label">Client Name:</div>
-                <div class="info-value">${clientData.name}</div>
-              </div>
-            ` : ''}
-            
-            ${clientData.email ? `
-              <div class="info-row">
-                <div class="info-label">Email:</div>
-                <div class="info-value">${clientData.email}</div>
-              </div>
-            ` : ''}
-            
-            ${clientData.address ? `
-              <div class="info-row">
-                <div class="info-label">Address:</div>
-                <div class="info-value">${clientData.address}</div>
-              </div>
-            ` : ''}
-            
-            ${clientData.phone ? `
-              <div class="info-row">
-                <div class="info-label">Phone:</div>
-                <div class="info-value">${clientData.phone}</div>
-              </div>
-            ` : ''}
+            <div class="info-row">
+              <div class="info-label">Inventory:</div>
+              <div class="info-value">${clientData.inventoryType || 'Scan'}</div>
+            </div>
             
             <div class="info-row">
-              <div class="info-label">Generated:</div>
+              <div class="info-label">Updated:</div>
               <div class="info-value">${currentDate}</div>
+            </div>
+            
+            <div class="info-row">
+              <div class="info-label">PIC:</div>
+              <div class="info-value">${clientData.PIC || 'Stores to be contacted...'}</div>
+            </div>
+            
+            <div class="info-row">
+              <div class="info-label">Store Start Time:</div>
+              <div class="info-value">${clientData.startTime || 'Not specified'}</div>
+            </div>
+            
+            <div class="info-row">
+              <div class="info-label">Verification:</div>
+              <div class="info-value">${clientData.verification || 'Audit trails will be provided...'}</div>
             </div>
           </div>
 
-          <!-- 1. PRE-INVENTORY SECTION -->
+          <!-- PRE-INVENTORY INSTRUCTIONS SECTION -->
           ${clientData.Pre_Inv || clientData.preInventory || clientData.sections?.[0]?.content ? `
             <div class="avoid-break">
               <div class="section-title">Pre-Inventory Instructions</div>
@@ -273,7 +265,8 @@ export const generateUniversalPDF = async (clientData, options = {}) => {
             </div>
           ` : ''}
 
-          <!-- 2. INVENTORY PROCEDURES -->
+
+          <!-- 1. INVENTORY PROCEDURES -->
           ${clientData.Inv_Proc || clientData.inventoryProcedures ? `
             <div class="avoid-break">
               <div class="section-title">Inventory Procedures</div>
@@ -281,7 +274,7 @@ export const generateUniversalPDF = async (clientData, options = {}) => {
             </div>
           ` : ''}
 
-          <!-- 3. AUDITS -->
+          <!-- 2. AUDITS -->
           ${clientData.Audits || clientData.Audits_Inv_Flow || clientData.auditsInventoryFlow ? `
             <div class="avoid-break">
               <div class="section-title">Audits</div>
@@ -289,7 +282,7 @@ export const generateUniversalPDF = async (clientData, options = {}) => {
             </div>
           ` : ''}
 
-          <!-- 4. INVENTORY FLOW -->
+          <!-- 3. INVENTORY FLOW -->
           ${clientData.Inv_Flow || clientData.inventoryFlow ? `
             <div class="avoid-break">
               <div class="section-title">Inventory Flow</div>
@@ -297,7 +290,7 @@ export const generateUniversalPDF = async (clientData, options = {}) => {
             </div>
           ` : ''}
 
-          <!-- 5. PRE-INVENTORY TEAM INSTRUCTIONS -->
+          <!-- 4. PRE-INVENTORY TEAM INSTRUCTIONS -->
           ${clientData['Team-Instr'] || clientData.Team_Instr || clientData.teamInstructions ? `
             <div class="avoid-break">
               <div class="section-title">Pre-Inventory Team Instructions</div>
@@ -305,7 +298,7 @@ export const generateUniversalPDF = async (clientData, options = {}) => {
             </div>
           ` : ''}
 
-          <!-- 6. NON-COUNT PRODUCTS -->
+          <!-- 5. NON-COUNT PRODUCTS -->
           ${clientData.noncount || clientData.Non_Count || clientData.nonCountProducts ? `
             <div class="avoid-break">
               <div class="section-title">Non-Count Products</div>
@@ -313,7 +306,7 @@ export const generateUniversalPDF = async (clientData, options = {}) => {
             </div>
           ` : ''}
 
-          <!-- 7. REPORTS SECTION -->
+          <!-- 6. REPORTS SECTION -->
           <div class="avoid-break">
             <div class="section-title">Reports</div>
             

@@ -3,12 +3,13 @@ import {
   View, 
   Text, 
   StyleSheet, 
-  TextInput,
+  TextInput, 
   TouchableOpacity, 
   ScrollView, 
   Alert,
   ActivityIndicator,
-  Image
+  Image,
+  Platform
 } from 'react-native';
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -92,13 +93,23 @@ Audit trails will be provided as requested based on posting sheet results, withi
         updatedAt: new Date(),
       });
 
-      Alert.alert(
-        'Success!', 
-        `Audits and Inventory Flow data saved for ${clientData.name}`,
-        [
-          { text: 'OK', onPress: () => onComplete() }
-        ]
-      );
+      // Use platform-specific alerts
+      if (Platform.OS === 'web') {
+        // For web, use native browser alert and call onComplete directly
+        window.alert(`Success! Audits and Inventory Flow data saved for ${clientData.name}`);
+        console.log('AuditsInventoryFlowForm: About to call onComplete()');
+        onComplete();
+        console.log('AuditsInventoryFlowForm: onComplete() called');
+      } else {
+        // For mobile, use React Native Alert
+        Alert.alert(
+          'Success!', 
+          `Audits and Inventory Flow data saved for ${clientData.name}`,
+          [
+            { text: 'OK', onPress: () => onComplete() }
+          ]
+        );
+      }
     } catch (error) {
       console.error('Error saving audits and inventory flow data:', error);
       Alert.alert('Error', 'Failed to save data. Please try again.');

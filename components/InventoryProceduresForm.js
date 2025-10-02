@@ -3,12 +3,13 @@ import {
   View, 
   Text, 
   StyleSheet, 
-  TextInput,
+  TextInput, 
   TouchableOpacity, 
   ScrollView, 
   Alert,
   ActivityIndicator,
-  Image
+  Image,
+  Platform
 } from 'react-native';
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -76,13 +77,23 @@ const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
         updatedAt: new Date(),
       });
 
-      Alert.alert(
-        'Success!', 
-        `Inventory procedures saved for ${clientData.name}`,
-        [
-          { text: 'OK', onPress: () => onComplete() }
-        ]
-      );
+      // Use platform-specific alerts
+      if (Platform.OS === 'web') {
+        // For web, use native browser alert and call onComplete directly
+        window.alert(`Success! Inventory procedures saved for ${clientData.name}`);
+        console.log('InventoryProceduresForm: About to call onComplete()');
+        onComplete();
+        console.log('InventoryProceduresForm: onComplete() called');
+      } else {
+        // For mobile, use React Native Alert
+        Alert.alert(
+          'Success!', 
+          `Inventory procedures saved for ${clientData.name}`,
+          [
+            { text: 'OK', onPress: () => onComplete() }
+          ]
+        );
+      }
     } catch (error) {
       console.error('Error saving inventory procedures:', error);
       Alert.alert('Error', 'Failed to save inventory procedures. Please try again.');

@@ -8,7 +8,8 @@ import {
   ScrollView, 
   Alert,
   ActivityIndicator,
-  Image
+  Image,
+  Platform
 } from 'react-native';
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -391,13 +392,23 @@ ALL LOCATIONS MUST HAVE A DESCRIPTION. BE EXTRA DESCRIPTIVE IN THE CHECKOUT AREA
         console.log('No changes detected, skipping database update');
       }
 
-      Alert.alert(
-        'Success!', 
-        `Pre-inventory instructions saved for ${clientData.name}`,
-        [
-          { text: 'OK', onPress: () => onComplete() }
-        ]
-      );
+      // Use platform-specific alerts
+      if (Platform.OS === 'web') {
+        // For web, use native browser alert and call onComplete directly
+        window.alert(`Success! Pre-inventory instructions saved for ${clientData.name}`);
+        console.log('PreInventoryForm: About to call onComplete()');
+        onComplete();
+        console.log('PreInventoryForm: onComplete() called');
+      } else {
+        // For mobile, use React Native Alert
+        Alert.alert(
+          'Success!', 
+          `Pre-inventory instructions saved for ${clientData.name}`,
+          [
+            { text: 'OK', onPress: () => onComplete() }
+          ]
+        );
+      }
     } catch (error) {
       console.error('Error saving pre-inventory instructions:', error);
       Alert.alert('Error', 'Failed to save pre-inventory instructions. Please try again.');

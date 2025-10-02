@@ -4,9 +4,10 @@ import {
   Text, 
   StyleSheet, 
   TouchableOpacity, 
-  ScrollView, 
+  ScrollView,
   Image,
-  Alert
+  Alert,
+  Platform
 } from 'react-native';
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -44,16 +45,26 @@ const PreInventoryTeamInstructionsForm = ({ clientData, onBack, onComplete }) =>
       });
       console.log('Firebase update successful');
 
-      Alert.alert(
-        'Success!', 
-        `Team instructions saved for ${clientData.name}`,
-        [
-          { text: 'OK', onPress: () => {
-            console.log('OK pressed, calling onComplete');
-            onComplete();
-          }}
-        ]
-      );
+      // Use platform-specific alerts
+      if (Platform.OS === 'web') {
+        // For web, use native browser alert and call onComplete directly
+        window.alert(`Success! Team instructions saved for ${clientData.name}`);
+        console.log('PreInventoryTeamInstructionsForm: About to call onComplete()');
+        onComplete();
+        console.log('PreInventoryTeamInstructionsForm: onComplete() called');
+      } else {
+        // For mobile, use React Native Alert
+        Alert.alert(
+          'Success!', 
+          `Team instructions saved for ${clientData.name}`,
+          [
+            { text: 'OK', onPress: () => {
+              console.log('OK pressed, calling onComplete');
+              onComplete();
+            }}
+          ]
+        );
+      }
     } catch (error) {
       console.error('Error saving team instructions:', error);
       Alert.alert('Error', 'Failed to save team instructions. Please try again.');

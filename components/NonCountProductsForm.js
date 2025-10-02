@@ -8,16 +8,15 @@ import {
   ScrollView, 
   Alert,
   ActivityIndicator,
-  Image
+  Image,
+  Platform
 } from 'react-native';
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
-import ReportsSection from './ReportsSection';
 
 const NonCountProductsForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
   const [nonCountText, setNonCountText] = useState('');
-  const [showReportsSection, setShowReportsSection] = useState(false);
 
   // Ref for keyboard navigation
   const nonCountRef = React.useRef(null);
@@ -65,13 +64,23 @@ const NonCountProductsForm = ({ clientData, onBack, onComplete }) => {
         updatedAt: new Date(),
       });
 
-      Alert.alert(
-        'Success!', 
-        `Non-count products saved for ${clientData.name}`,
-        [
-          { text: 'OK', onPress: () => setShowReportsSection(true) }
-        ]
-      );
+      // Use platform-specific alerts
+      if (Platform.OS === 'web') {
+        // For web, use native browser alert and call onComplete directly
+        window.alert(`Success! Non-count products saved for ${clientData.name}`);
+        console.log('NonCountProductsForm: About to call onComplete()');
+        onComplete();
+        console.log('NonCountProductsForm: onComplete() called');
+      } else {
+        // For mobile, use React Native Alert
+        Alert.alert(
+          'Success!', 
+          `Non-count products saved for ${clientData.name}`,
+          [
+            { text: 'OK', onPress: () => onComplete() }
+          ]
+        );
+      }
     } catch (error) {
       console.error('Error saving non-count products:', error);
       Alert.alert('Error', 'Failed to save non-count products. Please try again.');
@@ -80,16 +89,7 @@ const NonCountProductsForm = ({ clientData, onBack, onComplete }) => {
     }
   };
 
-  // Show Reports Section if needed
-  if (showReportsSection) {
-    return (
-      <ReportsSection 
-        clientData={clientData}
-        onBack={() => setShowReportsSection(false)}
-        onComplete={onComplete}
-      />
-    );
-  }
+  // Navigation is handled by parent component
 
   return (
     <View style={styles.container}>
