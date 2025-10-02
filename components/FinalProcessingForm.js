@@ -3,14 +3,16 @@ import {
   View, 
   Text, 
   StyleSheet, 
-  TextInput,
+  TextInput, 
   TouchableOpacity, 
   ScrollView, 
   Alert,
   ActivityIndicator,
-  Image
+  Image,
+  Platform
 } from 'react-native';
 import { db } from '../firebase-config';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Linking from 'expo-linking';
@@ -83,13 +85,20 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
       console.log('Saving to device...');
       await saveToDevice(pdfUri, completeClientData.name);
 
-      Alert.alert(
-        'Success!',
-        `Final processing data saved and PDF copied to device for ${clientData.name}.`,
-        [
-          { text: 'OK' }
-        ]
-      );
+      // Use platform-specific alerts
+      if (Platform.OS === 'web') {
+        // For web, use native browser alert
+        window.alert(`Success! Final processing data saved and PDF copied to device for ${clientData.name}.`);
+      } else {
+        // For mobile, use React Native Alert
+        Alert.alert(
+          'Success!',
+          `Final processing data saved and PDF copied to device for ${clientData.name}.`,
+          [
+            { text: 'OK' }
+          ]
+        );
+      }
     } catch (error) {
       console.error('Error saving to device:', error);
       Alert.alert('Error', `Failed to save: ${error.message}. Please try again.`);
@@ -137,6 +146,83 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
     } catch (error) {
       console.error('Error emailing to client:', error);
       Alert.alert('Error', `Failed to email: ${error.message}. Please try again.`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveData = async () => {
+    setSaving(true);
+
+    try {
+      console.log('Saving data to server...');
+      const clientRef = doc(db, 'clients', clientData.id);
+
+      // Update the client with final processing data
+      await updateDoc(clientRef, {
+        Processing: processingText,
+        updatedAt: new Date(),
+      });
+
+      // Use platform-specific alerts
+      if (Platform.OS === 'web') {
+        window.alert(`Data saved successfully for ${clientData.name}!`);
+      } else {
+        Alert.alert('Success!', `Data saved successfully for ${clientData.name}!`);
+      }
+
+      // Complete the workflow after saving
+      onComplete();
+    } catch (error) {
+      console.error('Error saving data:', error);
+      if (Platform.OS === 'web') {
+        window.alert(`Failed to save data: ${error.message}. Please try again.`);
+      } else {
+        Alert.alert('Error', `Failed to save data: ${error.message}. Please try again.`);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePrintReports = async () => {
+    setSaving(true);
+
+    try {
+      console.log('Generating reports for printing...');
+      const clientRef = doc(db, 'clients', clientData.id);
+
+      // Update the client with final processing data first
+      await updateDoc(clientRef, {
+        Processing: processingText,
+        updatedAt: new Date(),
+      });
+
+      // Get the complete client data for PDF generation
+      const clientDoc = await getDoc(clientRef);
+      const completeClientData = { id: clientData.id, ...clientDoc.data() };
+
+      // Generate PDF
+      const pdfUri = await generateUniversalPDF(completeClientData);
+
+      if (Platform.OS === 'web') {
+        // For web, show success message - print dialog should open automatically
+        window.alert(`Reports generated successfully for ${clientData.name}! Print dialog will open.`);
+      } else {
+        // For mobile, use sharing to allow printing
+        await Sharing.shareAsync(pdfUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Print Account Instructions for ${clientData.name}`,
+        });
+        Alert.alert('Success!', `Reports generated and ready to print for ${clientData.name}!`);
+      }
+    } catch (error) {
+      console.error('Error generating reports:', error);
+      if (Platform.OS === 'web') {
+        window.alert(`Failed to generate reports: ${error.message}. Please try again.`);
+      } else {
+        Alert.alert('Error', `Failed to generate reports: ${error.message}. Please try again.`);
+      }
     } finally {
       setSaving(false);
     }
@@ -196,9 +282,6 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
       <View style={styles.header}>
         <Image source={require('../assets/msi-smalllogo.jpeg')} style={styles.headerLogo} />
         <Text style={styles.headerTitle}>Final Processing</Text>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Text style={styles.backButtonText}>Back</Text>
-        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content}>
@@ -225,32 +308,33 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
         </View>
       </ScrollView>
 
-      <View style={styles.bottomButtonContainer}>
+      {/* Single row with all three buttons */}
+      <View style={styles.navigationContainer}>
+        <TouchableOpacity style={styles.backButton} onPress={onBack}>
+          <Text style={styles.backButtonText}>Back</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity 
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-          onPress={handleSaveToDevice}
+          style={[styles.generateButton, saving && styles.disabledButton]}
+          onPress={async () => {
+            // Save data first, then generate PDF
+            await handleSaveData();
+            await handlePrintReports();
+          }}
           disabled={saving}
         >
-          <Text style={styles.saveButtonText}>
-            {saving ? 'Saving...' : 'Save Copy to Device'}
-          </Text>
+          {saving ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Generate PDF</Text>
+          )}
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.emailButton, saving && styles.saveButtonDisabled]}
-          onPress={handleEmailToClient}
-          disabled={saving}
-        >
-          <Text style={styles.saveButtonText}>
-            {saving ? 'Emailing...' : 'Email to Client'}
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.finalizeButton}
-          onPress={onComplete}
-        >
-          <Text style={styles.saveButtonText}>Finalize</Text>
+
+        <TouchableOpacity style={styles.completeButton} onPress={() => {
+          // Navigate back to dashboard
+          onComplete();
+        }}>
+          <Text style={styles.completeButtonText}>Complete</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -283,15 +367,54 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     flex: 1,
   },
+  navigationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+    padding: 20,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
   backButton: {
     backgroundColor: '#6c757d',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 5,
+    padding: 15,
+    borderRadius: 8,
+    flex: 1,
+    alignItems: 'center',
   },
   backButtonText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  generateButton: {
+    backgroundColor: '#28a745',
+    padding: 15,
+    borderRadius: 8,
+    flex: 2,
+    alignItems: 'center',
+  },
+  completeButton: {
+    backgroundColor: '#007AFF',
+    padding: 15,
+    borderRadius: 8,
+    flex: 1,
+    alignItems: 'center',
+  },
+  completeButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  disabledButton: {
+    backgroundColor: '#cccccc',
+    opacity: 0.6,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: 'bold',
   },
   content: {
@@ -342,48 +465,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     textAlignVertical: 'top',
     minHeight: 200,
-  },
-  bottomButtonContainer: {
-    flexDirection: 'row',
-    padding: 20,
-    gap: 10,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-    justifyContent: 'space-between',
-  },
-  saveButton: {
-    flex: 1,
-    backgroundColor: '#6f42c1',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    minHeight: 50,
-  },
-  emailButton: {
-    flex: 1,
-    backgroundColor: '#28a745',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    minHeight: 50,
-  },
-  finalizeButton: {
-    flex: 1,
-    backgroundColor: '#dc3545',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    minHeight: 50,
-  },
-  saveButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-    textAlign: 'center',
   },
 });
 

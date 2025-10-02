@@ -3,12 +3,13 @@ import {
   View, 
   Text, 
   StyleSheet, 
-  TextInput,
+  TextInput, 
   TouchableOpacity, 
   ScrollView, 
   Alert,
   ActivityIndicator,
-  Image
+  Image,
+  Platform
 } from 'react-native';
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -111,13 +112,33 @@ All posting sheets must be reviewed by the inventory manager before they can be 
         updatedAt: new Date(),
       });
 
-      Alert.alert(
-        'Success!', 
-        `Progressive reports saved for ${clientData.name}`,
-        [
-          { text: 'OK', onPress: onComplete }
-        ]
-      );
+      // Use platform-specific alerts
+      if (Platform.OS === 'web') {
+        // For web, use native browser alert and call onComplete directly
+        window.alert(`Success! Progressive reports saved for ${clientData.name}`);
+        console.log('ProgressiveReportsForm: About to call onComplete()');
+        console.log('ProgressiveReportsForm: onComplete function:', onComplete);
+        if (onComplete) {
+          onComplete();
+          console.log('ProgressiveReportsForm: onComplete() called successfully');
+        } else {
+          console.error('ProgressiveReportsForm: onComplete is null/undefined!');
+        }
+      } else {
+        // For mobile, use React Native Alert
+        Alert.alert(
+          'Success!', 
+          `Progressive reports saved for ${clientData.name}`,
+          [
+            { text: 'OK', onPress: () => {
+              console.log('ProgressiveReportsForm: Mobile alert OK pressed, calling onComplete');
+              if (onComplete) {
+                onComplete();
+              }
+            }}
+          ]
+        );
+      }
     } catch (error) {
       console.error('Error saving progressive reports:', error);
       Alert.alert('Error', 'Failed to save progressive reports. Please try again.');

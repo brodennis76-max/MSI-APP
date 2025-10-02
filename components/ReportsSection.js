@@ -10,20 +10,26 @@ const ReportsSection = ({ clientData, onBack, onComplete }) => {
   const [showCompletionScreen, setShowCompletionScreen] = useState(false);
 
   const handleNext = () => {
+    console.log('ReportsSection: handleNext called, currentReport:', currentReport);
     switch (currentReport) {
       case 'progressive':
+        console.log('ReportsSection: Advancing from progressive to finalizing');
         setCurrentReport('finalizing');
         break;
       case 'finalizing':
+        console.log('ReportsSection: Advancing from finalizing to final');
         setCurrentReport('final');
         break;
       case 'final':
+        console.log('ReportsSection: Advancing from final to processing');
         setCurrentReport('processing');
         break;
       case 'processing':
+        console.log('ReportsSection: Advancing from processing to completion screen');
         setShowCompletionScreen(true);
         break;
       default:
+        console.log('ReportsSection: Default case, calling onComplete');
         onComplete();
     }
   };
