@@ -839,173 +839,10 @@ const UniversalPDFGenerator = ({
         addText('This client record exists but does not contain completed form data yet. To populate this PDF with actual instructions, please complete the required forms in the app.', margin, currentY);
       }
       
-      // Save PDF to device
+      // Save PDF to device (download only)
       pdf.save(filename);
       
-      // Also open print dialog for immediate printing
-      setTimeout(() => {
-        // Create a new window with the same content for printing
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <meta charset="utf-8">
-              <title>Account Instructions - ${currentClientData.name}</title>
-              <style>
-                @page {
-                  size: letter;
-                  margin: 0.5in;
-                }
-                
-                * {
-                  box-sizing: border-box;
-                }
-                
-                body {
-                  font-family: Arial, sans-serif;
-                  margin: 0;
-                  padding: 0;
-                  line-height: 1.4;
-                  color: #000;
-                  background: white;
-                  font-size: 12px;
-                  word-wrap: break-word;
-                  overflow-wrap: break-word;
-                  hyphens: auto;
-                }
-                
-                .pdf-container {
-                  width: 100%;
-                  margin: 0;
-                  padding: 0;
-                }
-                
-                .header {
-                  text-align: center;
-                  margin-bottom: 30px;
-                }
-                
-                .company-name {
-                  font-size: 18px;
-                  font-weight: bold;
-                  margin-bottom: 10px;
-                  color: #333;
-                }
-                
-                .title {
-                  font-size: 16px;
-                  font-weight: bold;
-                  margin-bottom: 10px;
-                  color: #333;
-                }
-                
-                .client-name {
-                  font-size: 14px;
-                  margin-bottom: 20px;
-                  color: #333;
-                }
-                
-                .info-section {
-                  margin-bottom: 20px;
-                }
-                
-                .info-row {
-                  display: flex;
-                  margin-bottom: 8px;
-                  align-items: flex-start;
-                }
-                
-                .info-label {
-                  font-weight: bold;
-                  width: 120px;
-                  flex-shrink: 0;
-                  color: #333;
-                }
-                
-                .info-value {
-                  flex: 1;
-                  word-wrap: break-word;
-                  overflow-wrap: break-word;
-                  white-space: pre-wrap;
-                  hyphens: auto;
-                  color: #333;
-                }
-                
-                .section-title {
-                  font-size: 16px;
-                  font-weight: bold;
-                  margin: 25px 0 15px 0;
-                  text-transform: uppercase;
-                  color: #333;
-                  page-break-after: avoid;
-                }
-                
-                .subsection {
-                  margin: 15px 0 15px 20px;
-                  page-break-inside: avoid;
-                }
-                
-                .subsection-title {
-                  font-size: 14px;
-                  font-weight: bold;
-                  margin: 15px 0 10px 0;
-                  color: #555;
-                  text-decoration: underline;
-                }
-                
-                .content {
-                  margin-bottom: 15px;
-                  word-wrap: break-word;
-                  overflow-wrap: break-word;
-                  white-space: pre-wrap;
-                  hyphens: auto;
-                  line-height: 1.5;
-                  color: #333;
-                  text-align: justify;
-                }
-                
-                .avoid-break {
-                  page-break-inside: avoid;
-                  break-inside: avoid;
-                }
-                
-                @media print {
-                  @page {
-                    size: letter;
-                    margin: 0.5in !important;
-                  }
-                  
-                  body {
-                    margin: 0 !important;
-                    padding: 0 !important;
-                  }
-                  
-                  .avoid-break {
-                    page-break-inside: avoid !important;
-                    break-inside: avoid !important;
-                  }
-                }
-              </style>
-            </head>
-            <body>
-              ${html.match(/<body[^>]*>([\s\S]*)<\/body>/i)[1]}
-            </body>
-          </html>
-        `);
-        printWindow.document.close();
-        
-        // Wait for content to load, then trigger print dialog
-        setTimeout(() => {
-          printWindow.print();
-          // Close the print window after printing
-          setTimeout(() => {
-            printWindow.close();
-          }, 1000);
-        }, 500);
-      }, 1000); // Wait 1 second after saving to open print dialog
-      
-      console.log('✅ UNIVERSAL PDF GENERATOR (WEB): PDF saved to device and print dialog opened');
+      console.log('✅ UNIVERSAL PDF GENERATOR (WEB): PDF saved to device');
       
     } catch (error) {
       console.error('❌ UNIVERSAL PDF GENERATOR (WEB): Error:', error);
@@ -1145,19 +982,16 @@ const UniversalPDFGenerator = ({
         </View>
       )}
 
-      {/* Back Button */}
-      {onBack && (
-        <View style={styles.backButtonContainer}>
+      {/* Single row with all three buttons */}
+      <View style={styles.navigationContainer}>
+        {onBack && (
           <TouchableOpacity style={styles.backButton} onPress={onBack}>
-            <Text style={styles.backButtonText}>← Back</Text>
+            <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
-        </View>
-      )}
+        )}
 
-      <View style={styles.buttonContainer}>
         <TouchableOpacity 
           style={[
-            styles.button, 
             styles.generateButton,
             (generating || !currentClientData) && styles.disabledButton
           ]} 
@@ -1181,25 +1015,20 @@ const UniversalPDFGenerator = ({
             </Text>
           )}
         </TouchableOpacity>
+
+        {onComplete && (
+          <TouchableOpacity style={styles.completeButton} onPress={() => {
+            // Navigate back to dashboard
+            if (onBack) {
+              onBack(); // Go back to previous screen (dashboard)
+            } else if (onComplete) {
+              onComplete(); // Call the completion handler
+            }
+          }}>
+            <Text style={styles.completeButtonText}>Complete</Text>
+          </TouchableOpacity>
+        )}
       </View>
-
-
-
-      {(onBack || onComplete) && (
-        <View style={styles.navigationContainer}>
-          {onBack && (
-            <TouchableOpacity style={styles.backButton} onPress={onBack}>
-              <Text style={styles.backButtonText}>Back</Text>
-            </TouchableOpacity>
-          )}
-
-          {onComplete && (
-            <TouchableOpacity style={styles.completeButton} onPress={onComplete}>
-              <Text style={styles.completeButtonText}>Complete</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
     </View>
   );
 };
@@ -1257,21 +1086,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
-  buttonContainer: {
-    marginBottom: 30,
-  },
-  button: {
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  previewButton: {
-    backgroundColor: '#007AFF',
-  },
-  generateButton: {
-    backgroundColor: '#28a745',
-  },
   disabledButton: {
     backgroundColor: '#cccccc',
     opacity: 0.6,
@@ -1281,19 +1095,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  backButtonContainer: {
-    marginBottom: 20,
-  },
   navigationContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
   },
   backButton: {
     backgroundColor: '#6c757d',
-    padding: 12,
+    padding: 15,
     borderRadius: 8,
-    alignSelf: 'flex-start',
-    minWidth: 100,
+    flex: 1,
     alignItems: 'center',
   },
   backButtonText: {
@@ -1301,12 +1113,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  generateButton: {
+    backgroundColor: '#28a745',
+    padding: 15,
+    borderRadius: 8,
+    flex: 2,
+    alignItems: 'center',
+  },
   completeButton: {
     backgroundColor: '#007AFF',
     padding: 15,
     borderRadius: 8,
     flex: 1,
-    marginLeft: 10,
     alignItems: 'center',
   },
   completeButtonText: {
