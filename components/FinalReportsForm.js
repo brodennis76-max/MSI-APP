@@ -3,12 +3,13 @@ import {
   View, 
   Text, 
   StyleSheet, 
-  TextInput,
+  TextInput, 
   TouchableOpacity, 
   ScrollView, 
   Alert,
   ActivityIndicator,
-  Image
+  Image,
+  Platform
 } from 'react-native';
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -63,16 +64,41 @@ const FinalReportsForm = ({ clientData, onBack, onComplete }) => {
         updatedAt: new Date(),
       });
 
-      Alert.alert(
-        'Success!', 
-        `Final reports saved for ${clientData.name}`,
-        [
-          { text: 'OK', onPress: onComplete }
-        ]
-      );
+      // Use platform-specific alerts
+      if (Platform.OS === 'web') {
+        // For web, use native browser alert and call onComplete directly
+        window.alert(`Success! Final reports saved for ${clientData.name}`);
+        console.log('FinalReportsForm: About to call onComplete()');
+        console.log('FinalReportsForm: onComplete function:', onComplete);
+        if (onComplete) {
+          onComplete();
+          console.log('FinalReportsForm: onComplete() called successfully');
+        } else {
+          console.error('FinalReportsForm: onComplete is null/undefined!');
+        }
+      } else {
+        // For mobile, use React Native Alert
+        Alert.alert(
+          'Success!', 
+          `Final reports saved for ${clientData.name}`,
+          [
+            { text: 'OK', onPress: () => {
+              console.log('FinalReportsForm: Mobile alert OK pressed, calling onComplete');
+              if (onComplete) {
+                onComplete();
+              }
+            }}
+          ]
+        );
+      }
     } catch (error) {
-      console.error('Error saving final reports:', error);
-      Alert.alert('Error', 'Failed to save final reports. Please try again.');
+      console.error('🔥 FIREBASE WRITE ERROR - Failed to save final reports:', error);
+      console.error('🔥 Error code:', error.code);
+      console.error('🔥 Error message:', error.message);
+      console.error('🔥 Platform:', Platform.OS);
+      console.error('🔥 Client ID:', clientData.id);
+      console.error('🔥 Current URL:', typeof window !== 'undefined' ? window.location.href : 'N/A');
+      Alert.alert('Error', `Failed to save final reports: ${error.message}. Please try again.`);
     } finally {
       setSaving(false);
     }
