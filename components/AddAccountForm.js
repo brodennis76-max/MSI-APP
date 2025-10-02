@@ -40,6 +40,27 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
   const [showCompletion, setShowCompletion] = useState(false);
   const [createdClient, setCreatedClient] = useState(null);
 
+  // Firebase connection test function
+  const testFirebaseConnection = async () => {
+    try {
+      console.log('🔥 Testing Firebase connection...');
+      const testRef = doc(db, 'test', 'connection-test');
+      await updateDoc(testRef, {
+        testField: 'test-value',
+        timestamp: new Date(),
+        platform: Platform.OS,
+        url: typeof window !== 'undefined' ? window.location.href : 'N/A'
+      });
+      console.log('✅ Firebase connection test SUCCESSFUL');
+      Alert.alert('Success', 'Firebase connection is working!');
+    } catch (error) {
+      console.error('❌ Firebase connection test FAILED:', error);
+      console.error('🔥 Error code:', error.code);
+      console.error('🔥 Error message:', error.message);
+      Alert.alert('Firebase Error', `Connection failed: ${error.message}`);
+    }
+  };
+
 
   // Refs for keyboard navigation
   const clientNameRef = React.useRef(null);
@@ -85,7 +106,11 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
         setLoading(false);
       },
       (error) => {
-        console.error('Error fetching clients:', error);
+        console.error('🔥 FIREBASE ERROR - Failed to fetch clients:', error);
+        console.error('🔥 Error code:', error.code);
+        console.error('🔥 Error message:', error.message);
+        console.error('🔥 Platform:', Platform.OS);
+        console.error('🔥 Current URL:', typeof window !== 'undefined' ? window.location.href : 'N/A');
         setLoading(false);
       }
     );

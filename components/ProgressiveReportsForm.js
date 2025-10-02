@@ -157,7 +157,12 @@ All posting sheets must be reviewed by the inventory manager before they can be 
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView 
+        style={styles.content}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+        scrollEventThrottle={16}
+      >
         <Text style={styles.sectionTitle}>Progressive Reports for {clientData.name}</Text>
         
         <View style={styles.formContainer}>
@@ -262,6 +267,14 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 20,
+    ...(Platform.OS === 'web' && {
+      overflowY: 'auto',
+      WebkitOverflowScrolling: 'touch',
+    }),
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
   },
   sectionTitle: {
     fontSize: 20,

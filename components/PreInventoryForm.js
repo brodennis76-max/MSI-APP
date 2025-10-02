@@ -410,8 +410,13 @@ ALL LOCATIONS MUST HAVE A DESCRIPTION. BE EXTRA DESCRIPTIVE IN THE CHECKOUT AREA
         );
       }
     } catch (error) {
-      console.error('Error saving pre-inventory instructions:', error);
-      Alert.alert('Error', 'Failed to save pre-inventory instructions. Please try again.');
+      console.error('🔥 FIREBASE WRITE ERROR - Failed to save pre-inventory instructions:', error);
+      console.error('🔥 Error code:', error.code);
+      console.error('🔥 Error message:', error.message);
+      console.error('🔥 Platform:', Platform.OS);
+      console.error('🔥 Client ID:', clientData.id);
+      console.error('🔥 Current URL:', typeof window !== 'undefined' ? window.location.href : 'N/A');
+      Alert.alert('Error', `Failed to save pre-inventory instructions: ${error.message}. Please try again.`);
     } finally {
       setSaving(false);
     }
@@ -428,7 +433,12 @@ ALL LOCATIONS MUST HAVE A DESCRIPTION. BE EXTRA DESCRIPTIVE IN THE CHECKOUT AREA
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView 
+        style={styles.content}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+        scrollEventThrottle={16}
+      >
         <Text style={styles.sectionTitle}>Complete Pre-Inventory Instructions for {clientData.name}</Text>
         
         <View style={styles.formContainer}>
@@ -565,6 +575,14 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 20,
+    ...(Platform.OS === 'web' && {
+      overflowY: 'auto',
+      WebkitOverflowScrolling: 'touch',
+    }),
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
   },
   sectionTitle: {
     fontSize: 20,
