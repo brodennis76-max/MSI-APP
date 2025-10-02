@@ -242,10 +242,31 @@ export const generateUniversalPDF = async (clientData, options = {}) => {
           </div>
 
           <!-- PRE-INVENTORY INSTRUCTIONS SECTION -->
-          ${clientData.Pre_Inv || clientData.preInventory || clientData.sections?.[0]?.content ? `
+          ${clientData.Pre_Inv || clientData.preInventory || clientData.sections?.[0]?.content || clientData.ALR ? `
             <div class="avoid-break">
               <div class="section-title">Pre-Inventory Instructions</div>
-              <div class="content">${clientData.Pre_Inv || clientData.preInventory || clientData.sections?.[0]?.content || ''}</div>
+              <div class="content">${(() => {
+                // Get the main pre-inventory content
+                let content = clientData.Pre_Inv || clientData.preInventory || clientData.sections?.[0]?.content || '';
+                
+                // If there's an ALR field and it's not already in the content, add the standard ALR instructions
+                if (clientData.ALR && !content.includes('ALR disk')) {
+                  const alrValue = clientData.ALR || 'NOT DETERMINED';
+                  const baseInstructions = `• Account disk is available via the MSI website and Global Resource.
+• ALR disk is ${alrValue}.
+• Priors are REQUIRED for all store counts.
+• Review inventory checklist before leaving the office. A copy of the inventory checklist is attached to the end of these account instructions.`;
+                  
+                  // If there's existing content, add the ALR instructions at the beginning
+                  if (content.trim()) {
+                    content = baseInstructions + '\n\n' + content;
+                  } else {
+                    content = baseInstructions;
+                  }
+                }
+                
+                return content;
+              })()}</div>
               
               <!-- Area Mapping Subsection -->
               ${clientData.sections?.[0]?.subsections?.[0]?.content ? `
