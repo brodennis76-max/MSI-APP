@@ -66,6 +66,7 @@ export const generateUniversalPDF = async (clientData, options = {}) => {
             text-align: center;
             margin-bottom: 30px;
             padding-top: 0;
+            page-break-after: avoid;
           }
           
           .company-name {
@@ -90,6 +91,7 @@ export const generateUniversalPDF = async (clientData, options = {}) => {
           
           .info-section {
             margin-bottom: 20px;
+            page-break-after: avoid;
           }
           
           .info-row {
@@ -208,7 +210,7 @@ export const generateUniversalPDF = async (clientData, options = {}) => {
       </head>
       <body>
         <div class="pdf-container">
-          <div class="header">
+          <div class="header avoid-break">
             <div class="company-name">MSI INVENTORY</div>
             <div class="title">ACCOUNT INSTRUCTIONS</div>
             <div class="client-name">${clientData.name}</div>
@@ -242,49 +244,47 @@ export const generateUniversalPDF = async (clientData, options = {}) => {
           </div>
 
           <!-- PRE-INVENTORY INSTRUCTIONS SECTION -->
-          ${clientData.Pre_Inv || clientData.preInventory || clientData.sections?.[0]?.content || clientData.ALR ? `
-            <div class="avoid-break">
-              <div class="section-title">Pre-Inventory Instructions</div>
-              <div class="content">${(() => {
-                // Get the main pre-inventory content
-                let content = clientData.Pre_Inv || clientData.preInventory || clientData.sections?.[0]?.content || '';
-                
-                // If there's an ALR field and it's not already in the content, add the standard ALR instructions
-                if (clientData.ALR && !content.includes('ALR disk')) {
-                  const alrValue = clientData.ALR || 'NOT DETERMINED';
-                  const baseInstructions = `• Account disk is available via the MSI website and Global Resource.
+          <div class="avoid-break">
+            <div class="section-title">Pre-Inventory Instructions</div>
+            <div class="content">${(() => {
+              // Get the main pre-inventory content
+              let content = clientData.Pre_Inv || clientData.preInventory || clientData.sections?.[0]?.content || '';
+              
+              // Always add ALR instructions if not already in the content
+              if (!content.includes('ALR disk')) {
+                const alrValue = (clientData.ALR && clientData.ALR.trim()) ? clientData.ALR : 'NOT DETERMINED';
+                const baseInstructions = `• Account disk is available via the MSI website and Global Resource.
 • ALR disk is ${alrValue}.
 • Priors are REQUIRED for all store counts.
 • Review inventory checklist before leaving the office. A copy of the inventory checklist is attached to the end of these account instructions.`;
-                  
-                  // If there's existing content, add the ALR instructions at the beginning
-                  if (content.trim()) {
-                    content = baseInstructions + '\n\n' + content;
-                  } else {
-                    content = baseInstructions;
-                  }
-                }
                 
-                return content;
-              })()}</div>
+                // If there's existing content, add the ALR instructions at the beginning
+                if (content.trim()) {
+                  content = baseInstructions + '\n\n' + content;
+                } else {
+                  content = baseInstructions;
+                }
+              }
               
-              <!-- Area Mapping Subsection -->
-              ${clientData.sections?.[0]?.subsections?.[0]?.content ? `
-                <div class="subsection">
-                  <div class="subsection-title">Area Mapping</div>
-                  <div class="content">${clientData.sections[0].subsections[0].content}</div>
-                </div>
-              ` : ''}
-              
-              <!-- Store Prep Subsection -->
-              ${clientData.sections?.[0]?.subsections?.[1]?.content ? `
-                <div class="subsection">
-                  <div class="subsection-title">Store Prep Instructions</div>
-                  <div class="content">${clientData.sections[0].subsections[1].content}</div>
-                </div>
-              ` : ''}
-            </div>
-          ` : ''}
+              return content;
+            })()}</div>
+            
+            <!-- Area Mapping Subsection -->
+            ${clientData.sections?.[0]?.subsections?.[0]?.content ? `
+              <div class="subsection">
+                <div class="subsection-title">Area Mapping</div>
+                <div class="content">${clientData.sections[0].subsections[0].content}</div>
+              </div>
+            ` : ''}
+            
+            <!-- Store Prep Subsection -->
+            ${clientData.sections?.[0]?.subsections?.[1]?.content ? `
+              <div class="subsection">
+                <div class="subsection-title">Store Prep Instructions</div>
+                <div class="content">${clientData.sections[0].subsections[1].content}</div>
+              </div>
+            ` : ''}
+          </div>
 
 
           <!-- 1. INVENTORY PROCEDURES -->
