@@ -8,7 +8,8 @@ import {
   ScrollView, 
   Alert,
   ActivityIndicator,
-  Image
+  Image,
+  Platform
 } from 'react-native';
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -120,16 +121,41 @@ Review the following reports with the store manager/DM and determine if 3 more r
         updatedAt: new Date(),
       });
 
-      Alert.alert(
-        'Success!', 
-        `Finalizing count data saved for ${clientData.name}`,
-        [
-          { text: 'OK', onPress: onComplete }
-        ]
-      );
+      // Use platform-specific alerts
+      if (Platform.OS === 'web') {
+        // For web, use native browser alert and call onComplete directly
+        window.alert(`Success! Finalizing count data saved for ${clientData.name}`);
+        console.log('FinalizingCountForm: About to call onComplete()');
+        console.log('FinalizingCountForm: onComplete function:', onComplete);
+        if (onComplete) {
+          onComplete();
+          console.log('FinalizingCountForm: onComplete() called successfully');
+        } else {
+          console.error('FinalizingCountForm: onComplete is null/undefined!');
+        }
+      } else {
+        // For mobile, use React Native Alert
+        Alert.alert(
+          'Success!', 
+          `Finalizing count data saved for ${clientData.name}`,
+          [
+            { text: 'OK', onPress: () => {
+              console.log('FinalizingCountForm: Mobile alert OK pressed, calling onComplete');
+              if (onComplete) {
+                onComplete();
+              }
+            }}
+          ]
+        );
+      }
     } catch (error) {
-      console.error('Error saving finalizing count data:', error);
-      Alert.alert('Error', 'Failed to save finalizing count data. Please try again.');
+      console.error('🔥 FIREBASE WRITE ERROR - Failed to save finalizing count data:', error);
+      console.error('🔥 Error code:', error.code);
+      console.error('🔥 Error message:', error.message);
+      console.error('🔥 Platform:', Platform.OS);
+      console.error('🔥 Client ID:', clientData.id);
+      console.error('🔥 Current URL:', typeof window !== 'undefined' ? window.location.href : 'N/A');
+      Alert.alert('Error', `Failed to save finalizing count data: ${error.message}. Please try again.`);
     } finally {
       setSaving(false);
     }

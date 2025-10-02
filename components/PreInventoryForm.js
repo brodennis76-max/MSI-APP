@@ -434,7 +434,7 @@ ALL LOCATIONS MUST HAVE A DESCRIPTION. BE EXTRA DESCRIPTIVE IN THE CHECKOUT AREA
       </View>
 
       <ScrollView 
-        style={styles.content}
+        style={[styles.content, Platform.OS === 'web' && styles.webScrollView]}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
         scrollEventThrottle={16}
@@ -583,6 +583,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 20,
+  },
+  webScrollView: {
+    overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch',
+    height: '100%',
   },
   sectionTitle: {
     fontSize: 20,
