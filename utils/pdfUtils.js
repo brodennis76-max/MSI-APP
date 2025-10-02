@@ -216,7 +216,9 @@ export const generateUniversalPDF = async (clientData, options = {}) => {
             <div class="client-name">${clientData.name}</div>
           </div>
 
+          <!-- BASIC INFORMATION SECTION -->
           <div class="info-section avoid-break">
+            <!-- DEBUG: inventoryType = ${clientData.inventoryType} -->
             <div class="info-row">
               <div class="info-label">Inventory:</div>
               <div class="info-value">${clientData.inventoryType || 'Scan'}</div>
@@ -386,6 +388,7 @@ export const generateUniversalPDF = async (clientData, options = {}) => {
 
   try {
     console.log('🎯 UNIVERSAL PDF UTILS: Generating PDF...');
+    console.log('🎯 CLIENT DATA:', JSON.stringify(clientData, null, 2));
     
     // Generate PDF using expo-print with exact 0.5" margins
     const { uri } = await Print.printToFileAsync({

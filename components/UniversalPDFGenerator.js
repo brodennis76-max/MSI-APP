@@ -412,83 +412,79 @@ const UniversalPDFGenerator = ({
           <div class="pdf-container">
             <div class="header">
               <div class="company-name">MSI INVENTORY</div>
-              <div class="title">ACCOUNT INSTRUCTIONS:</div>
+              <div class="title">ACCOUNT INSTRUCTIONS</div>
               <div class="client-name">${client.name}</div>
             </div>
 
             <div class="info-section avoid-break">
-              ${client.name ? `
-                <div class="info-row">
-                  <div class="info-label">Client Name:</div>
-                  <div class="info-value">${client.name}</div>
-                </div>
-              ` : ''}
-              
-              ${client.email ? `
-                <div class="info-row">
-                  <div class="info-label">Email:</div>
-                  <div class="info-value">${client.email}</div>
-                </div>
-              ` : ''}
-              
-              ${client.address ? `
-                <div class="info-row">
-                  <div class="info-label">Address:</div>
-                  <div class="info-value">${client.address}</div>
-                </div>
-              ` : ''}
-              
-              ${client.phone ? `
-                <div class="info-row">
-                  <div class="info-label">Phone:</div>
-                  <div class="info-value">${client.phone}</div>
-                </div>
-              ` : ''}
+              <div class="info-row">
+                <div class="info-label">Inventory:</div>
+                <div class="info-value">${client.inventoryType || 'Scan'}</div>
+              </div>
               
               <div class="info-row">
-                <div class="info-label">Generated:</div>
+                <div class="info-label">Updated:</div>
                 <div class="info-value">${currentDate}</div>
+              </div>
+              
+              <div class="info-row">
+                <div class="info-label">PIC:</div>
+                <div class="info-value">${client.PIC || 'Stores to be contacted...'}</div>
+              </div>
+              
+              <div class="info-row">
+                <div class="info-label">Store Start Time:</div>
+                <div class="info-value">${client.startTime || 'Not specified'}</div>
+              </div>
+              
+              <div class="info-row">
+                <div class="info-label">Verification:</div>
+                <div class="info-value">${client.verification || 'Audit trails will be provided...'}</div>
               </div>
             </div>
 
-            <!-- 1. PRE-INVENTORY SECTION -->
-            ${(() => {
-              const preInvContent = client.Pre_Inv || client.preInventory;
-              const sectionContent = client.sections?.[0]?.content;
-              const areaMappingContent = client.sections?.[0]?.subsections?.[0]?.content;
-              const storePrepContent = client.sections?.[0]?.subsections?.[1]?.content;
+            <!-- PRE-INVENTORY INSTRUCTIONS SECTION -->
+            <div class="avoid-break">
+              <div class="section-title">Pre-Inventory Instructions</div>
+              <div class="content">${(() => {
+                // Get the main pre-inventory content
+                let content = client.Pre_Inv || client.preInventory || client.sections?.[0]?.content || '';
+                
+                // Always add ALR instructions if not already in the content
+                if (!content.includes('ALR disk')) {
+                  const alrValue = (client.ALR && client.ALR.trim()) ? client.ALR : 'NOT DETERMINED';
+                  const baseInstructions = `• Account disk is available via the MSI website and Global Resource.
+• ALR disk is ${alrValue}.
+• Priors are REQUIRED for all store counts.
+• Review inventory checklist before leaving the office. A copy of the inventory checklist is attached to the end of these account instructions.`;
+                  
+                  // If there's existing content, add the ALR instructions at the beginning
+                  if (content.trim()) {
+                    content = baseInstructions + '\\n\\n' + content;
+                  } else {
+                    content = baseInstructions;
+                  }
+                }
+                
+                return content;
+              })()}</div>
               
-              // Only show if we have actual form data (not default template)
-              const hasPreInvData = preInvContent && !isDefaultContent(preInvContent, "General pre-inventory instructions for the team.");
-              const hasSectionData = sectionContent && !isDefaultContent(sectionContent, "General pre-inventory instructions for the team.");
-              const hasAreaMapping = areaMappingContent && !isDefaultContent(areaMappingContent, "Instructions on mapping each area of the store prior to inventory.");
-              const hasStorePrep = storePrepContent && !isDefaultContent(storePrepContent, "Instructions for preparing the store, including clearing shelves and labeling sections.");
+              <!-- Area Mapping Subsection -->
+              ${client.sections?.[0]?.subsections?.[0]?.content ? `
+                <div class="subsection">
+                  <div class="subsection-title">Area Mapping</div>
+                  <div class="content">${client.sections[0].subsections[0].content}</div>
+                </div>
+              ` : ''}
               
-              if (hasPreInvData || hasSectionData || hasAreaMapping || hasStorePrep) {
-                return `
-                  <div class="avoid-break">
-                    <div class="section-title">Pre-Inventory Instructions</div>
-                    ${hasPreInvData ? `<div class="content">${preInvContent}</div>` : ''}
-                    ${hasSectionData && !hasPreInvData ? `<div class="content">${sectionContent}</div>` : ''}
-                    
-                    ${hasAreaMapping ? `
-                      <div class="subsection">
-                        <div class="subsection-title">Area Mapping</div>
-                        <div class="content">${areaMappingContent}</div>
-                      </div>
-                    ` : ''}
-                    
-                    ${hasStorePrep ? `
-                      <div class="subsection">
-                        <div class="subsection-title">Store Prep Instructions</div>
-                        <div class="content">${storePrepContent}</div>
-                      </div>
-                    ` : ''}
-                  </div>
-                `;
-              }
-              return '';
-            })()}
+              <!-- Store Prep Subsection -->
+              ${client.sections?.[0]?.subsections?.[1]?.content ? `
+                <div class="subsection">
+                  <div class="subsection-title">Store Prep Instructions</div>
+                  <div class="content">${client.sections[0].subsections[1].content}</div>
+                </div>
+              ` : ''}
+            </div>
 
             <!-- 2. INVENTORY PROCEDURES -->
             ${client.Inv_Proc || client.inventoryProcedures ? `
@@ -1159,35 +1155,6 @@ const UniversalPDFGenerator = ({
       )}
 
       <View style={styles.buttonContainer}>
-        {showPreview && (
-          <TouchableOpacity 
-            style={[
-              styles.button, 
-              styles.previewButton,
-              (generating || !currentClientData) && styles.disabledButton
-            ]} 
-            onPress={() => {
-              console.log('🔘 Preview button pressed', {
-                generating,
-                hasCurrentClientData: !!currentClientData,
-                disabled: generating || !currentClientData
-              });
-              if (!generating && currentClientData) {
-                generatePDF(true);
-              }
-            }}
-            disabled={generating || !currentClientData}
-          >
-            {generating ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>
-                Preview PDF {!currentClientData ? '(No Data)' : ''}
-              </Text>
-            )}
-          </TouchableOpacity>
-        )}
-
         <TouchableOpacity 
           style={[
             styles.button, 
@@ -1216,27 +1183,7 @@ const UniversalPDFGenerator = ({
         </TouchableOpacity>
       </View>
 
-      <View style={styles.featuresContainer}>
-        <Text style={styles.featuresTitle}>🎯 Universal PDF Generator Features:</Text>
-        <Text style={styles.featureText}>✅ Exact 0.5" margins on all sides</Text>
-        <Text style={styles.featureText}>✅ Professional text wrapping & hyphenation</Text>
-        <Text style={styles.featureText}>✅ Handles clientData OR clientId automatically</Text>
-        <Text style={styles.featureText}>✅ Replaces ALL other PDF generators</Text>
-        <Text style={styles.featureText}>✅ Consistent output across all platforms</Text>
-        <Text style={styles.featureText}>✅ One generator for the entire app</Text>
-      </View>
 
-      <View style={styles.debugContainer}>
-        <Text style={styles.debugTitle}>🔍 Debug Info:</Text>
-        <Text style={styles.debugText}>Platform: {Platform.OS}</Text>
-        <Text style={styles.debugText}>Loading: {loading ? 'Yes' : 'No'}</Text>
-        <Text style={styles.debugText}>Generating: {generating ? 'Yes' : 'No'}</Text>
-        <Text style={styles.debugText}>Has clientData: {clientData ? 'Yes' : 'No'}</Text>
-        <Text style={styles.debugText}>Has clientId: {clientId ? 'Yes' : 'No'}</Text>
-        <Text style={styles.debugText}>Has fetchedClientData: {fetchedClientData ? 'Yes' : 'No'}</Text>
-        <Text style={styles.debugText}>Current data available: {currentClientData ? 'Yes' : 'No'}</Text>
-        <Text style={styles.debugText}>Buttons enabled: {(!generating && currentClientData) ? 'Yes' : 'No'}</Text>
-      </View>
 
       {(onBack || onComplete) && (
         <View style={styles.navigationContainer}>
@@ -1333,42 +1280,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  featuresContainer: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
-  },
-  featuresTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 10,
-  },
-  featureText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 5,
-  },
-  debugContainer: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#007AFF',
-  },
-  debugTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#007AFF',
-    marginBottom: 10,
-  },
-  debugText: {
-    fontSize: 12,
-    color: '#333',
-    marginBottom: 3,
   },
   backButtonContainer: {
     marginBottom: 20,
