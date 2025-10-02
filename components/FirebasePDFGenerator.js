@@ -14,6 +14,7 @@ import * as FileSystem from 'expo-file-system';
 import { db } from '../firebase-config';
 import { doc, getDoc } from 'firebase/firestore';
 import PDFViewer from './PDFViewer';
+import WebPDFGenerator from './WebPDFGenerator';
 
 const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
   const [clientData, setClientData] = useState(null);
@@ -136,8 +137,8 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
           <title>Account Instructions - ${client.name}</title>
           <style>
             @page {
-              margin: 0.75in;
-              size: 8.5in 11in;
+              size: letter;
+              margin: 0.5in;
               @bottom-center {
                 content: "Page " counter(page);
                 font-size: 10px;
@@ -156,6 +157,16 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
               page-break-inside: avoid;
               word-wrap: break-word;
               overflow-wrap: break-word;
+              width: 8.5in;
+              min-height: 11in;
+            }
+            
+            .pdf-container {
+              width: 7.5in;
+              min-height: 9in;
+              padding: 1in;
+              box-sizing: border-box;
+              margin: 0 auto;
             }
             
             
@@ -210,6 +221,7 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
               word-wrap: break-word;
               overflow-wrap: break-word;
               white-space: normal;
+              hyphens: auto;
             }
             
             .warning-box {
@@ -251,33 +263,54 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
               overflow-wrap: break-word;
               white-space: normal;
               page-break-inside: auto;
+              hyphens: auto;
             }
             
-            .section-title {
-              page-break-after: avoid;
+            .info-section {
               page-break-inside: avoid;
             }
             
-            .subsection-title {
-              page-break-after: avoid;
+            .content {
               page-break-inside: avoid;
             }
             
             .bullet-list {
               margin: 8px 0;
               padding-left: 0.5in;
-              page-break-inside: auto;
+              page-break-inside: avoid;
             }
             
-            .page-break {
-              page-break-before: always;
+            .numbered-list {
+              page-break-inside: avoid;
             }
             
+            .warning-box {
+              page-break-inside: avoid;
+            }
+            
+            /* Avoid cutting off elements */
             .avoid-break {
               page-break-inside: avoid;
             }
             
+            /* Force new page */
+            .page-break {
+              page-break-before: always;
+            }
+            
             @media print {
+              .no-print { display: none; }
+              .content { width: 100%; }
+              body { 
+                margin: 0 !important; 
+                padding: 0 !important; 
+              }
+              .pdf-container { 
+                margin: 0 !important; 
+                padding: 0.5in !important; 
+                width: 7.5in !important;
+                box-sizing: border-box !important;
+              }
               .avoid-break {
                 page-break-inside: avoid;
               }
@@ -322,7 +355,8 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
           </style>
         </head>
         <body>
-          <div class="header">
+          <div class="pdf-container">
+            <div class="header">
             <div class="company-name">MSI INVENTORY</div>
             <div class="title">ACCOUNT INSTRUCTIONS:</div>
             <div class="client-name">${client.name}</div>
@@ -520,6 +554,7 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
               <li>METS will send all required reports.</li>
             </ol>
           </div>
+          </div>
         </body>
       </html>
     `;
@@ -539,7 +574,7 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
       // Check if running on web
       if (Platform.OS === 'web') {
         console.log('Web platform detected, using web PDF generation...');
-        await generateWebPDF(html, `account-instructions-${clientData.name}.pdf`);
+        await WebPDFGenerator.generatePDF(html, `account-instructions-${clientData.name}.pdf`);
         setPdfUri('web-pdf-generated');
         setHtmlContent(html);
         setShowPDFViewer(true);
@@ -547,6 +582,8 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
         const { uri } = await Print.printToFileAsync({
           html,
           base64: false,
+          width: 612, // Letter width in points (8.5 inches * 72 points/inch)
+          height: 792, // Letter height in points (11 inches * 72 points/inch)
         });
 
         // Store the PDF URI and HTML content, then show the viewer
@@ -564,73 +601,6 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
     }
   };
 
-  const generateWebPDF = async (htmlContent, filename) => {
-    try {
-      // Use html2pdf for much better PDF generation
-      const html2pdf = (await import('html2pdf.js')).default;
-      
-      // Create a temporary container with proper styling for letter size
-      const tempContainer = document.createElement('div');
-      tempContainer.style.width = '8.5in'; // Letter width
-      tempContainer.style.backgroundColor = 'white';
-      tempContainer.style.fontFamily = 'Arial, sans-serif';
-      tempContainer.style.fontSize = '12px';
-      tempContainer.style.lineHeight = '1.4';
-      tempContainer.style.color = '#000';
-      tempContainer.style.boxSizing = 'border-box';
-      tempContainer.style.wordWrap = 'break-word';
-      tempContainer.style.overflowWrap = 'break-word';
-      tempContainer.style.whiteSpace = 'normal';
-      tempContainer.style.padding = '0.75in';
-      tempContainer.innerHTML = htmlContent;
-      
-      document.body.appendChild(tempContainer);
-      
-      // Wait for fonts and images to load
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Generate PDF with html2pdf using the proven approach
-      const opt = {
-        margin: [25.4, 25.4, 25.4, 25.4], // top, left, bottom, right (in mm = 1 inch)
-        filename: filename,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { 
-          scale: 2, 
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#ffffff',
-          logging: false
-        },
-        jsPDF: { 
-          unit: "mm", 
-          format: "letter", 
-          orientation: "portrait" 
-        }
-      };
-      
-      const pdf = await html2pdf().set(opt).from(tempContainer).save();
-      
-      // Clean up
-      document.body.removeChild(tempContainer);
-      
-      return { uri: 'web-pdf-downloaded' };
-    } catch (error) {
-      console.error('Error generating web PDF:', error);
-      // Fallback to print dialog
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
-      
-      printWindow.onload = () => {
-        printWindow.print();
-        setTimeout(() => {
-          printWindow.close();
-        }, 1000);
-      };
-      
-      return { uri: 'web-pdf-printed' };
-    }
-  };
 
   // Show PDF viewer if PDF has been generated
   if (showPDFViewer && pdfUri && htmlContent && clientData) {

@@ -10,7 +10,7 @@
     "newArchEnabled": false,
     "description": "MSI Inventory Management Application for field teams",
     "splash": {
-      "image": "./assets/login-logo.png",
+      "image": "./assets/login-logo.jpg",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -19,7 +19,7 @@
       "bundleIdentifier": "com.msi.msiexpo",
       "icon": "./assets/icon.png",
       "splash": {
-        "image": "./assets/login-logo.png",
+        "image": "./assets/login-logo.jpg",
         "resizeMode": "contain",
         "backgroundColor": "#ffffff"
       },
@@ -38,7 +38,17 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "name": "MSI Inventory",
+      "shortName": "MSI",
+      "themeColor": "#ffffff",
+      "backgroundColor": "#ffffff",
+      "display": "standalone",
+      "orientation": "portrait",
+      "startUrl": "/",
+      "scope": "/",
+      "lang": "en",
+      "description": "MSI Inventory Management Application for field teams"
     },
     "plugins": [
       "expo-dev-client"
@@ -48,6 +58,12 @@
         "projectId": "ebf527d7-aca4-454e-a924-ed7e9a766f85"
       }
     },
-    "owner": "brodennis76"
+    "owner": "brodennis76",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ebf527d7-aca4-454e-a924-ed7e9a766f85"
+    }
   }
 }

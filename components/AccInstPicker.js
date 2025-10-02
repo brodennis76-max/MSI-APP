@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator, Image, TouchableOpacity, Tex
 import { Picker } from '@react-native-picker/picker';
 import { db } from '../firebase-config';
 import { collection, onSnapshot } from 'firebase/firestore';
-import FirebasePDFGenerator from './FirebasePDFGenerator';
+import UniversalPDFGenerator from './UniversalPDFGenerator';
 
 const AccInstPicker = ({ onBack, onMenuPress }) => {
   const [clients, setClients] = useState([]);
@@ -72,10 +72,12 @@ const AccInstPicker = ({ onBack, onMenuPress }) => {
   // Show PDF generator if a client is selected and showPDFGenerator is true
   if (showPDFGenerator && selectedClientId) {
     return (
-      <FirebasePDFGenerator 
+      <UniversalPDFGenerator 
         clientId={selectedClientId}
         onBack={() => setShowPDFGenerator(false)}
         onComplete={() => setShowPDFGenerator(false)}
+        showPreview={true}
+        customTitle="Account Instructions"
       />
     );
   }

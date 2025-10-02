@@ -7,14 +7,10 @@ import {
   ScrollView, 
   Alert,
   ActivityIndicator,
-  Image,
-  Platform
+  Image
 } from 'react-native';
-// Import WebView only for non-web platforms
-let WebView;
-if (Platform.OS !== 'web') {
-  WebView = require('react-native-webview').WebView;
-}
+import { WebView } from 'react-native-webview';
+import { Platform } from 'react-native';
 import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system';
 import { db } from '../firebase-config';
@@ -57,11 +53,27 @@ const ClientPDFViewer = ({ clientId, onBack }) => {
           <meta charset="utf-8">
           <title>Account Instructions - ${client.name}</title>
           <style>
+            @page {
+              size: letter;
+              margin: 0.5in;
+            }
+            
             body {
               font-family: Arial, sans-serif;
-              margin: 20px;
+              margin: 0;
+              padding: 0;
               line-height: 1.6;
               color: #333;
+              width: 8.5in;
+              min-height: 11in;
+            }
+            
+            .pdf-container {
+              width: 7.5in;
+              min-height: 9in;
+              padding: 1in;
+              box-sizing: border-box;
+              margin: 0 auto;
             }
             .header {
               text-align: center;
@@ -82,7 +94,23 @@ const ClientPDFViewer = ({ clientId, onBack }) => {
             }
             .section {
               margin-bottom: 25px;
+            }
+            
+            /* Avoid cutting off elements */
+            .avoid-break {
               page-break-inside: avoid;
+            }
+            
+            /* Force new page */
+            .page-break {
+              page-break-before: always;
+            }
+            
+            @media print {
+              .no-print { display: none; }
+              .content { width: 100%; }
+              body { margin: 0; padding: 0; }
+              .pdf-container { margin: 0; padding: 0; }
             }
             .section-title {
               font-size: 18px;
@@ -106,6 +134,9 @@ const ClientPDFViewer = ({ clientId, onBack }) => {
               border-left: 4px solid #007AFF;
               border-radius: 4px;
               white-space: pre-wrap;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
+              hyphens: auto;
             }
             .instructions-list {
               background-color: #f8f9fa;
@@ -127,10 +158,24 @@ const ClientPDFViewer = ({ clientId, onBack }) => {
               text-align: center;
               font-size: 16px;
             }
+            
+            @media print {
+              body {
+                margin: 0 !important;
+                padding: 0 !important;
+              }
+              .pdf-container {
+                margin: 0 !important;
+                padding: 1in !important; /* Chrome-friendly 1-inch margins */
+                width: 6.5in !important;
+                box-sizing: border-box !important;
+              }
+            }
           </style>
         </head>
         <body>
-          <div class="header">
+          <div class="pdf-container">
+            <div class="header">
             <div class="company-name">MSI INVENTORY</div>
             <div class="client-name">Account Instructions for ${client.name}</div>
             <div>Generated on ${new Date().toLocaleDateString()}</div>
@@ -173,49 +218,49 @@ const ClientPDFViewer = ({ clientId, onBack }) => {
 
           ${client.Inv_Proc ? `
           <div class="section">
-            <div class="section-title">Inventory Procedures</div>
+            <div class="section-title page-break">Inventory Procedures</div>
             <div class="instructions-list">${client.Inv_Proc}</div>
           </div>
           ` : ''}
 
           ${client.Audits ? `
           <div class="section">
-            <div class="section-title">Audits</div>
+            <div class="section-title page-break">Audits</div>
             <div class="instructions-list">${client.Audits}</div>
           </div>
           ` : ''}
 
           ${client.Inv_Flow ? `
           <div class="section">
-            <div class="section-title">Inventory Flow</div>
+            <div class="section-title page-break">Inventory Flow</div>
             <div class="instructions-list">${client.Inv_Flow}</div>
           </div>
           ` : ''}
 
           ${client.noncount ? `
           <div class="section">
-            <div class="section-title">Non-Count Products</div>
+            <div class="section-title page-break">Non-Count Products</div>
             <div class="instructions-list">${client.noncount}</div>
           </div>
           ` : ''}
 
           ${client['Team-Instr'] ? `
           <div class="section">
-            <div class="section-title">Pre-Inventory Team Instructions</div>
+            <div class="section-title page-break">Pre-Inventory Team Instructions</div>
             <div class="instructions-list">${client['Team-Instr']}</div>
           </div>
           ` : ''}
 
           ${client.Prog_Rep ? `
           <div class="section">
-            <div class="section-title">Progressive Reports</div>
+            <div class="section-title page-break">Progressive Reports</div>
             <div class="instructions-list">${client.Prog_Rep}</div>
           </div>
           ` : ''}
 
           ${client.Finalize ? `
           <div class="section">
-            <div class="section-title">Finalizing the Count</div>
+            <div class="section-title page-break">Finalizing the Count</div>
             <div class="warning-box">
               <div class="warning-text">VERIFY ALL REPORTS BALANCE BEFORE GIVING THEM TO THE MANAGER</div>
             </div>
@@ -225,14 +270,14 @@ const ClientPDFViewer = ({ clientId, onBack }) => {
 
           ${client.Fin_Rep ? `
           <div class="section">
-            <div class="section-title">Final Reports</div>
+            <div class="section-title page-break">Final Reports</div>
             <div class="instructions-list">${client.Fin_Rep}</div>
           </div>
           ` : ''}
 
           ${client.Processing ? `
           <div class="section">
-            <div class="section-title">Final Processing</div>
+            <div class="section-title page-break">Final Processing</div>
             <div class="instructions-list">${client.Processing}</div>
           </div>
           ` : ''}
@@ -247,6 +292,7 @@ const ClientPDFViewer = ({ clientId, onBack }) => {
               <div class="field-label">Note:</div>
               <div class="field-value">A completed Account Instructions Form will be sent within 48 hours. Please check your email and spam folder.</div>
             </div>
+          </div>
           </div>
         </body>
       </html>
@@ -263,6 +309,8 @@ const ClientPDFViewer = ({ clientId, onBack }) => {
       const { uri } = await Print.printToFileAsync({
         html,
         base64: false,
+        width: 612, // Letter width in points (8.5 inches * 72 points/inch)
+        height: 792, // Letter height in points (11 inches * 72 points/inch)
       });
 
       Alert.alert(
@@ -323,26 +371,25 @@ const ClientPDFViewer = ({ clientId, onBack }) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
-        {Platform.OS === 'web' ? (
-          <div 
-            style={{ 
-              width: '100%', 
-              height: '100%', 
-              border: '1px solid #ccc',
-              padding: '10px',
-              overflow: 'auto'
-            }}
-            dangerouslySetInnerHTML={{ __html: generateHTML(clientData) }}
-          />
-        ) : (
-          <WebView
-            source={{ html: generateHTML(clientData) }}
-            style={styles.webview}
-            scalesPageToFit={true}
-          />
-        )}
-      </ScrollView>
+          <ScrollView style={styles.content}>
+            {Platform.OS === 'web' ? (
+              <div 
+                dangerouslySetInnerHTML={{ __html: generateHTML(clientData) }}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
+                  overflow: 'auto'
+                }}
+              />
+            ) : (
+              <WebView
+                source={{ html: generateHTML(clientData) }}
+                style={styles.webview}
+                scalesPageToFit={true}
+              />
+            )}
+          </ScrollView>
     </View>
   );
 };

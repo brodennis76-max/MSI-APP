@@ -12,11 +12,27 @@ const PDFGenerator = ({ clientData, onComplete }) => {
           <meta charset="utf-8">
           <title>Account Instructions - ${client.name}</title>
           <style>
+            @page {
+              size: letter;
+              margin: 0.5in;
+            }
+            
             body {
               font-family: Arial, sans-serif;
-              margin: 20px;
+              margin: 0;
+              padding: 0;
               line-height: 1.6;
               color: #333;
+              width: 8.5in;
+              min-height: 11in;
+            }
+            
+            .pdf-container {
+              width: 7.5in;
+              min-height: 9in;
+              padding: 1in;
+              box-sizing: border-box;
+              margin: 0 auto;
             }
             .header {
               text-align: center;
@@ -37,8 +53,33 @@ const PDFGenerator = ({ clientData, onComplete }) => {
             }
             .section {
               margin-bottom: 25px;
+            }
+            
+            /* Avoid cutting off elements */
+            .avoid-break {
               page-break-inside: avoid;
             }
+            
+            /* Force new page */
+            .page-break {
+              page-break-before: always;
+            }
+            
+            @media print {
+              .no-print { display: none; }
+              .content { width: 100%; }
+              body { 
+                margin: 0 !important; 
+                padding: 0 !important; 
+              }
+              .pdf-container { 
+                margin: 0 !important; 
+                padding: 0.5in !important; 
+                width: 7.5in !important;
+                box-sizing: border-box !important;
+              }
+            }
+            
             .section-title {
               font-size: 18px;
               font-weight: bold;
@@ -61,6 +102,8 @@ const PDFGenerator = ({ clientData, onComplete }) => {
               border-left: 4px solid #007AFF;
               border-radius: 4px;
               white-space: pre-wrap;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
             }
             .instructions-list {
               background-color: #f8f9fa;
@@ -82,14 +125,11 @@ const PDFGenerator = ({ clientData, onComplete }) => {
               text-align: center;
               font-size: 16px;
             }
-            @media print {
-              body { margin: 0; }
-              .section { page-break-inside: avoid; }
-            }
           </style>
         </head>
         <body>
-          <div class="header">
+          <div class="pdf-container">
+            <div class="header">
             <div class="logo">MSI</div>
             <div class="client-name">Account Instructions for ${client.name}</div>
             <div>Generated on ${new Date().toLocaleDateString()}</div>
@@ -132,49 +172,49 @@ const PDFGenerator = ({ clientData, onComplete }) => {
 
           ${client.Inv_Proc ? `
           <div class="section">
-            <div class="section-title">Inventory Procedures</div>
+            <div class="section-title page-break">Inventory Procedures</div>
             <div class="instructions-list">${client.Inv_Proc}</div>
           </div>
           ` : ''}
 
           ${client.Audits ? `
           <div class="section">
-            <div class="section-title">Audits</div>
+            <div class="section-title page-break">Audits</div>
             <div class="instructions-list">${client.Audits}</div>
           </div>
           ` : ''}
 
           ${client.Inv_Flow ? `
           <div class="section">
-            <div class="section-title">Inventory Flow</div>
+            <div class="section-title page-break">Inventory Flow</div>
             <div class="instructions-list">${client.Inv_Flow}</div>
           </div>
           ` : ''}
 
           ${client.noncount ? `
           <div class="section">
-            <div class="section-title">Non-Count Products</div>
+            <div class="section-title page-break">Non-Count Products</div>
             <div class="instructions-list">${client.noncount}</div>
           </div>
           ` : ''}
 
           ${client['Team-Instr'] ? `
           <div class="section">
-            <div class="section-title">Pre-Inventory Team Instructions</div>
+            <div class="section-title page-break">Pre-Inventory Team Instructions</div>
             <div class="instructions-list">${client['Team-Instr']}</div>
           </div>
           ` : ''}
 
           ${client.Prog_Rep ? `
           <div class="section">
-            <div class="section-title">Progressive Reports</div>
+            <div class="section-title page-break">Progressive Reports</div>
             <div class="instructions-list">${client.Prog_Rep}</div>
           </div>
           ` : ''}
 
           ${client.Finalize ? `
           <div class="section">
-            <div class="section-title">Finalizing the Count</div>
+            <div class="section-title page-break">Finalizing the Count</div>
             <div class="warning-box">
               <div class="warning-text">VERIFY ALL REPORTS BALANCE BEFORE GIVING THEM TO THE MANAGER</div>
             </div>
@@ -184,14 +224,14 @@ const PDFGenerator = ({ clientData, onComplete }) => {
 
           ${client.Fin_Rep ? `
           <div class="section">
-            <div class="section-title">Final Reports</div>
+            <div class="section-title page-break">Final Reports</div>
             <div class="instructions-list">${client.Fin_Rep}</div>
           </div>
           ` : ''}
 
           ${client.Processing ? `
           <div class="section">
-            <div class="section-title">Final Processing</div>
+            <div class="section-title page-break">Final Processing</div>
             <div class="instructions-list">${client.Processing}</div>
           </div>
           ` : ''}
@@ -207,6 +247,7 @@ const PDFGenerator = ({ clientData, onComplete }) => {
               <div class="field-value">A completed Account Instructions Form will be sent within 48 hours. Please check your email and spam folder.</div>
             </div>
           </div>
+          </div>
         </body>
       </html>
     `;
@@ -219,6 +260,8 @@ const PDFGenerator = ({ clientData, onComplete }) => {
       const { uri } = await Print.printToFileAsync({
         html,
         base64: false,
+        width: 612, // Letter width in points (8.5 inches * 72 points/inch)
+        height: 792, // Letter height in points (11 inches * 72 points/inch)
       });
 
       Alert.alert(

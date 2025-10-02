@@ -7,14 +7,10 @@ import {
   ScrollView, 
   Image,
   Alert,
-  Share,
-  Platform
+  Share
 } from 'react-native';
-// Import WebView only for non-web platforms
-let WebView;
-if (Platform.OS !== 'web') {
-  WebView = require('react-native-webview').WebView;
-}
+import { WebView } from 'react-native-webview';
+import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -24,65 +20,13 @@ const PDFViewer = ({ pdfUri, clientName, clientEmail, onBack, htmlContent }) => 
   
   const handleSaveToDevice = async () => {
     try {
-      if (Platform.OS === 'web') {
-        // For web, regenerate and download the PDF
-        if (htmlContent) {
-          const html2pdf = (await import('html2pdf.js')).default;
-          
-          // Create a temporary container with proper styling for letter size
-          const tempContainer = document.createElement('div');
-          tempContainer.style.width = '8.5in'; // Letter width
-          tempContainer.style.backgroundColor = 'white';
-          tempContainer.style.fontFamily = 'Arial, sans-serif';
-          tempContainer.style.fontSize = '12px';
-          tempContainer.style.lineHeight = '1.4';
-          tempContainer.style.color = '#000';
-          tempContainer.style.boxSizing = 'border-box';
-          tempContainer.style.wordWrap = 'break-word';
-          tempContainer.style.overflowWrap = 'break-word';
-          tempContainer.style.whiteSpace = 'normal';
-          tempContainer.style.padding = '0.75in';
-          tempContainer.innerHTML = htmlContent;
-          
-          document.body.appendChild(tempContainer);
-          
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Generate PDF with html2pdf using the proven approach
-          const opt = {
-            margin: [25.4, 25.4, 25.4, 25.4], // top, left, bottom, right (in mm = 1 inch)
-            filename: `account-instructions-${clientName}.pdf`,
-            image: { type: "jpeg", quality: 0.98 },
-            html2canvas: { 
-              scale: 2, 
-              useCORS: true,
-              allowTaint: true,
-              backgroundColor: '#ffffff',
-              logging: false
-            },
-            jsPDF: { 
-              unit: "mm", 
-              format: "letter", 
-              orientation: "portrait" 
-            }
-          };
-          
-          const pdf = await html2pdf().set(opt).from(tempContainer).save();
-          
-          document.body.removeChild(tempContainer);
-        } else {
-          Alert.alert('Error', 'No PDF content available to save');
-        }
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(pdfUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Save ${clientName} Account Instructions`,
+        });
       } else {
-        // For mobile, use the existing sharing functionality
-        if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(pdfUri, {
-            mimeType: 'application/pdf',
-            dialogTitle: `Save ${clientName} Account Instructions`,
-          });
-        } else {
-          Alert.alert('Error', 'Sharing is not available on this device');
-        }
+        Alert.alert('Error', 'Sharing is not available on this device');
       }
     } catch (error) {
       console.error('Error saving PDF:', error);
@@ -154,37 +98,36 @@ const PDFViewer = ({ pdfUri, clientName, clientEmail, onBack, htmlContent }) => 
         <Text style={styles.pdfSubtitle}>PDF Generated Successfully</Text>
       </View>
 
-      <View style={styles.pdfContainer}>
-        {Platform.OS === 'web' ? (
-          <div 
-            style={{ 
-              width: '100%', 
-              height: '100%', 
-              border: '1px solid #ccc',
-              padding: '10px',
-              overflow: 'auto'
-            }}
-            dangerouslySetInnerHTML={{ __html: htmlContent }}
-          />
-        ) : (
-          <WebView
-            source={{ html: htmlContent }}
-            style={styles.webview}
-            scalesPageToFit={true}
-            startInLoadingState={true}
-            onError={(syntheticEvent) => {
-              const { nativeEvent } = syntheticEvent;
-              console.error('WebView error: ', nativeEvent);
-              Alert.alert('Error', 'Failed to load content. Please try again.');
-            }}
-            onHttpError={(syntheticEvent) => {
-              const { nativeEvent } = syntheticEvent;
-              console.error('WebView HTTP error: ', nativeEvent);
-              Alert.alert('Error', 'Failed to load content. Please try again.');
-            }}
-          />
-        )}
-      </View>
+          <View style={styles.pdfContainer}>
+            {Platform.OS === 'web' ? (
+              <div 
+                dangerouslySetInnerHTML={{ __html: htmlContent }}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
+                  overflow: 'auto'
+                }}
+              />
+            ) : (
+              <WebView
+                source={{ html: htmlContent }}
+                style={styles.webview}
+                scalesPageToFit={true}
+                startInLoadingState={true}
+                onError={(syntheticEvent) => {
+                  const { nativeEvent } = syntheticEvent;
+                  console.error('WebView error: ', nativeEvent);
+                  Alert.alert('Error', 'Failed to load content. Please try again.');
+                }}
+                onHttpError={(syntheticEvent) => {
+                  const { nativeEvent } = syntheticEvent;
+                  console.error('WebView HTTP error: ', nativeEvent);
+                  Alert.alert('Error', 'Failed to load content. Please try again.');
+                }}
+              />
+            )}
+          </View>
 
       <View style={styles.bottomActions}>
         <View style={styles.actionButtonsRow}>

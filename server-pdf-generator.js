@@ -67,12 +67,28 @@ function generateHTML(clientData) {
         <meta charset="utf-8">
         <title>Account Instructions - ${clientData.name}</title>
         <style>
+          @page {
+            margin: 0;
+            size: letter;
+          }
+          
           /* Same styles as client-side version */
           body {
             font-family: Arial, sans-serif;
-            margin: 20px;
+            margin: 0;
+            padding: 0;
             line-height: 1.6;
             color: #333;
+            width: 8.5in;
+            min-height: 11in;
+          }
+          
+          .pdf-container {
+            width: 8.5in;
+            min-height: 11in;
+            padding: 1in;
+            box-sizing: border-box;
+            margin: 0 auto;
           }
           .header {
             text-align: center;
@@ -145,7 +161,8 @@ function generateHTML(clientData) {
         </style>
       </head>
       <body>
-        <div class="header">
+        <div class="pdf-container">
+          <div class="header">
           <div class="company-name">MSI INVENTORY</div>
           <div class="client-name">Account Instructions for ${clientData.name}</div>
           <div>Generated on ${new Date().toLocaleDateString()}</div>
@@ -153,6 +170,7 @@ function generateHTML(clientData) {
 
         <!-- All the same content as client-side version -->
         <!-- ... rest of the HTML content ... -->
+        </div>
       </body>
     </html>
   `;

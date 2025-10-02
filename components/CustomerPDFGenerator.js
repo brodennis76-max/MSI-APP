@@ -17,8 +17,8 @@ const CustomerPDFGenerator = ({ clientData, onComplete }) => {
           <title>Account Instructions - ${client.name}</title>
           <style>
             @page {
+              size: letter;
               margin: 0.5in;
-              size: A4;
             }
             
             body {
@@ -30,21 +30,25 @@ const CustomerPDFGenerator = ({ clientData, onComplete }) => {
               background: white;
             }
             
+            .pdf-container {
+              width: 7.5in;
+              margin: 0 auto;
+              padding: 0 20px;
+            }
+            
             .header {
               text-align: center;
-              background: linear-gradient(135deg, #007AFF 0%, #0056b3 100%);
+              background: #007AFF;
               color: white;
               padding: 30px 20px;
               margin-bottom: 30px;
               border-radius: 10px;
-              box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             }
             
             .company-name {
               font-size: 36px;
               font-weight: bold;
               margin-bottom: 10px;
-              text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
             }
             
             .client-name {
@@ -67,7 +71,31 @@ const CustomerPDFGenerator = ({ clientData, onComplete }) => {
             
             .section {
               margin-bottom: 30px;
+            }
+            
+            /* Avoid cutting off elements */
+            .avoid-break {
               page-break-inside: avoid;
+            }
+            
+            /* Force new page */
+            .page-break {
+              page-break-before: always;
+            }
+            
+            @media print {
+              .no-print { display: none; }
+              .content { width: 100%; }
+              body { 
+                margin: 0 !important; 
+                padding: 0 !important; 
+              }
+              .pdf-container { 
+                margin: 0 !important; 
+                padding: 0.5in !important; 
+                width: 7.5in !important;
+                box-sizing: border-box !important;
+              }
             }
             
             .section-title {
@@ -79,7 +107,9 @@ const CustomerPDFGenerator = ({ clientData, onComplete }) => {
               margin-bottom: 20px;
               text-transform: uppercase;
               letter-spacing: 1px;
+              page-break-before: auto;
             }
+            
             
             .info-grid {
               display: grid;
@@ -108,6 +138,8 @@ const CustomerPDFGenerator = ({ clientData, onComplete }) => {
               color: #2c3e50;
               font-size: 16px;
               white-space: pre-wrap;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
             }
             
             .instructions-box {
@@ -123,6 +155,8 @@ const CustomerPDFGenerator = ({ clientData, onComplete }) => {
               color: #2c3e50;
               line-height: 1.8;
               white-space: pre-wrap;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
             }
             
             .warning-box {
@@ -174,6 +208,16 @@ const CustomerPDFGenerator = ({ clientData, onComplete }) => {
             }
             
             @media print {
+              body {
+                margin: 0 !important;
+                padding: 0 !important;
+              }
+              .pdf-container {
+                margin: 0 !important;
+                padding: 1in !important; /* Chrome-friendly 1-inch margins */
+                width: 6.5in !important;
+                box-sizing: border-box !important;
+              }
               .header {
                 background: #007AFF !important;
                 -webkit-print-color-adjust: exact;
@@ -215,7 +259,8 @@ const CustomerPDFGenerator = ({ clientData, onComplete }) => {
           </style>
         </head>
         <body>
-          <div class="header">
+          <div class="pdf-container">
+            <div class="header">
             <div class="company-name">MSI INVENTORY</div>
             <div class="client-name">Account Instructions</div>
             <div class="generated-date">Generated on ${new Date().toLocaleDateString('en-US', { 
@@ -226,7 +271,7 @@ const CustomerPDFGenerator = ({ clientData, onComplete }) => {
           </div>
 
           <div class="content">
-            <div class="section">
+            <div class="section avoid-break">
               <div class="section-title">Client Information</div>
               <div class="info-grid">
                 <div class="info-item">
@@ -258,7 +303,7 @@ const CustomerPDFGenerator = ({ clientData, onComplete }) => {
             ` : ''}
 
             ${client.preInventory ? `
-            <div class="section">
+            <div class="section page-break">
               <div class="section-title">Pre-Inventory Instructions</div>
               <div class="instructions-box">
                 <div class="instructions-content">${client.preInventory}</div>
@@ -369,6 +414,7 @@ const CustomerPDFGenerator = ({ clientData, onComplete }) => {
               </div>
             </div>
           </div>
+          </div>
         </body>
       </html>
     `;
@@ -382,6 +428,8 @@ const CustomerPDFGenerator = ({ clientData, onComplete }) => {
       const { uri } = await Print.printToFileAsync({
         html,
         base64: false,
+        width: 612, // Letter width in points (8.5 inches * 72 points/inch)
+        height: 792, // Letter height in points (11 inches * 72 points/inch)
       });
 
       // Here you would typically:

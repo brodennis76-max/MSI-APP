@@ -15,15 +15,21 @@
     "preview": {
       "distribution": "internal",
       "ios": {
-        "simulator": true,
-        "buildConfiguration": "Release"
+        "simulator": false,
+        "buildConfiguration": "Release",
+        "autoIncrement": "buildNumber"
       }
     },
     "production": {
+      "distribution": "store",
       "ios": {
-        "simulator": true,
-        "buildConfiguration": "Release"
+        "simulator": false,
+        "buildConfiguration": "Release",
+        "autoIncrement": "buildNumber"
       }
+    },
+    "web": {
+      "platform": "web"
     }
   },
   "submit": {

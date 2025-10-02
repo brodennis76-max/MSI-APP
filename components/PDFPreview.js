@@ -6,14 +6,10 @@ import {
   TouchableOpacity, 
   ScrollView, 
   Image,
-  Alert,
-  Platform
+  Alert
 } from 'react-native';
-// Import WebView only for non-web platforms
-let WebView;
-if (Platform.OS !== 'web') {
-  WebView = require('react-native-webview').WebView;
-}
+import { WebView } from 'react-native-webview';
+import { Platform } from 'react-native';
 
 const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
   const [showPreview, setShowPreview] = useState(true);
@@ -27,8 +23,8 @@ const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
           <title>Account Instructions - ${client.name}</title>
           <style>
             @page {
+              size: letter;
               margin: 0.5in;
-              size: A4;
             }
             
             body {
@@ -38,6 +34,16 @@ const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
               line-height: 1.6;
               color: #2c3e50;
               background: white;
+              width: 8.5in;
+              min-height: 11in;
+            }
+            
+            .pdf-container {
+              width: 7.5in;
+              min-height: 9in;
+              padding: 1in;
+              box-sizing: border-box;
+              margin: 0 auto;
             }
             
             .header {
@@ -77,7 +83,23 @@ const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
             
             .section {
               margin-bottom: 30px;
+            }
+            
+            /* Avoid cutting off elements */
+            .avoid-break {
               page-break-inside: avoid;
+            }
+            
+            /* Force new page */
+            .page-break {
+              page-break-before: always;
+            }
+            
+            @media print {
+              .no-print { display: none; }
+              .content { width: 100%; }
+              body { margin: 0; padding: 0; }
+              .pdf-container { margin: 0; padding: 0; }
             }
             
             .section-title {
@@ -118,6 +140,9 @@ const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
               color: #2c3e50;
               font-size: 16px;
               white-space: pre-wrap;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
+              hyphens: auto;
             }
             
             .instructions-box {
@@ -133,6 +158,9 @@ const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
               color: #2c3e50;
               line-height: 1.8;
               white-space: pre-wrap;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
+              hyphens: auto;
             }
             
             .warning-box {
@@ -178,10 +206,24 @@ const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
               color: #007AFF;
               font-weight: bold;
             }
+            
+            @media print {
+              body {
+                margin: 0 !important;
+                padding: 0 !important;
+              }
+              .pdf-container {
+                margin: 0 !important;
+                padding: 1in !important; /* Chrome-friendly 1-inch margins */
+                width: 6.5in !important;
+                box-sizing: border-box !important;
+              }
+            }
           </style>
         </head>
         <body>
-          <div class="header">
+          <div class="pdf-container">
+            <div class="header">
             <div class="company-name">MSI INVENTORY</div>
             <div class="client-name">Account Instructions</div>
             <div class="generated-date">Generated on ${new Date().toLocaleDateString('en-US', { 
@@ -234,7 +276,7 @@ const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
 
             ${client.Inv_Proc ? `
             <div class="section">
-              <div class="section-title">Inventory Procedures</div>
+              <div class="section-title page-break">Inventory Procedures</div>
               <div class="instructions-box">
                 <div class="instructions-content">${client.Inv_Proc}</div>
               </div>
@@ -243,7 +285,7 @@ const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
 
             ${client.Audits ? `
             <div class="section">
-              <div class="section-title">Audit Procedures</div>
+              <div class="section-title page-break">Audit Procedures</div>
               <div class="instructions-box">
                 <div class="instructions-content">${client.Audits}</div>
               </div>
@@ -252,7 +294,7 @@ const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
 
             ${client.Inv_Flow ? `
             <div class="section">
-              <div class="section-title">Inventory Flow</div>
+              <div class="section-title page-break">Inventory Flow</div>
               <div class="instructions-box">
                 <div class="instructions-content">${client.Inv_Flow}</div>
               </div>
@@ -261,7 +303,7 @@ const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
 
             ${client.noncount ? `
             <div class="section">
-              <div class="section-title">Non-Count Products</div>
+              <div class="section-title page-break">Non-Count Products</div>
               <div class="instructions-box">
                 <div class="instructions-content">${client.noncount}</div>
               </div>
@@ -270,7 +312,7 @@ const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
 
             ${client['Team-Instr'] ? `
             <div class="section">
-              <div class="section-title">Team Instructions</div>
+              <div class="section-title page-break">Team Instructions</div>
               <div class="instructions-box">
                 <div class="instructions-content">${client['Team-Instr']}</div>
               </div>
@@ -279,7 +321,7 @@ const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
 
             ${client.Prog_Rep ? `
             <div class="section">
-              <div class="section-title">Progressive Reports</div>
+              <div class="section-title page-break">Progressive Reports</div>
               <div class="instructions-box">
                 <div class="instructions-content">${client.Prog_Rep}</div>
               </div>
@@ -288,7 +330,7 @@ const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
 
             ${client.Finalize ? `
             <div class="section">
-              <div class="section-title">Finalizing the Count</div>
+              <div class="section-title page-break">Finalizing the Count</div>
               <div class="warning-box">
                 <div class="warning-text">VERIFY ALL REPORTS BALANCE BEFORE GIVING THEM TO THE MANAGER</div>
               </div>
@@ -300,7 +342,7 @@ const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
 
             ${client.Fin_Rep ? `
             <div class="section">
-              <div class="section-title">Final Reports</div>
+              <div class="section-title page-break">Final Reports</div>
               <div class="instructions-box">
                 <div class="instructions-content">${client.Fin_Rep}</div>
               </div>
@@ -309,7 +351,7 @@ const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
 
             ${client.Processing ? `
             <div class="section">
-              <div class="section-title">Final Processing</div>
+              <div class="section-title page-break">Final Processing</div>
               <div class="instructions-box">
                 <div class="instructions-content">${client.Processing}</div>
               </div>
@@ -318,7 +360,7 @@ const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
 
             ${client.additionalNotes ? `
             <div class="section">
-              <div class="section-title">Additional Notes</div>
+              <div class="section-title page-break">Additional Notes</div>
               <div class="instructions-box">
                 <div class="instructions-content">${client.additionalNotes}</div>
               </div>
@@ -334,6 +376,7 @@ const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
                 Please check your email and spam folder for correspondence from <span class="email-highlight">@msi-inv.com</span>.
               </div>
             </div>
+          </div>
           </div>
         </body>
       </html>
@@ -359,26 +402,25 @@ const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
-        {Platform.OS === 'web' ? (
-          <div 
-            style={{ 
-              width: '100%', 
-              height: '100%', 
-              border: '1px solid #ccc',
-              padding: '10px',
-              overflow: 'auto'
-            }}
-            dangerouslySetInnerHTML={{ __html: generateHTML(clientData) }}
-          />
-        ) : (
-          <WebView
-            source={{ html: generateHTML(clientData) }}
-            style={styles.webview}
-            scalesPageToFit={true}
-          />
-        )}
-      </ScrollView>
+          <ScrollView style={styles.content}>
+            {Platform.OS === 'web' ? (
+              <div 
+                dangerouslySetInnerHTML={{ __html: generateHTML(clientData) }}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
+                  overflow: 'auto'
+                }}
+              />
+            ) : (
+              <WebView
+                source={{ html: generateHTML(clientData) }}
+                style={styles.webview}
+                scalesPageToFit={true}
+              />
+            )}
+          </ScrollView>
     </View>
   );
 };
