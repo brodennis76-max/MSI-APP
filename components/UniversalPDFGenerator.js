@@ -46,6 +46,12 @@ const UniversalPDFGenerator = ({
           if (clientSnap.exists()) {
             const data = clientSnap.data();
             console.log('📊 Raw client data from Firebase:', data);
+            console.log('🔍 Required fields check:');
+            console.log('  - inventoryType:', data.inventoryType);
+            console.log('  - PIC:', data.PIC);
+            console.log('  - startTime:', data.startTime);
+            console.log('  - verification:', data.verification);
+            console.log('  - updatedAt:', data.updatedAt);
             
             // Process and normalize the data like FirebasePDFGenerator does
             const processedData = { 
@@ -148,6 +154,13 @@ const UniversalPDFGenerator = ({
     console.log('🎨 Available client fields:', Object.keys(client || {}));
     console.log('🎨 Key field values:', {
       name: client?.name,
+      inventoryType: client?.inventoryType,
+      accountType: client?.accountType,
+      PIC: client?.PIC,
+      startTime: client?.startTime,
+      storeStartTime: client?.storeStartTime,
+      verification: client?.verification,
+      updatedAt: client?.updatedAt,
       preInventory: client?.preInventory,
       'Team-Instr': client?.['Team-Instr'],
       Inv_Proc: client?.Inv_Proc,
