@@ -221,7 +221,8 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
         const html = generateUniversalHTML(completeClientData);
         console.log('🔥 handlePrintReports: HTML generated, calling expo-print...');
         
-        const { uri } = await Print.printToFileAsync({
+        console.log('🔥 handlePrintReports: Calling Print.printToFileAsync with HTML length:', html.length);
+        const printResult = await Print.printToFileAsync({
           html,
           base64: false,
           width: 612, // 8.5 inches * 72 points/inch
@@ -234,14 +235,58 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
           }
         });
         
-        console.log('🔥 handlePrintReports: PDF generated successfully:', uri);
+        console.log('🔥 handlePrintReports: Print.printToFileAsync result:', printResult);
+        const { uri } = printResult;
         
-        // Share the PDF
-        if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(uri);
-          Alert.alert('Success!', `Reports generated and ready to print for ${clientData.name}!`);
+        console.log('🔥 handlePrintReports: PDF generated successfully:', uri);
+        console.log('🔥 handlePrintReports: URI type:', typeof uri);
+        console.log('🔥 handlePrintReports: URI length:', uri ? uri.length : 'null');
+        
+        // Check if file exists before sharing
+        if (uri) {
+          try {
+            const fileInfo = await FileSystem.getInfoAsync(uri);
+            console.log('🔥 handlePrintReports: File info:', fileInfo);
+            if (!fileInfo.exists) {
+              throw new Error('Generated PDF file does not exist');
+            }
+          } catch (fileError) {
+            console.error('🔥 handlePrintReports: File check error:', fileError);
+            throw new Error(`PDF file verification failed: ${fileError.message}`);
+          }
         } else {
-          Alert.alert('Sharing not available', 'Sharing is not available on this device');
+          throw new Error('PDF generation failed - no URI returned');
+        }
+        
+        // Share the PDF with better error handling
+        try {
+          if (await Sharing.isAvailableAsync()) {
+            console.log('🔥 handlePrintReports: Sharing is available, attempting to share...');
+            await Sharing.shareAsync(uri, {
+              mimeType: 'application/pdf',
+              dialogTitle: `Account Instructions - ${clientData.name}`,
+              UTI: 'com.adobe.pdf'
+            });
+            console.log('🔥 handlePrintReports: PDF shared successfully');
+            Alert.alert('Success!', `Reports generated and ready to print for ${clientData.name}!`);
+          } else {
+            console.log('🔥 handlePrintReports: Sharing not available on this device');
+            Alert.alert('Sharing not available', 'Sharing is not available on this device');
+          }
+        } catch (shareError) {
+          console.error('🔥 handlePrintReports: Sharing error:', shareError);
+          console.error('🔥 Error code:', shareError.code);
+          console.error('🔥 Error message:', shareError.message);
+          
+          // Fallback: try to open the file directly
+          try {
+            console.log('🔥 handlePrintReports: Attempting fallback - opening file directly...');
+            await Linking.openURL(uri);
+            Alert.alert('PDF Generated', `PDF has been generated. Check your device's file manager or downloads folder.`);
+          } catch (linkError) {
+            console.error('🔥 handlePrintReports: Fallback also failed:', linkError);
+            Alert.alert('Error', `PDF generated but couldn't be opened. File saved to: ${uri}`);
+          }
         }
       }
     } catch (error) {
