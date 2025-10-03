@@ -43,6 +43,12 @@ async function addMissingFieldsToClients() {
         console.log(`  - Adding inventoryType to ${client.name}`);
       }
       
+      if (!client.accountType) {
+        updates.accountType = 'Convenience';
+        needsUpdate = true;
+        console.log(`  - Adding accountType to ${client.name}`);
+      }
+      
       if (!client.PIC) {
         updates.PIC = 'Stores to be contacted via phone prior to counts to confirm inventory.';
         needsUpdate = true;
@@ -53,6 +59,12 @@ async function addMissingFieldsToClients() {
         updates.startTime = '8:00 AM';
         needsUpdate = true;
         console.log(`  - Adding startTime to ${client.name}`);
+      }
+      
+      if (!client.storeStartTime) {
+        updates.storeStartTime = '8:00 AM';
+        needsUpdate = true;
+        console.log(`  - Adding storeStartTime to ${client.name}`);
       }
       
       if (!client.verification) {
