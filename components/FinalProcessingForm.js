@@ -212,9 +212,35 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
       if (Platform.OS === 'web') {
         // For web, use the same approach as UniversalPDFGenerator
         console.log('🔥 handlePrintReports: Using web-specific PDF generation...');
-        const pdfUri = await generateWebPDF(completeClientData);
-        console.log('🔥 handlePrintReports: PDF generated successfully:', pdfUri);
-        window.alert(`Reports generated successfully for ${clientData.name}! PDF downloaded.`);
+        console.log('🔥 handlePrintReports: Browser detected:', navigator.userAgent);
+        
+        try {
+          const pdfUri = await generateWebPDF(completeClientData);
+          console.log('🔥 handlePrintReports: PDF generated successfully:', pdfUri);
+          
+          // Check if we're in Firefox and handle differently
+          const isFirefox = navigator.userAgent.toLowerCase().includes('firefox');
+          console.log('🔥 handlePrintReports: Is Firefox:', isFirefox);
+          
+          if (isFirefox) {
+            // Firefox-specific handling
+            window.alert(`Reports generated successfully for ${clientData.name}! The PDF should have downloaded automatically. If not, check your Downloads folder.`);
+          } else {
+            window.alert(`Reports generated successfully for ${clientData.name}! PDF downloaded.`);
+          }
+        } catch (webError) {
+          console.error('🔥 handlePrintReports: Web PDF generation failed:', webError);
+          
+          // Fallback for web: try a simpler approach
+          try {
+            console.log('🔥 handlePrintReports: Trying fallback web PDF generation...');
+            await generateWebPDFFallback(completeClientData);
+            window.alert(`Reports generated successfully for ${clientData.name}! PDF downloaded.`);
+          } catch (fallbackError) {
+            console.error('🔥 handlePrintReports: Fallback also failed:', fallbackError);
+            window.alert(`PDF generation failed: ${fallbackError.message}. Please try using Chrome or Safari.`);
+          }
+        }
       } else {
         // For mobile, use the same approach as UniversalPDFGenerator
         console.log('🔥 handlePrintReports: Using mobile PDF generation...');
@@ -534,6 +560,142 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
       
     } catch (error) {
       console.error('🔥 generateWebPDF ERROR:', error);
+      throw error;
+    }
+  };
+
+  // Firefox-compatible PDF generation fallback
+  const generateWebPDFFallback = async (clientData) => {
+    try {
+      console.log('🔥 generateWebPDFFallback: Starting Firefox-compatible PDF generation...');
+      
+      // Use a simpler approach that works better with Firefox
+      const jsPDF = (await import('jspdf')).default;
+      
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'pt',
+        format: 'letter'
+      });
+      
+      // Convert inches to points (72 points = 1 inch)
+      const margin = 36; // 0.5 inch
+      const pageWidth = 612; // 8.5 inches
+      const pageHeight = 792; // 11 inches
+      const contentWidth = pageWidth - (2 * margin); // 540 points
+      
+      // Set up PDF styling
+      pdf.setFont('helvetica');
+      pdf.setFontSize(12);
+      
+      let currentY = margin;
+      
+      // Helper function to add new page if needed
+      const checkPageBreak = (neededHeight) => {
+        if (currentY + neededHeight > pageHeight - margin) {
+          pdf.addPage();
+          currentY = margin;
+          return true;
+        }
+        return false;
+      };
+      
+      // Helper function to add text with wrapping
+      const addText = (text, x, y, options = {}) => {
+        const fontSize = options.fontSize || 12;
+        const fontStyle = options.fontStyle || 'normal';
+        const maxWidth = options.maxWidth || contentWidth;
+        
+        pdf.setFontSize(fontSize);
+        pdf.setFont('helvetica', fontStyle);
+        
+        const lines = pdf.splitTextToSize(text, maxWidth);
+        const lineHeight = fontSize * 1.2;
+        
+        checkPageBreak(lines.length * lineHeight);
+        
+        lines.forEach((line, index) => {
+          pdf.text(line, x, currentY + (index * lineHeight));
+        });
+        
+        currentY += lines.length * lineHeight;
+        return lines.length * lineHeight;
+      };
+      
+      // Add header
+      checkPageBreak(60);
+      addText('MSI INVENTORY', margin, currentY, { fontSize: 20, fontStyle: 'bold' });
+      currentY += 20;
+      addText('ACCOUNT INSTRUCTIONS', margin, currentY, { fontSize: 18, fontStyle: 'bold' });
+      currentY += 20;
+      addText(clientData.name, margin, currentY, { fontSize: 16, fontStyle: 'bold' });
+      currentY += 30;
+      
+      // Add basic information
+      const basicInfo = [
+        `Inventory: ${clientData.accountType || clientData.storeType || 'Not specified'}`,
+        `Updated: ${new Date().toLocaleDateString()}`,
+        `PIC: ${clientData.PIC || 'Not specified'}`,
+        `Store Start Time: ${clientData.storeStartTime || 'Not specified'}`,
+        `Verification: ${clientData.verification || 'Not specified'}`
+      ];
+      
+      basicInfo.forEach(info => {
+        addText(info, margin, currentY);
+        currentY += 15;
+      });
+      
+      currentY += 20;
+      
+      // Add sections
+      const sections = [
+        { title: 'PRE-INVENTORY INSTRUCTIONS', content: clientData.Pre_Inv },
+        { title: 'INVENTORY PROCEDURES', content: clientData.Inv_Proc },
+        { title: 'AUDITS', content: clientData.Audits },
+        { title: 'INVENTORY FLOW', content: clientData.Inv_Flow },
+        { title: 'PRE-INVENTORY TEAM INSTRUCTIONS', content: clientData.Team_Instr },
+        { title: 'NON-COUNT PRODUCTS', content: clientData.Non_Count },
+        { title: 'PROGRESSIVE REPORTS', content: clientData.Prog_Rep },
+        { title: 'FINALIZING COUNT', content: clientData.Finalize },
+        { title: 'FINAL REPORTS', content: clientData.Fin_Rep },
+        { title: 'FINAL PROCESSING', content: clientData.Processing }
+      ];
+      
+      sections.forEach(section => {
+        if (section.content && section.content.trim()) {
+          checkPageBreak(40);
+          currentY += 10;
+          addText(section.title, margin, currentY, { fontSize: 16, fontStyle: 'bold' });
+          currentY += 10;
+          addText(section.content, margin, currentY);
+          currentY += 15;
+        }
+      });
+      
+      // Save PDF with Firefox-compatible filename
+      const filename = `Account_Instructions_${clientData.name.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      
+      // Use a more compatible save method for Firefox
+      try {
+        pdf.save(filename);
+        console.log('🔥 generateWebPDFFallback: PDF saved successfully');
+      } catch (saveError) {
+        console.error('🔥 generateWebPDFFallback: Save failed, trying alternative method:', saveError);
+        // Alternative save method for Firefox
+        const pdfDataUri = pdf.output('datauristring');
+        const link = document.createElement('a');
+        link.href = pdfDataUri;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        console.log('🔥 generateWebPDFFallback: PDF saved via data URI');
+      }
+      
+      return filename;
+      
+    } catch (error) {
+      console.error('🔥 generateWebPDFFallback ERROR:', error);
       throw error;
     }
   };
