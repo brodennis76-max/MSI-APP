@@ -189,27 +189,35 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
     setSaving(true);
 
     try {
-      console.log('Generating reports for printing...');
+      console.log('🔥 handlePrintReports: Starting PDF generation...');
       const clientRef = doc(db, 'clients', clientData.id);
 
       // Update the client with final processing data first
+      console.log('🔥 handlePrintReports: Updating client data...');
       await updateDoc(clientRef, {
         Processing: processingText,
         updatedAt: new Date(),
       });
 
       // Get the complete client data for PDF generation
+      console.log('🔥 handlePrintReports: Fetching complete client data...');
       const clientDoc = await getDoc(clientRef);
       const completeClientData = { id: clientData.id, ...clientDoc.data() };
+      console.log('🔥 handlePrintReports: Client data:', completeClientData);
 
       // Generate PDF
-      const pdfUri = await generateUniversalPDF(completeClientData);
-
+      console.log('🔥 handlePrintReports: Calling generateUniversalPDF...');
+      
       if (Platform.OS === 'web') {
-        // For web, show success message - print dialog should open automatically
-        window.alert(`Reports generated successfully for ${clientData.name}! Print dialog will open.`);
+        // For web, use the same approach as UniversalPDFGenerator
+        console.log('🔥 handlePrintReports: Using web-specific PDF generation...');
+        const pdfUri = await generateWebPDF(completeClientData);
+        console.log('🔥 handlePrintReports: PDF generated successfully:', pdfUri);
+        window.alert(`Reports generated successfully for ${clientData.name}! PDF downloaded.`);
       } else {
-        // For mobile, use sharing to allow printing
+        // For mobile, use the original approach
+        const pdfUri = await generateUniversalPDF(completeClientData);
+        console.log('🔥 handlePrintReports: PDF generated successfully:', pdfUri);
         await Sharing.shareAsync(pdfUri, {
           mimeType: 'application/pdf',
           dialogTitle: `Print Account Instructions for ${clientData.name}`,
@@ -217,7 +225,10 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
         Alert.alert('Success!', `Reports generated and ready to print for ${clientData.name}!`);
       }
     } catch (error) {
-      console.error('Error generating reports:', error);
+      console.error('🔥 handlePrintReports ERROR:', error);
+      console.error('🔥 Error code:', error.code);
+      console.error('🔥 Error message:', error.message);
+      console.error('🔥 Error stack:', error.stack);
       if (Platform.OS === 'web') {
         window.alert(`Failed to generate reports: ${error.message}. Please try again.`);
       } else {
@@ -228,11 +239,302 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
     }
   };
 
-  // PDF generation now handled by generateUniversalPDF utility
+  // Web-specific PDF generation function (copied from UniversalPDFGenerator)
+  const generateWebPDF = async (clientData) => {
+    try {
+      console.log('🔥 generateWebPDF: Starting web PDF generation...');
+      
+      // Dynamic import for web-only libraries
+      const html2canvas = (await import('html2canvas')).default;
+      const jsPDF = (await import('jspdf')).default;
+      
+      // Generate HTML content (same as UniversalPDFGenerator)
+      const html = generateUniversalHTML(clientData);
+      
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = html;
+      
+      // Apply PDF-optimized styling for web
+      Object.assign(tempDiv.style, {
+        position: 'absolute',
+        left: '-9999px',
+        top: '-9999px',
+        width: '8.5in',
+        height: 'auto',
+        backgroundColor: 'white',
+        fontFamily: 'Arial, sans-serif',
+        fontSize: '12px',
+        lineHeight: '1.4',
+        color: '#333',
+        padding: '0.5in',
+        margin: '0',
+        boxSizing: 'border-box',
+        overflow: 'visible',
+        wordWrap: 'break-word',
+        overflowWrap: 'break-word',
+        whiteSpace: 'normal',
+        hyphens: 'auto',
+        pageBreakInside: 'avoid'
+      });
+      
+      // Add to DOM temporarily
+      document.body.appendChild(tempDiv);
+      
+      // Wait for content to render
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Use jsPDF with better page break handling
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'pt',
+        format: 'letter'
+      });
+      
+      // Convert inches to points (72 points = 1 inch)
+      const margin = 36; // 0.5 inch
+      const pageWidth = 612; // 8.5 inches
+      const pageHeight = 792; // 11 inches
+      const contentWidth = pageWidth - (2 * margin); // 540 points
+      const contentHeight = pageHeight - (2 * margin); // 720 points
+      
+      // Set up PDF styling
+      pdf.setFont('helvetica');
+      pdf.setFontSize(12);
+      
+      let currentY = margin;
+      let pageNumber = 1;
+      
+      // Helper function to add new page if needed
+      const checkPageBreak = (neededHeight) => {
+        if (currentY + neededHeight > pageHeight - margin) {
+          pdf.addPage();
+          currentY = margin;
+          pageNumber++;
+          return true;
+        }
+        return false;
+      };
+      
+      // Helper function to add text with wrapping
+      const addText = (text, x, y, options = {}) => {
+        const fontSize = options.fontSize || 12;
+        const fontStyle = options.fontStyle || 'normal';
+        const maxWidth = options.maxWidth || contentWidth;
+        
+        pdf.setFontSize(fontSize);
+        pdf.setFont('helvetica', fontStyle);
+        
+        const lines = pdf.splitTextToSize(text, maxWidth);
+        const lineHeight = fontSize * 1.2;
+        
+        checkPageBreak(lines.length * lineHeight);
+        
+        lines.forEach((line, index) => {
+          pdf.text(line, x, currentY + (index * lineHeight));
+        });
+        
+        currentY += lines.length * lineHeight;
+        return lines.length * lineHeight;
+      };
+      
+      // Add header
+      checkPageBreak(60);
+      addText('MSI INVENTORY', margin, currentY, { fontSize: 20, fontStyle: 'bold' });
+      currentY += 20;
+      addText('ACCOUNT INSTRUCTIONS', margin, currentY, { fontSize: 18, fontStyle: 'bold' });
+      currentY += 20;
+      addText(clientData.name, margin, currentY, { fontSize: 16, fontStyle: 'bold' });
+      currentY += 30;
+      
+      // Add basic information
+      const basicInfo = [
+        `Inventory: ${clientData.accountType || clientData.storeType || 'Not specified'}`,
+        `Updated: ${new Date().toLocaleDateString()}`,
+        `PIC: ${clientData.PIC || 'Not specified'}`,
+        `Store Start Time: ${clientData.storeStartTime || 'Not specified'}`,
+        `Verification: ${clientData.verification || 'Not specified'}`
+      ];
+      
+      basicInfo.forEach(info => {
+        addText(info, margin, currentY);
+        currentY += 15;
+      });
+      
+      currentY += 20;
+      
+      // Add sections
+      const sections = [
+        { title: 'PRE-INVENTORY INSTRUCTIONS', content: clientData.Pre_Inv },
+        { title: 'INVENTORY PROCEDURES', content: clientData.Inv_Proc },
+        { title: 'AUDITS', content: clientData.Audits },
+        { title: 'INVENTORY FLOW', content: clientData.Inv_Flow },
+        { title: 'PRE-INVENTORY TEAM INSTRUCTIONS', content: clientData.Team_Instr },
+        { title: 'NON-COUNT PRODUCTS', content: clientData.Non_Count },
+        { title: 'PROGRESSIVE REPORTS', content: clientData.Prog_Rep },
+        { title: 'FINALIZING COUNT', content: clientData.Finalize },
+        { title: 'FINAL REPORTS', content: clientData.Fin_Rep },
+        { title: 'FINAL PROCESSING', content: clientData.Processing }
+      ];
+      
+      sections.forEach(section => {
+        if (section.content && section.content.trim()) {
+          checkPageBreak(40);
+          currentY += 10;
+          addText(section.title, margin, currentY, { fontSize: 16, fontStyle: 'bold' });
+          currentY += 10;
+          addText(section.content, margin, currentY);
+          currentY += 15;
+        }
+      });
+      
+      // Clean up
+      document.body.removeChild(tempDiv);
+      
+      // Save PDF
+      const filename = `Account_Instructions_${clientData.name.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      pdf.save(filename);
+      
+      console.log('🔥 generateWebPDF: PDF generated successfully');
+      return filename;
+      
+    } catch (error) {
+      console.error('🔥 generateWebPDF ERROR:', error);
+      throw error;
+    }
+  };
 
+  // Generate HTML content for web PDF (same as UniversalPDFGenerator)
+  const generateUniversalHTML = (clientData) => {
+    const currentDate = new Date().toLocaleDateString('en-US', { 
+      year: 'numeric',
+      month: 'long', 
+      day: 'numeric'
+    });
 
-  // HTML generation now handled by generateUniversalPDF utility
-  // (removed large generateHTMLContent function)
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Account Instructions - ${clientData.name}</title>
+          <style>
+            @page {
+              size: letter;
+              margin: 0.5in;
+            }
+            
+            * {
+              box-sizing: border-box;
+            }
+            
+            body {
+              font-family: Arial, sans-serif;
+              margin: 0;
+              padding: 0;
+              line-height: 1.4;
+              color: #000;
+            }
+            
+            .header {
+              text-align: center;
+              margin-bottom: 20px;
+              page-break-after: avoid;
+            }
+            
+            .header h1 {
+              font-size: 20px;
+              font-weight: bold;
+              margin: 0 0 5px 0;
+            }
+            
+            .header h2 {
+              font-size: 18px;
+              font-weight: bold;
+              margin: 0 0 5px 0;
+            }
+            
+            .header h3 {
+              font-size: 16px;
+              font-weight: bold;
+              margin: 0 0 20px 0;
+            }
+            
+            .info-section {
+              margin-bottom: 20px;
+              page-break-after: avoid;
+            }
+            
+            .info-section p {
+              margin: 5px 0;
+              font-size: 12px;
+            }
+            
+            .section {
+              margin-bottom: 15px;
+              page-break-inside: avoid;
+            }
+            
+            .section-title {
+              font-size: 16px;
+              font-weight: bold;
+              margin-bottom: 8px;
+              text-transform: uppercase;
+            }
+            
+            .section-content {
+              font-size: 12px;
+              line-height: 1.4;
+              white-space: pre-wrap;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header avoid-break">
+            <h1>MSI INVENTORY</h1>
+            <h2>ACCOUNT INSTRUCTIONS</h2>
+            <h3>${clientData.name}</h3>
+          </div>
+          
+          <div class="info-section avoid-break">
+            <p><strong>Inventory:</strong> ${clientData.accountType || clientData.storeType || 'Not specified'}</p>
+            <p><strong>Updated:</strong> ${currentDate}</p>
+            <p><strong>PIC:</strong> ${clientData.PIC || 'Not specified'}</p>
+            <p><strong>Store Start Time:</strong> ${clientData.storeStartTime || 'Not specified'}</p>
+            <p><strong>Verification:</strong> ${clientData.verification || 'Not specified'}</p>
+          </div>
+          
+          ${generateSectionsHTML(clientData)}
+        </body>
+      </html>
+    `;
+  };
+
+  const generateSectionsHTML = (clientData) => {
+    const sections = [
+      { title: 'PRE-INVENTORY INSTRUCTIONS', content: clientData.Pre_Inv },
+      { title: 'INVENTORY PROCEDURES', content: clientData.Inv_Proc },
+      { title: 'AUDITS', content: clientData.Audits },
+      { title: 'INVENTORY FLOW', content: clientData.Inv_Flow },
+      { title: 'PRE-INVENTORY TEAM INSTRUCTIONS', content: clientData.Team_Instr },
+      { title: 'NON-COUNT PRODUCTS', content: clientData.Non_Count },
+      { title: 'PROGRESSIVE REPORTS', content: clientData.Prog_Rep },
+      { title: 'FINALIZING COUNT', content: clientData.Finalize },
+      { title: 'FINAL REPORTS', content: clientData.Fin_Rep },
+      { title: 'FINAL PROCESSING', content: clientData.Processing }
+    ];
+    
+    return sections.map(section => {
+      if (section.content && section.content.trim()) {
+        return `
+          <div class="section">
+            <div class="section-title">${section.title}</div>
+            <div class="section-content">${section.content}</div>
+          </div>
+        `;
+      }
+      return '';
+    }).join('');
+  };
 
 
   const saveToDevice = async (pdfUri, clientName) => {
@@ -322,9 +624,22 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
         <TouchableOpacity 
           style={[styles.generateButton, saving && styles.disabledButton]}
           onPress={async () => {
-            // Save data first, then generate PDF
-            await handleSaveData();
-            await handlePrintReports();
+            console.log('Generate PDF button clicked');
+            try {
+              // Save data first, then generate PDF
+              console.log('Calling handleSaveData...');
+              await handleSaveData();
+              console.log('handleSaveData completed, calling handlePrintReports...');
+              await handlePrintReports();
+              console.log('handlePrintReports completed');
+            } catch (error) {
+              console.error('Error in Generate PDF button:', error);
+              if (Platform.OS === 'web') {
+                window.alert(`Error generating PDF: ${error.message}`);
+              } else {
+                Alert.alert('Error', `Error generating PDF: ${error.message}`);
+              }
+            }
           }}
           disabled={saving}
         >
