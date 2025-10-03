@@ -213,37 +213,37 @@ const ImprovedPDFGenerator = ({
             </div>
 
             <div class="info-section avoid-break">
-              ${client.name ? `
-                <div class="info-row">
-                  <div class="info-label">Client Name:</div>
-                  <div class="info-value">${client.name}</div>
-                </div>
-              ` : ''}
-              
-              ${client.email ? `
-                <div class="info-row">
-                  <div class="info-label">Email:</div>
-                  <div class="info-value">${client.email}</div>
-                </div>
-              ` : ''}
-              
-              ${client.address ? `
-                <div class="info-row">
-                  <div class="info-label">Address:</div>
-                  <div class="info-value">${client.address}</div>
-                </div>
-              ` : ''}
-              
-              ${client.phone ? `
-                <div class="info-row">
-                  <div class="info-label">Phone:</div>
-                  <div class="info-value">${client.phone}</div>
-                </div>
-              ` : ''}
+              <div class="info-row">
+                <div class="info-label">Inventory:</div>
+                <div class="info-value">${client.inventoryType || client.accountType || 'Not specified'}</div>
+              </div>
               
               <div class="info-row">
-                <div class="info-label">Generated:</div>
-                <div class="info-value">${currentDate}</div>
+                <div class="info-label">Updated:</div>
+                <div class="info-value">${client.updatedAt ? new Date(client.updatedAt.toDate ? client.updatedAt.toDate() : client.updatedAt).toLocaleDateString('en-US', { 
+                  year: 'numeric',
+                  month: 'long', 
+                  day: 'numeric'
+                }) : new Date().toLocaleDateString('en-US', { 
+                  year: 'numeric',
+                  month: 'long', 
+                  day: 'numeric'
+                })}</div>
+              </div>
+              
+              <div class="info-row">
+                <div class="info-label">PIC:</div>
+                <div class="info-value">${client.PIC || 'Not specified'}</div>
+              </div>
+              
+              <div class="info-row">
+                <div class="info-label">Store Start Time:</div>
+                <div class="info-value">${client.startTime || client.storeStartTime || 'Not specified'}</div>
+              </div>
+              
+              <div class="info-row">
+                <div class="info-label">Verification:</div>
+                <div class="info-value">${client.verification || 'Not specified'}</div>
               </div>
             </div>
 

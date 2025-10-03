@@ -218,30 +218,33 @@ export const generateUniversalPDF = async (clientData, options = {}) => {
 
           <!-- BASIC INFORMATION SECTION -->
           <div class="info-section avoid-break">
-            <!-- DEBUG: inventoryType = ${clientData.inventoryType} -->
             <div class="info-row">
               <div class="info-label">Inventory:</div>
-              <div class="info-value">${clientData.inventoryType || 'Scan'}</div>
+              <div class="info-value">${clientData.inventoryType || clientData.accountType || 'Not specified'}</div>
             </div>
             
             <div class="info-row">
               <div class="info-label">Updated:</div>
-              <div class="info-value">${currentDate}</div>
+              <div class="info-value">${clientData.updatedAt ? new Date(clientData.updatedAt.toDate ? clientData.updatedAt.toDate() : clientData.updatedAt).toLocaleDateString('en-US', { 
+                year: 'numeric',
+                month: 'long', 
+                day: 'numeric'
+              }) : currentDate}</div>
             </div>
             
             <div class="info-row">
               <div class="info-label">PIC:</div>
-              <div class="info-value">${clientData.PIC || 'Stores to be contacted...'}</div>
+              <div class="info-value">${clientData.PIC || 'Not specified'}</div>
             </div>
             
             <div class="info-row">
               <div class="info-label">Store Start Time:</div>
-              <div class="info-value">${clientData.startTime || 'Not specified'}</div>
+              <div class="info-value">${clientData.startTime || clientData.storeStartTime || 'Not specified'}</div>
             </div>
             
             <div class="info-row">
               <div class="info-label">Verification:</div>
-              <div class="info-value">${clientData.verification || 'Audit trails will be provided...'}</div>
+              <div class="info-value">${clientData.verification || 'Not specified'}</div>
             </div>
           </div>
 

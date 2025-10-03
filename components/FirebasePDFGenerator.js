@@ -364,20 +364,32 @@ const FirebasePDFGenerator = ({ clientId, onBack, onComplete }) => {
 
           <div class="info-section">
             <div class="info-row">
-              <div class="info-label">Inventory Type:</div>
-              <div class="info-value">${client.inventoryType || 'Scan'}</div>
+              <div class="info-label">Inventory:</div>
+              <div class="info-value">${client.inventoryType || client.accountType || 'Not specified'}</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Updated:</div>
+              <div class="info-value">${client.updatedAt ? new Date(client.updatedAt.toDate ? client.updatedAt.toDate() : client.updatedAt).toLocaleDateString('en-US', { 
+                year: 'numeric',
+                month: 'long', 
+                day: 'numeric'
+              }) : new Date().toLocaleDateString('en-US', { 
+                year: 'numeric',
+                month: 'long', 
+                day: 'numeric'
+              })}</div>
             </div>
             <div class="info-row">
               <div class="info-label">PIC:</div>
-              <div class="info-value">${client.PIC || 'Stores to be contacted via phone prior to counts to confirm inventory.'}</div>
+              <div class="info-value">${client.PIC || 'Not specified'}</div>
             </div>
             <div class="info-row">
-              <div class="info-label">Start Time:</div>
-              <div class="info-value">${client.startTime || 'Not specified'}</div>
+              <div class="info-label">Store Start Time:</div>
+              <div class="info-value">${client.startTime || client.storeStartTime || 'Not specified'}</div>
             </div>
             <div class="info-row">
               <div class="info-label">Verification:</div>
-              <div class="info-value">${client.verification || 'Audit trails will be provided, as requested, during the count, within reason (do not provide audit trails on the entire store).'}</div>
+              <div class="info-value">${client.verification || 'Not specified'}</div>
             </div>
           </div>
 

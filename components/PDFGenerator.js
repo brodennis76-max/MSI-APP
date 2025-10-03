@@ -132,34 +132,37 @@ const PDFGenerator = ({ clientData, onComplete }) => {
             <div class="header">
             <div class="logo">MSI</div>
             <div class="client-name">Account Instructions for ${client.name}</div>
-            <div>Generated on ${new Date().toLocaleDateString()}</div>
           </div>
 
           <div class="section">
             <div class="section-title">Account Information</div>
             <div class="field">
-              <div class="field-label">Client Name:</div>
-              <div class="field-value">${client.name}</div>
+              <div class="field-label">Inventory:</div>
+              <div class="field-value">${client.inventoryType || client.accountType || 'Not specified'}</div>
             </div>
             <div class="field">
-              <div class="field-label">Inventory Type:</div>
-              <div class="field-value">${client.inventoryType || 'Not specified'}</div>
+              <div class="field-label">Updated:</div>
+              <div class="field-value">${client.updatedAt ? new Date(client.updatedAt.toDate ? client.updatedAt.toDate() : client.updatedAt).toLocaleDateString('en-US', { 
+                year: 'numeric',
+                month: 'long', 
+                day: 'numeric'
+              }) : new Date().toLocaleDateString('en-US', { 
+                year: 'numeric',
+                month: 'long', 
+                day: 'numeric'
+              })}</div>
             </div>
             <div class="field">
-              <div class="field-label">PIC (Person in Charge):</div>
+              <div class="field-label">PIC:</div>
               <div class="field-value">${client.PIC || 'Not specified'}</div>
             </div>
             <div class="field">
-              <div class="field-label">Start Time:</div>
-              <div class="field-value">${client.startTime || 'Not specified'}</div>
+              <div class="field-label">Store Start Time:</div>
+              <div class="field-value">${client.startTime || client.storeStartTime || 'Not specified'}</div>
             </div>
             <div class="field">
               <div class="field-label">Verification:</div>
               <div class="field-value">${client.verification || 'Not specified'}</div>
-            </div>
-            <div class="field">
-              <div class="field-label">Additional Notes:</div>
-              <div class="field-value">${client.additionalNotes || 'None'}</div>
             </div>
           </div>
 

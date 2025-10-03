@@ -419,27 +419,31 @@ const UniversalPDFGenerator = ({
             <div class="info-section avoid-break">
               <div class="info-row">
                 <div class="info-label">Inventory:</div>
-                <div class="info-value">${client.inventoryType || 'Scan'}</div>
+                <div class="info-value">${client.inventoryType || client.accountType || 'Not specified'}</div>
               </div>
               
               <div class="info-row">
                 <div class="info-label">Updated:</div>
-                <div class="info-value">${currentDate}</div>
+                <div class="info-value">${client.updatedAt ? new Date(client.updatedAt.toDate ? client.updatedAt.toDate() : client.updatedAt).toLocaleDateString('en-US', { 
+                  year: 'numeric',
+                  month: 'long', 
+                  day: 'numeric'
+                }) : currentDate}</div>
               </div>
               
               <div class="info-row">
                 <div class="info-label">PIC:</div>
-                <div class="info-value">${client.PIC || 'Stores to be contacted...'}</div>
+                <div class="info-value">${client.PIC || 'Not specified'}</div>
               </div>
               
               <div class="info-row">
                 <div class="info-label">Store Start Time:</div>
-                <div class="info-value">${client.startTime || 'Not specified'}</div>
+                <div class="info-value">${client.startTime || client.storeStartTime || 'Not specified'}</div>
               </div>
               
               <div class="info-row">
                 <div class="info-label">Verification:</div>
-                <div class="info-value">${client.verification || 'Audit trails will be provided...'}</div>
+                <div class="info-value">${client.verification || 'Not specified'}</div>
               </div>
             </div>
 
@@ -758,19 +762,8 @@ const UniversalPDFGenerator = ({
       pdf.text(clientNameText, (pageWidth - clientNameWidth) / 2, currentY);
       currentY += 30;
       
-      // Add client info
-      if (currentClientData.name) {
-        addText(`Client Name: ${currentClientData.name}`, margin, currentY);
-        currentY += 5;
-      }
-      
-      const currentDate = new Date().toLocaleDateString('en-US', { 
-        year: 'numeric',
-        month: 'long', 
-        day: 'numeric'
-      });
-      addText(`Generated: ${currentDate}`, margin, currentY);
-      currentY += 20;
+      // Client name and generated date removed as requested
+      // (Client name is already shown in the header)
       
       // Add sections based on available data
       const sections = [

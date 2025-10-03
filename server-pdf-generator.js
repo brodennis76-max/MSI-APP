@@ -165,7 +165,6 @@ function generateHTML(clientData) {
           <div class="header">
           <div class="company-name">MSI INVENTORY</div>
           <div class="client-name">Account Instructions for ${clientData.name}</div>
-          <div>Generated on ${new Date().toLocaleDateString()}</div>
         </div>
 
         <!-- All the same content as client-side version -->
