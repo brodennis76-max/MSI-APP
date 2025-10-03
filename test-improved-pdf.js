@@ -8,6 +8,11 @@ const testClientData = {
   email: "test@example.com",
   address: "123 Test Street, Test City, TS 12345",
   phone: "(555) 123-4567",
+  inventoryType: "Scan",
+  PIC: "John Smith",
+  startTime: "8:00 AM",
+  verification: "Verified",
+  updatedAt: new Date(),
   Pre_Inv: `This is a test of pre-inventory instructions with proper text wrapping. This text should wrap correctly within the 0.5 inch margins and maintain professional formatting.
 
 Here's a second paragraph to test paragraph breaks and ensure proper spacing between sections. The text should flow naturally and be easy to read.`,

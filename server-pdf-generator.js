@@ -163,12 +163,44 @@ function generateHTML(clientData) {
       <body>
         <div class="pdf-container">
           <div class="header">
-          <div class="company-name">MSI INVENTORY</div>
-          <div class="client-name">Account Instructions for ${clientData.name}</div>
-        </div>
+            <div class="company-name">MSI INVENTORY</div>
+            <div class="client-name">ACCOUNT INSTRUCTIONS</div>
+            <div class="client-name">${clientData.name}</div>
+          </div>
 
-        <!-- All the same content as client-side version -->
-        <!-- ... rest of the HTML content ... -->
+          <div class="section">
+            <div class="field">
+              <div class="field-label">Inventory:</div>
+              <div class="field-value">${clientData.inventoryType || clientData.accountType || 'Not specified'}</div>
+            </div>
+            <div class="field">
+              <div class="field-label">Updated:</div>
+              <div class="field-value">${clientData.updatedAt ? new Date(clientData.updatedAt.toDate ? clientData.updatedAt.toDate() : clientData.updatedAt).toLocaleDateString('en-US', { 
+                year: 'numeric',
+                month: 'long', 
+                day: 'numeric'
+              }) : new Date().toLocaleDateString('en-US', { 
+                year: 'numeric',
+                month: 'long', 
+                day: 'numeric'
+              })}</div>
+            </div>
+            <div class="field">
+              <div class="field-label">PIC:</div>
+              <div class="field-value">${clientData.PIC || 'Not specified'}</div>
+            </div>
+            <div class="field">
+              <div class="field-label">Store Start Time:</div>
+              <div class="field-value">${clientData.startTime || clientData.storeStartTime || 'Not specified'}</div>
+            </div>
+            <div class="field">
+              <div class="field-label">Verification:</div>
+              <div class="field-value">${clientData.verification || 'Not specified'}</div>
+            </div>
+          </div>
+
+          <!-- All the same content as client-side version -->
+          <!-- ... rest of the HTML content ... -->
         </div>
       </body>
     </html>
