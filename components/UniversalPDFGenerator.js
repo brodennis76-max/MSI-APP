@@ -62,10 +62,14 @@ const UniversalPDFGenerator = ({
               email: data.email || '',
               address: data.address || '',
               phone: data.phone || '',
-              inventoryType: data.inventoryType || 'Not specified',
-              PIC: data.PIC || 'Not specified',
-              startTime: data.startTime || 'Not specified',
-              verification: data.verification || 'Not specified',
+              // Don't override with 'Not specified' - use actual values from database
+              inventoryType: data.inventoryType,
+              accountType: data.accountType,
+              PIC: data.PIC,
+              startTime: data.startTime,
+              storeStartTime: data.storeStartTime,
+              verification: data.verification,
+              updatedAt: data.updatedAt,
               additionalNotes: data.additionalNotes || '',
               Additional_Notes: data.Additional_Notes || data.additionalNotes || '',
               preInventory: data.preInventory || '',
@@ -161,6 +165,25 @@ const UniversalPDFGenerator = ({
       storeStartTime: client?.storeStartTime,
       verification: client?.verification,
       updatedAt: client?.updatedAt,
+    });
+    
+    // Debug the actual values that will be used in the PDF
+    console.log('🔍 PDF Field Values:');
+    console.log('  - Inventory:', client?.inventoryType || client?.accountType || 'Not specified');
+    console.log('  - PIC:', client?.PIC || 'Not specified');
+    console.log('  - Store Start Time:', client?.startTime || client?.storeStartTime || 'Not specified');
+    console.log('  - Verification:', client?.verification || 'Not specified');
+    console.log('  - Updated:', client?.updatedAt ? new Date(client.updatedAt.toDate ? client.updatedAt.toDate() : client.updatedAt).toLocaleDateString('en-US', { 
+      year: 'numeric',
+      month: 'long', 
+      day: 'numeric'
+    }) : new Date().toLocaleDateString('en-US', { 
+      year: 'numeric',
+      month: 'long', 
+      day: 'numeric'
+    }));
+    
+    console.log('🎨 Other field values:', {
       preInventory: client?.preInventory,
       'Team-Instr': client?.['Team-Instr'],
       Inv_Proc: client?.Inv_Proc,
