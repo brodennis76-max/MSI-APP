@@ -1,6 +1,7 @@
 {
   "name": "msi-expo",
   "version": "1.0.0",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "start": "expo start",
