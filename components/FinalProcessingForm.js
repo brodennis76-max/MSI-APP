@@ -258,35 +258,105 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
           throw new Error('PDF generation failed - no URI returned');
         }
         
-        // Share the PDF with better error handling
+        // Share the PDF with multiple fallback strategies
+        let shareSuccess = false;
+        
+        // Strategy 1: Try sharing with minimal options
         try {
           if (await Sharing.isAvailableAsync()) {
-            console.log('🔥 handlePrintReports: Sharing is available, attempting to share...');
+            console.log('🔥 handlePrintReports: Strategy 1 - Basic sharing...');
+            await Sharing.shareAsync(uri);
+            console.log('🔥 handlePrintReports: Basic sharing successful');
+            shareSuccess = true;
+            Alert.alert('Success!', `Reports generated and ready to print for ${clientData.name}!`);
+          }
+        } catch (error1) {
+          console.error('🔥 handlePrintReports: Strategy 1 failed:', error1);
+        }
+        
+        // Strategy 2: Try sharing with MIME type
+        if (!shareSuccess) {
+          try {
+            console.log('🔥 handlePrintReports: Strategy 2 - Sharing with MIME type...');
             await Sharing.shareAsync(uri, {
               mimeType: 'application/pdf',
-              dialogTitle: `Account Instructions - ${clientData.name}`,
-              UTI: 'com.adobe.pdf'
+              dialogTitle: `Account Instructions - ${clientData.name}`
             });
-            console.log('🔥 handlePrintReports: PDF shared successfully');
+            console.log('🔥 handlePrintReports: MIME type sharing successful');
+            shareSuccess = true;
             Alert.alert('Success!', `Reports generated and ready to print for ${clientData.name}!`);
-          } else {
-            console.log('🔥 handlePrintReports: Sharing not available on this device');
-            Alert.alert('Sharing not available', 'Sharing is not available on this device');
+          } catch (error2) {
+            console.error('🔥 handlePrintReports: Strategy 2 failed:', error2);
           }
-        } catch (shareError) {
-          console.error('🔥 handlePrintReports: Sharing error:', shareError);
-          console.error('🔥 Error code:', shareError.code);
-          console.error('🔥 Error message:', shareError.message);
-          
-          // Fallback: try to open the file directly
+        }
+        
+        // Strategy 3: Try sharing with UTI
+        if (!shareSuccess) {
           try {
-            console.log('🔥 handlePrintReports: Attempting fallback - opening file directly...');
-            await Linking.openURL(uri);
-            Alert.alert('PDF Generated', `PDF has been generated. Check your device's file manager or downloads folder.`);
-          } catch (linkError) {
-            console.error('🔥 handlePrintReports: Fallback also failed:', linkError);
-            Alert.alert('Error', `PDF generated but couldn't be opened. File saved to: ${uri}`);
+            console.log('🔥 handlePrintReports: Strategy 3 - Sharing with UTI...');
+            await Sharing.shareAsync(uri, {
+              UTI: 'com.adobe.pdf',
+              dialogTitle: `Account Instructions - ${clientData.name}`
+            });
+            console.log('🔥 handlePrintReports: UTI sharing successful');
+            shareSuccess = true;
+            Alert.alert('Success!', `Reports generated and ready to print for ${clientData.name}!`);
+          } catch (error3) {
+            console.error('🔥 handlePrintReports: Strategy 3 failed:', error3);
           }
+        }
+        
+        // Strategy 4: Try opening with Linking
+        if (!shareSuccess) {
+          try {
+            console.log('🔥 handlePrintReports: Strategy 4 - Opening with Linking...');
+            await Linking.openURL(uri);
+            console.log('🔥 handlePrintReports: Linking successful');
+            shareSuccess = true;
+            Alert.alert('PDF Generated', `PDF has been generated. Check your device's file manager or downloads folder.`);
+          } catch (error4) {
+            console.error('🔥 handlePrintReports: Strategy 4 failed:', error4);
+          }
+        }
+        
+        // Strategy 5: Copy file to a more accessible location
+        if (!shareSuccess) {
+          try {
+            console.log('🔥 handlePrintReports: Strategy 5 - Copying to accessible location...');
+            const fileName = `Account_Instructions_${clientData.name.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+            const newUri = `${FileSystem.documentDirectory}${fileName}`;
+            
+            await FileSystem.copyAsync({
+              from: uri,
+              to: newUri
+            });
+            
+            console.log('🔥 handlePrintReports: File copied to:', newUri);
+            
+            // Try sharing the copied file
+            await Sharing.shareAsync(newUri, {
+              mimeType: 'application/pdf',
+              dialogTitle: `Account Instructions - ${clientData.name}`
+            });
+            
+            console.log('🔥 handlePrintReports: Copied file sharing successful');
+            shareSuccess = true;
+            Alert.alert('Success!', `Reports generated and ready to print for ${clientData.name}!`);
+          } catch (error5) {
+            console.error('🔥 handlePrintReports: Strategy 5 failed:', error5);
+          }
+        }
+        
+        // Final fallback: Show file location
+        if (!shareSuccess) {
+          console.error('🔥 handlePrintReports: All sharing strategies failed');
+          Alert.alert(
+            'PDF Generated', 
+            `PDF has been generated but couldn't be opened automatically.\n\nFile location: ${uri}\n\nYou can find this file in your device's file manager or downloads folder.`,
+            [
+              { text: 'OK', style: 'default' }
+            ]
+          );
         }
       }
     } catch (error) {
