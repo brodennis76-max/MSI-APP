@@ -70,10 +70,11 @@ const AccInstPicker = ({ onBack, onMenuPress }) => {
   const selectedClient = clients.find((client) => client.id === selectedClientId);
 
   // Show PDF generator if a client is selected and showPDFGenerator is true
-  if (showPDFGenerator && selectedClientId) {
+  if (showPDFGenerator && selectedClientId && selectedClient) {
     return (
       <UniversalPDFGenerator 
         clientId={selectedClientId}
+        clientData={selectedClient}
         onBack={() => setShowPDFGenerator(false)}
         onComplete={() => setShowPDFGenerator(false)}
         showPreview={true}
