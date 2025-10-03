@@ -16,6 +16,7 @@ import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Linking from 'expo-linking';
+import * as Print from 'expo-print';
 import { generateUniversalPDF } from '../utils/pdfUtils';
 
 const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
@@ -215,14 +216,33 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
         console.log('🔥 handlePrintReports: PDF generated successfully:', pdfUri);
         window.alert(`Reports generated successfully for ${clientData.name}! PDF downloaded.`);
       } else {
-        // For mobile, use the original approach
-        const pdfUri = await generateUniversalPDF(completeClientData);
-        console.log('🔥 handlePrintReports: PDF generated successfully:', pdfUri);
-        await Sharing.shareAsync(pdfUri, {
-          mimeType: 'application/pdf',
-          dialogTitle: `Print Account Instructions for ${clientData.name}`,
+        // For mobile, use the same approach as UniversalPDFGenerator
+        console.log('🔥 handlePrintReports: Using mobile PDF generation...');
+        const html = generateUniversalHTML(completeClientData);
+        console.log('🔥 handlePrintReports: HTML generated, calling expo-print...');
+        
+        const { uri } = await Print.printToFileAsync({
+          html,
+          base64: false,
+          width: 612, // 8.5 inches * 72 points/inch
+          height: 792, // 11 inches * 72 points/inch
+          margins: {
+            left: 36,   // 0.5 inch (36 points)
+            right: 36,  // 0.5 inch (36 points)
+            top: 36,    // 0.5 inch (36 points)
+            bottom: 36  // 0.5 inch (36 points)
+          }
         });
-        Alert.alert('Success!', `Reports generated and ready to print for ${clientData.name}!`);
+        
+        console.log('🔥 handlePrintReports: PDF generated successfully:', uri);
+        
+        // Share the PDF
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(uri);
+          Alert.alert('Success!', `Reports generated and ready to print for ${clientData.name}!`);
+        } else {
+          Alert.alert('Sharing not available', 'Sharing is not available on this device');
+        }
       }
     } catch (error) {
       console.error('🔥 handlePrintReports ERROR:', error);
