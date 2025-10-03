@@ -183,6 +183,16 @@ const UniversalPDFGenerator = ({
       day: 'numeric'
     }));
     
+    // FORCE DEBUG: Check if the fields exist
+    console.log('🚨 FORCE DEBUG - Field existence check:');
+    console.log('  - client.inventoryType exists:', !!client?.inventoryType);
+    console.log('  - client.accountType exists:', !!client?.accountType);
+    console.log('  - client.PIC exists:', !!client?.PIC);
+    console.log('  - client.startTime exists:', !!client?.startTime);
+    console.log('  - client.storeStartTime exists:', !!client?.storeStartTime);
+    console.log('  - client.verification exists:', !!client?.verification);
+    console.log('  - client.updatedAt exists:', !!client?.updatedAt);
+    
     console.log('🎨 Other field values:', {
       preInventory: client?.preInventory,
       'Team-Instr': client?.['Team-Instr'],
