@@ -480,6 +480,31 @@ const UniversalPDFGenerator = ({
               <div class="client-name">${client.name}</div>
             </div>
 
+            <!-- SIMPLE TEST - NO JAVASCRIPT -->
+            <div style="background-color: #e3f2fd; border: 3px solid #2196f3; padding: 20px; margin: 20px 0; border-radius: 8px;">
+              <h2 style="color: #1976d2; margin: 0 0 15px 0; font-size: 18px;">CLIENT INFORMATION (SIMPLE TEST)</h2>
+              
+              <div style="display: flex; margin-bottom: 10px; align-items: flex-start;">
+                <div style="font-weight: bold; width: 150px; flex-shrink: 0; color: #333;">Inventory Type:</div>
+                <div style="flex: 1; color: #333;">HARDCODED TEST VALUE</div>
+              </div>
+              
+              <div style="display: flex; margin-bottom: 10px; align-items: flex-start;">
+                <div style="font-weight: bold; width: 150px; flex-shrink: 0; color: #333;">PIC (Pre-Inventory Call):</div>
+                <div style="flex: 1; color: #333;">HARDCODED TEST VALUE</div>
+              </div>
+              
+              <div style="display: flex; margin-bottom: 10px; align-items: flex-start;">
+                <div style="font-weight: bold; width: 150px; flex-shrink: 0; color: #333;">Start Time:</div>
+                <div style="flex: 1; color: #333;">HARDCODED TEST VALUE</div>
+              </div>
+              
+              <div style="display: flex; margin-bottom: 10px; align-items: flex-start;">
+                <div style="font-weight: bold; width: 150px; flex-shrink: 0; color: #333;">Verification:</div>
+                <div style="flex: 1; color: #333;">HARDCODED TEST VALUE</div>
+              </div>
+            </div>
+
             <div class="info-section avoid-break">
               <div class="info-row">
                 <div class="info-label">Inventory Type:</div>
