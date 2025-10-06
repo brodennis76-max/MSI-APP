@@ -464,32 +464,34 @@ const UniversalPDFGenerator = ({
 
             <div class="info-section avoid-break">
               <div class="info-row">
-                <div class="info-label">Inventory:</div>
-                <div class="info-value">${client.inventoryType || client.accountType || 'Not specified'}</div>
+                <div class="info-label">Inventory Type:</div>
+                <div class="info-value">${client.inventoryType || 'Not specified'}</div>
               </div>
               
               <div class="info-row">
-                <div class="info-label">Updated:</div>
-                <div class="info-value">${client.updatedAt ? new Date(client.updatedAt.toDate ? client.updatedAt.toDate() : client.updatedAt).toLocaleDateString('en-US', { 
-                  year: 'numeric',
-                  month: 'long', 
-                  day: 'numeric'
-                }) : currentDate}</div>
-              </div>
-              
-              <div class="info-row">
-                <div class="info-label">PIC:</div>
+                <div class="info-label">PIC (Pre-Inventory Call):</div>
                 <div class="info-value">${client.PIC || 'Not specified'}</div>
               </div>
               
               <div class="info-row">
-                <div class="info-label">Store Start Time:</div>
-                <div class="info-value">${client.startTime || client.storeStartTime || 'Not specified'}</div>
+                <div class="info-label">Start Time:</div>
+                <div class="info-value">${client.startTime || 'Not specified'}</div>
               </div>
               
               <div class="info-row">
                 <div class="info-label">Verification:</div>
                 <div class="info-value">${client.verification || 'Not specified'}</div>
+              </div>
+              
+              <!-- DEBUG SECTION - Remove this after testing -->
+              <div class="info-row" style="background-color: #f0f0f0; padding: 10px; margin-top: 10px; border: 1px solid #ccc;">
+                <div class="info-label">DEBUG - Field Values:</div>
+                <div class="info-value" style="font-size: 10px;">
+                  inventoryType: "${client.inventoryType || 'undefined'}"<br/>
+                  PIC: "${client.PIC || 'undefined'}"<br/>
+                  startTime: "${client.startTime || 'undefined'}"<br/>
+                  verification: "${client.verification || 'undefined'}"
+                </div>
               </div>
             </div>
 
