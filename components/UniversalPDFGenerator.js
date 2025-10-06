@@ -481,25 +481,27 @@ const UniversalPDFGenerator = ({
             </div>
 
             <!-- CLIENT INFORMATION SECTION -->
-            <div class="info-section avoid-break">
-              <div class="info-row">
-                <div class="info-label">Inventory Type:</div>
-                <div class="info-value">${client.inventoryType || 'Not specified'}</div>
-              </div>
-              
-              <div class="info-row">
-                <div class="info-label">PIC (Pre-Inventory Call):</div>
-                <div class="info-value">${client.PIC || 'Not specified'}</div>
-              </div>
-              
-              <div class="info-row">
-                <div class="info-label">Start Time:</div>
-                <div class="info-value">${client.startTime || 'Not specified'}</div>
-              </div>
-              
-              <div class="info-row">
-                <div class="info-label">Verification:</div>
-                <div class="info-value">${client.verification || 'Not specified'}</div>
+            <div class="avoid-break">
+              <div class="section-title">Client Information</div>
+              <div class="content">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                  <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #007AFF;">
+                    <div style="font-weight: bold; color: #555; font-size: 14px; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">Inventory Type</div>
+                    <div style="color: #2c3e50; font-size: 16px;">${client.inventoryType || 'Not specified'}</div>
+                  </div>
+                  <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #007AFF;">
+                    <div style="font-weight: bold; color: #555; font-size: 14px; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">PIC (Pre-Inventory Call)</div>
+                    <div style="color: #2c3e50; font-size: 16px;">${client.PIC || 'Not specified'}</div>
+                  </div>
+                  <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #007AFF;">
+                    <div style="font-weight: bold; color: #555; font-size: 14px; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">Start Time</div>
+                    <div style="color: #2c3e50; font-size: 16px;">${client.startTime || 'Not specified'}</div>
+                  </div>
+                  <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #007AFF;">
+                    <div style="font-weight: bold; color: #555; font-size: 14px; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">Verification</div>
+                    <div style="color: #2c3e50; font-size: 16px;">${client.verification || 'Not specified'}</div>
+                  </div>
+                </div>
               </div>
             </div>
 
