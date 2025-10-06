@@ -1,0 +1,32 @@
+# AWS Amplify Build Configuration
+# Use these settings in the Amplify Console
+
+# App Build Specification
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - cd msi-expo
+        - npm ci
+    build:
+      commands:
+        - npm run build:amplify
+  artifacts:
+    baseDirectory: msi-expo/dist
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - msi-expo/node_modules/**/*
+      - msi-expo/.expo/**/*
+
+# Manual Configuration for Amplify Console:
+# - Build command: npm run build:amplify
+# - Base directory: msi-expo
+# - Build output directory: dist
+# - Node.js version: 18.x (recommended)
+
+# Environment Variables (if needed):
+# NODE_ENV: production
+# EXPO_OPTIMIZE: true
