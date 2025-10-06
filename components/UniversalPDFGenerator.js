@@ -150,6 +150,20 @@ const UniversalPDFGenerator = ({
       clientId,
       loading
     });
+    
+    // CRITICAL DEBUG: Log the actual client data being used
+    if (data) {
+      console.log('🚨 CRITICAL DEBUG - Client data being used for PDF:');
+      console.log('  - Name:', data.name);
+      console.log('  - inventoryType:', data.inventoryType);
+      console.log('  - PIC:', data.PIC);
+      console.log('  - startTime:', data.startTime);
+      console.log('  - verification:', data.verification);
+      console.log('  - All keys:', Object.keys(data));
+    } else {
+      console.log('❌ NO CLIENT DATA AVAILABLE!');
+    }
+    
     return data;
   };
 
@@ -192,6 +206,10 @@ const UniversalPDFGenerator = ({
     console.log('  - client.storeStartTime exists:', !!client?.storeStartTime);
     console.log('  - client.verification exists:', !!client?.verification);
     console.log('  - client.updatedAt exists:', !!client?.updatedAt);
+    
+    // COMPLETE CLIENT DATA DUMP
+    console.log('🚨 COMPLETE CLIENT DATA DUMP:');
+    console.log(JSON.stringify(client, null, 2));
     
     console.log('🎨 Other field values:', {
       preInventory: client?.preInventory,
@@ -465,22 +483,22 @@ const UniversalPDFGenerator = ({
             <div class="info-section avoid-break">
               <div class="info-row">
                 <div class="info-label">Inventory Type:</div>
-                <div class="info-value">${client.inventoryType || 'Not specified'}</div>
+                <div class="info-value">${client.inventoryType || 'TEST DATA - inventoryType is empty'}</div>
               </div>
               
               <div class="info-row">
                 <div class="info-label">PIC (Pre-Inventory Call):</div>
-                <div class="info-value">${client.PIC || 'Not specified'}</div>
+                <div class="info-value">${client.PIC || 'TEST DATA - PIC is empty'}</div>
               </div>
               
               <div class="info-row">
                 <div class="info-label">Start Time:</div>
-                <div class="info-value">${client.startTime || 'Not specified'}</div>
+                <div class="info-value">${client.startTime || 'TEST DATA - startTime is empty'}</div>
               </div>
               
               <div class="info-row">
                 <div class="info-label">Verification:</div>
-                <div class="info-value">${client.verification || 'Not specified'}</div>
+                <div class="info-value">${client.verification || 'TEST DATA - verification is empty'}</div>
               </div>
               
               <!-- DEBUG SECTION - Remove this after testing -->
@@ -490,7 +508,16 @@ const UniversalPDFGenerator = ({
                   inventoryType: "${client.inventoryType || 'undefined'}"<br/>
                   PIC: "${client.PIC || 'undefined'}"<br/>
                   startTime: "${client.startTime || 'undefined'}"<br/>
-                  verification: "${client.verification || 'undefined'}"
+                  verification: "${client.verification || 'undefined'}"<br/>
+                  <strong>Raw client object keys:</strong> ${Object.keys(client || {}).join(', ')}
+                </div>
+              </div>
+              
+              <!-- FORCE TEST SECTION - This should ALWAYS show -->
+              <div class="info-row" style="background-color: #ffeb3b; padding: 10px; margin-top: 10px; border: 2px solid #ff9800;">
+                <div class="info-label">FORCE TEST - This section should ALWAYS appear:</div>
+                <div class="info-value" style="font-size: 12px; font-weight: bold;">
+                  If you can see this, the client info section is working!
                 </div>
               </div>
             </div>
