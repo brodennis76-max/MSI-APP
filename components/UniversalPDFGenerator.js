@@ -480,28 +480,33 @@ const UniversalPDFGenerator = ({
               <div class="client-name">${client.name}</div>
             </div>
 
-            <!-- SIMPLE TEST - NO JAVASCRIPT -->
-            <div style="background-color: #e3f2fd; border: 3px solid #2196f3; padding: 20px; margin: 20px 0; border-radius: 8px;">
-              <h2 style="color: #1976d2; margin: 0 0 15px 0; font-size: 18px;">CLIENT INFORMATION (SIMPLE TEST)</h2>
-              
-              <div style="display: flex; margin-bottom: 10px; align-items: flex-start;">
-                <div style="font-weight: bold; width: 150px; flex-shrink: 0; color: #333;">Inventory Type:</div>
-                <div style="flex: 1; color: #333;">HARDCODED TEST VALUE</div>
+            <!-- CLIENT INFORMATION SECTION -->
+            <div class="info-section avoid-break">
+              <div class="info-row">
+                <div class="info-label">Inventory Type:</div>
+                <div class="info-value">${client.inventoryType || 'Not specified'}</div>
               </div>
               
-              <div style="display: flex; margin-bottom: 10px; align-items: flex-start;">
-                <div style="font-weight: bold; width: 150px; flex-shrink: 0; color: #333;">PIC (Pre-Inventory Call):</div>
-                <div style="flex: 1; color: #333;">HARDCODED TEST VALUE</div>
+              <div class="info-row">
+                <div class="info-label">PIC (Pre-Inventory Call):</div>
+                <div class="info-value">${client.PIC || 'Not specified'}</div>
               </div>
               
-              <div style="display: flex; margin-bottom: 10px; align-items: flex-start;">
-                <div style="font-weight: bold; width: 150px; flex-shrink: 0; color: #333;">Start Time:</div>
-                <div style="flex: 1; color: #333;">HARDCODED TEST VALUE</div>
+              <div class="info-row">
+                <div class="info-label">Start Time:</div>
+                <div class="info-value">${client.startTime || 'Not specified'}</div>
               </div>
               
-              <div style="display: flex; margin-bottom: 10px; align-items: flex-start;">
-                <div style="font-weight: bold; width: 150px; flex-shrink: 0; color: #333;">Verification:</div>
-                <div style="flex: 1; color: #333;">HARDCODED TEST VALUE</div>
+              <div class="info-row">
+                <div class="info-label">Verification:</div>
+                <div class="info-value">${client.verification || 'Not specified'}</div>
+              </div>
+            </div>
+
+            <!-- IMPORTANT WARNING BOX -->
+            <div class="avoid-break" style="background-color: #fff3cd; border: 2px solid #ffc107; border-left: 6px solid #f39c12; padding: 20px; margin: 20px 0; border-radius: 8px; text-align: center;">
+              <div style="color: #856404; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">
+                ⚠️ IMPORTANT: If you are going to be more than five minutes late to a store you must contact that store before you are late. NO EXCEPTIONS!!!
               </div>
             </div>
 
