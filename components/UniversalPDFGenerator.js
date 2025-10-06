@@ -564,7 +564,7 @@ const UniversalPDFGenerator = ({
                   
                   // If there's existing content, add the ALR instructions at the beginning
                   if (content.trim()) {
-                    content = baseInstructions + '\\n\\n' + content;
+                    content = baseInstructions + '\n\n' + content;
                   } else {
                     content = baseInstructions;
                   }
