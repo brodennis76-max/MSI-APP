@@ -233,27 +233,15 @@ const PDFPreview = ({ clientData, onBack, onGeneratePDF }) => {
               <div class="section-title">Client Information</div>
               <div class="info-grid">
                 <div class="info-item">
-                  <div class="info-label">Inventory</div>
+                  <div class="info-label">Inventory Type</div>
                   <div class="info-value">${client.inventoryType || client.accountType || 'Not specified'}</div>
                 </div>
                 <div class="info-item">
-                  <div class="info-label">Updated</div>
-                  <div class="info-value">${client.updatedAt ? new Date(client.updatedAt.toDate ? client.updatedAt.toDate() : client.updatedAt).toLocaleDateString('en-US', { 
-                    year: 'numeric',
-                    month: 'long', 
-                    day: 'numeric'
-                  }) : new Date().toLocaleDateString('en-US', { 
-                    year: 'numeric',
-                    month: 'long', 
-                    day: 'numeric'
-                  })}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">PIC</div>
+                  <div class="info-label">PIC (Pre-Inventory Call)</div>
                   <div class="info-value">${client.PIC || 'Not specified'}</div>
                 </div>
                 <div class="info-item">
-                  <div class="info-label">Store Start Time</div>
+                  <div class="info-label">Start Time</div>
                   <div class="info-value">${client.startTime || client.storeStartTime || 'Not specified'}</div>
                 </div>
                 <div class="info-item">
