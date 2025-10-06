@@ -122,6 +122,26 @@ public class PdfGenerationService {
             yPosition = addField(contentStream, "Phone", clientData.getPhone(), yPosition);
         }
         
+        if (clientData.getInventoryType() != null) {
+            yPosition = addField(contentStream, "Inventory", clientData.getInventoryType(), yPosition);
+        }
+        
+        if (clientData.getPIC() != null) {
+            yPosition = addField(contentStream, "PIC", clientData.getPIC(), yPosition);
+        }
+        
+        if (clientData.getStartTime() != null) {
+            yPosition = addField(contentStream, "Store Start Time", clientData.getStartTime(), yPosition);
+        }
+        
+        if (clientData.getVerification() != null) {
+            yPosition = addField(contentStream, "Verification", clientData.getVerification(), yPosition);
+        }
+        
+        if (clientData.getUpdatedAt() != null) {
+            yPosition = addField(contentStream, "Updated", clientData.getUpdatedAt(), yPosition);
+        }
+        
         return yPosition - 15;
     }
     

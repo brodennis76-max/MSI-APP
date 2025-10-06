@@ -15,6 +15,13 @@ public class ClientData {
     private String address;
     private String phone;
     
+    // Additional client information fields
+    private String inventoryType;
+    private String PIC;
+    private String startTime;
+    private String verification;
+    private String updatedAt;
+    
     // Account Instructions sections
     @JsonProperty("Pre_Inv")
     private String preInventory;
@@ -88,6 +95,46 @@ public class ClientData {
     
     public void setPhone(String phone) {
         this.phone = phone;
+    }
+    
+    public String getInventoryType() {
+        return inventoryType;
+    }
+    
+    public void setInventoryType(String inventoryType) {
+        this.inventoryType = inventoryType;
+    }
+    
+    public String getPIC() {
+        return PIC;
+    }
+    
+    public void setPIC(String PIC) {
+        this.PIC = PIC;
+    }
+    
+    public String getStartTime() {
+        return startTime;
+    }
+    
+    public void setStartTime(String startTime) {
+        this.startTime = startTime;
+    }
+    
+    public String getVerification() {
+        return verification;
+    }
+    
+    public void setVerification(String verification) {
+        this.verification = verification;
+    }
+    
+    public String getUpdatedAt() {
+        return updatedAt;
+    }
+    
+    public void setUpdatedAt(String updatedAt) {
+        this.updatedAt = updatedAt;
     }
     
     public String getPreInventory() {
