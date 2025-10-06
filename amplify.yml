@@ -9,7 +9,7 @@ frontend:
       commands:
         - npm run build:amplify
   artifacts:
-    baseDirectory: msi-expo/dist
+    baseDirectory: dist
     files:
       - '**/*'
   cache:
