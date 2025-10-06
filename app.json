@@ -1,0 +1,69 @@
+{
+  "expo": {
+    "name": "MSI Inventory",
+    "slug": "msi-inventory-app",
+    "scheme": "msiexpo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "description": "MSI Inventory Management Application for field teams",
+    "splash": {
+      "image": "./assets/login-logo.jpg",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.msi.msiexpo",
+      "icon": "./assets/icon.png",
+      "splash": {
+        "image": "./assets/login-logo.jpg",
+        "resizeMode": "contain",
+        "backgroundColor": "#ffffff"
+      },
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app needs access to camera to take photos for inventory documentation.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select images for inventory documentation.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "name": "MSI Inventory",
+      "shortName": "MSI",
+      "themeColor": "#ffffff",
+      "backgroundColor": "#ffffff",
+      "display": "standalone",
+      "orientation": "portrait",
+      "startUrl": "/",
+      "scope": "/",
+      "lang": "en",
+      "description": "MSI Inventory Management Application for field teams"
+    },
+    "plugins": [
+      "expo-dev-client"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ebf527d7-aca4-454e-a924-ed7e9a766f85"
+      }
+    },
+    "owner": "brodennis76",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ebf527d7-aca4-454e-a924-ed7e9a766f85"
+    }
+  }
+}

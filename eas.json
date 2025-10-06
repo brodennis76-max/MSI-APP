@@ -1,0 +1,38 @@
+{
+  "cli": {
+    "version": ">= 5.9.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true,
+        "buildConfiguration": "Debug"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": false,
+        "buildConfiguration": "Release",
+        "autoIncrement": "buildNumber"
+      }
+    },
+    "production": {
+      "distribution": "store",
+      "ios": {
+        "simulator": false,
+        "buildConfiguration": "Release",
+        "autoIncrement": "buildNumber"
+      }
+    },
+    "web": {
+      "platform": "web"
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

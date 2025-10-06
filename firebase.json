@@ -1,0 +1,14 @@
+{
+  "react-native": {
+    "android_app_id": "1:819064018045:android:your-android-app-id",
+    "ios_app_id": "1:819064018045:ios:your-ios-app-id",
+    "android_api_key": "AIzaSyCKueXOUYH3NWYSjYigAOW6Z7HnbU_0KfU",
+    "ios_api_key": "AIzaSyCKueXOUYH3NWYSjYigAOW6Z7HnbU_0KfU",
+    "project_id": "msi-account-instructions",
+    "storage_bucket": "msi-account-instructions.firebasestorage.app",
+    "messaging_sender_id": "819064018045",
+    "app_id": "1:819064018045:web:f4bb5014748f92aa760d14"
+  }
+}
+
+
