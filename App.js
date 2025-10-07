@@ -3,30 +3,15 @@ import { Image, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AccInstPicker from './components/AccInstPicker';
 import AddAccountFormTest from './components/AddAccountFormTest';
-import UniversalPDFGenerator from './components/UniversalPDFGenerator';
+// Removed PDF generator import
 import { useEffect, useState } from 'react';
 
 export default function App() {
   const [showLanding, setShowLanding] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [currentScreen, setCurrentScreen] = useState('landing'); // 'landing' | 'accountInstructions' | 'addAccount' | 'testPDF'
+  const [currentScreen, setCurrentScreen] = useState('landing'); // 'landing' | 'accountInstructions' | 'addAccount'
 
-  // Test data for PDF generator
-  const testClientData = {
-    name: "Test Client Company",
-    email: "test@example.com",
-    address: "123 Test Street, Test City, TS 12345",
-    phone: "(555) 123-4567",
-    inventoryType: "Scan",
-    PIC: "John Smith",
-    startTime: "8:00 AM",
-    verification: "Verified",
-    updatedAt: new Date(),
-    Pre_Inv: "This is a test of pre-inventory instructions with proper 0.5 inch margins and text wrapping. This text should wrap correctly and maintain professional formatting throughout the document.",
-    Team_Instr: "Team instructions section with multiple lines.\n\nThis should create proper paragraph breaks and handle text wrapping correctly within the specified margins.",
-    Inv_Proc: "Inventory procedures with detailed steps:\n1. First step in the process\n2. Second step with longer text that should wrap properly\n3. Third step to complete the process",
-    Additional_Notes: "Additional notes section for testing the improved PDF generation with exact 0.5 inch margins and professional text wrapping capabilities."
-  };
+  // Removed test data for PDF generator
 
   // Show splash screen for 7 seconds
   useEffect(() => {
@@ -142,23 +127,7 @@ export default function App() {
     );
   }
 
-  // Test PDF Generator screen
-  if (currentScreen === 'testPDF') {
-    return (
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.container}>
-          <StatusBar style="auto" />
-          <UniversalPDFGenerator 
-            clientData={testClientData}
-            onBack={() => setCurrentScreen('landing')}
-            onComplete={() => setCurrentScreen('landing')}
-            showPreview={true}
-            customTitle="Test Account Instructions"
-          />
-        </SafeAreaView>
-      </SafeAreaProvider>
-    );
-  }
+  // Test PDF Generator screen removed
 
 
   // Landing page (default)
@@ -196,15 +165,7 @@ export default function App() {
             >
               <Text style={styles.menuText}>Add Account</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.menuItem} 
-              onPress={() => {
-                setCurrentScreen('testPDF');
-                setMenuOpen(false);
-              }}
-            >
-              <Text style={styles.menuText}>Test PDF Generator</Text>
-            </TouchableOpacity>
+              
           </View>
         )}
         <View style={styles.content}>

@@ -20,7 +20,6 @@
     "expo-file-system": "^19.0.15",
     "expo-linking": "~8.0.8",
     "expo-print": "^15.0.7",
-    "expo-sharing": "~14.0.7",
     "expo-status-bar": "~3.0.8",
     "expo-updates": "~29.0.12",
     "firebase": "^12.3.0",
@@ -32,8 +31,6 @@
   },
   "private": true,
   "devDependencies": {
-    "html2canvas": "^1.4.1",
-    "html2pdf.js": "^0.12.1",
     "jspdf": "^3.0.3",
     "react-dom": "19.1.0"
   },

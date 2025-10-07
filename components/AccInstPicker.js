@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Image, TouchableOpacity, TextInput } from 'react-native';
+import { generateAccountInstructionsPDF } from './UniversalPDFGenerator';
 import { Picker } from '@react-native-picker/picker';
 import { db } from '../firebase-config';
 import { collection, onSnapshot } from 'firebase/firestore';
-import UniversalPDFGenerator from './UniversalPDFGenerator';
+// Removed PDF generation dependency
 
 const AccInstPicker = ({ onBack, onMenuPress }) => {
   const [clients, setClients] = useState([]);
   const [selectedClientId, setSelectedClientId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showPDFGenerator, setShowPDFGenerator] = useState(false);
+  // Removed PDF generator state
   const [searchText, setSearchText] = useState('');
   const [filteredClients, setFilteredClients] = useState([]);
 
@@ -69,19 +70,7 @@ const AccInstPicker = ({ onBack, onMenuPress }) => {
   // Get selected client object
   const selectedClient = clients.find((client) => client.id === selectedClientId);
 
-  // Show PDF generator if a client is selected and showPDFGenerator is true
-  if (showPDFGenerator && selectedClientId && selectedClient) {
-    return (
-      <UniversalPDFGenerator 
-        clientId={selectedClientId}
-        clientData={selectedClient}
-        onBack={() => setShowPDFGenerator(false)}
-        onComplete={() => setShowPDFGenerator(false)}
-        showPreview={true}
-        customTitle="Account Instructions"
-      />
-    );
-  }
+  // PDF generator removed
 
   if (loading) {
     return (
@@ -144,9 +133,6 @@ const AccInstPicker = ({ onBack, onMenuPress }) => {
             selectedValue={selectedClientId}
             onValueChange={(itemValue) => {
               setSelectedClientId(itemValue);
-              if (itemValue) {
-                setShowPDFGenerator(true);
-              }
             }}
             style={styles.picker}
           >
@@ -160,6 +146,23 @@ const AccInstPicker = ({ onBack, onMenuPress }) => {
             ))}
           </Picker>
         </View>
+
+        <TouchableOpacity 
+          style={styles.generateButton}
+          onPress={async () => {
+            if (!selectedClientId) {
+              alert('Please select a client first.');
+              return;
+            }
+            try {
+              await generateAccountInstructionsPDF({ clientId: selectedClientId });
+            } catch (e) {
+              alert(e?.message || 'Failed to generate PDF');
+            }
+          }}
+        >
+          <Text style={styles.generateButtonText}>Generate PDF</Text>
+        </TouchableOpacity>
       </View>
       
       <View style={styles.bottomButtonContainer}>
@@ -242,6 +245,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
+  },
+  generateButton: {
+    marginTop: 10,
+    backgroundColor: '#007AFF',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  generateButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   loadingText: {
     marginTop: 10,
