@@ -40,6 +40,22 @@ export async function generateAccountInstructionsPDF(options) {
 
     pdf.setFont('helvetica', 'bold');
     let y = MARGIN_PT;
+    const checkPageBreak = (advance) => {
+      if (y + advance > PAGE_HEIGHT_PT - MARGIN_PT) {
+        pdf.addPage();
+        y = MARGIN_PT;
+      }
+    };
+
+    const writeWrapped = (text, width, lineH) => {
+      const lines = pdf.splitTextToSize(text, width);
+      lines.forEach((ln) => {
+        checkPageBreak(lineH);
+        pdf.text(ln, MARGIN_PT, y);
+        y += lineH;
+      });
+    };
+
     headerLines.forEach((text, i) => {
       // First two lines bold; client name normal weight and slightly smaller than subheader
       if (i < 2) {
@@ -54,6 +70,7 @@ export async function generateAccountInstructionsPDF(options) {
       pdf.setFontSize(fontSize);
       const textWidth = pdf.getTextWidth(text);
       const x = (PAGE_WIDTH_PT - textWidth) / 2;
+      checkPageBreak(20);
       pdf.text(text, x, y);
       // reset to black after client name line to avoid affecting following content
       if (i === 2) {
@@ -80,6 +97,7 @@ export async function generateAccountInstructionsPDF(options) {
     ];
     const lineHeight = 14;
     infoLines.forEach((line) => {
+      checkPageBreak(lineHeight);
       pdf.text(line, MARGIN_PT, y);
       y += lineHeight;
     });
@@ -114,13 +132,10 @@ export async function generateAccountInstructionsPDF(options) {
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(12);
     const { generalText, areaMappingRaw, storePrepRaw } = extractPreInventoryBundle(client.sections);
-    const preInvText = String(generalText || client.preInventory || '').trim();
-    if (preInvText) {
-      const wrappedPreInv = pdf.splitTextToSize(preInvText, contentWidth);
-      wrappedPreInv.forEach(line => {
-        pdf.text(line, MARGIN_PT, y);
-        y += lineHeight;
-      });
+    const alrIntro = client.ALR ? `• ALR disk is ${client.ALR}.` : '';
+    const combinedPre = [alrIntro, String(generalText || client.preInventory || '').trim()].filter(Boolean).join('\n');
+    if (combinedPre) {
+      writeWrapped(combinedPre, contentWidth, lineHeight);
       y += 8;
     }
 
@@ -133,11 +148,7 @@ export async function generateAccountInstructionsPDF(options) {
       y += 16;
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
-      const wrappedArea = pdf.splitTextToSize(areaMapping, contentWidth);
-      wrappedArea.forEach(line => {
-        pdf.text(line, MARGIN_PT, y);
-        y += lineHeight;
-      });
+      writeWrapped(areaMapping, contentWidth, lineHeight);
       y += 12;
     }
 
@@ -150,11 +161,7 @@ export async function generateAccountInstructionsPDF(options) {
       y += 16;
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
-      const wrappedPrep = pdf.splitTextToSize(storePrep, contentWidth);
-      wrappedPrep.forEach(line => {
-        pdf.text(line, MARGIN_PT, y);
-        y += lineHeight;
-      });
+      writeWrapped(storePrep, contentWidth, lineHeight);
       y += 12;
     }
 
