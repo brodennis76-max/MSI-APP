@@ -255,6 +255,74 @@ export async function generateAccountInstructionsPDF(options) {
       y += 12;
     }
 
+    // Double space before next section
+    y += 20;
+
+    // REPORTS section
+    const progRep = String(client.Prog_Rep ?? '').trim();
+    const finalize = String(client.Finalize ?? '').trim();
+    const finRep = String(client.Fin_Rep ?? '').trim();
+    const processing = String(client.Processing ?? '').trim();
+    
+    if (progRep || finalize || finRep || processing) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(16);
+      checkPageBreakWithContent(18, 100); // Ensure header stays with content
+      writeWrapped('REPORTS', contentWidth, 18);
+      y += 2;
+      
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(12);
+      
+      // Progressives subsection
+      if (progRep) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(14);
+        writeWrapped('Progressives:', contentWidth, 16);
+        y += 0;
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(12);
+        writeWrapped(progRep, contentWidth, lineHeight);
+        y += 12;
+      }
+      
+      // Finalizing the Count subsection
+      if (finalize) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(14);
+        writeWrapped('Finalizing the Count:', contentWidth, 16);
+        y += 0;
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(12);
+        writeWrapped(finalize, contentWidth, lineHeight);
+        y += 12;
+      }
+      
+      // Final Reports subsection
+      if (finRep) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(14);
+        writeWrapped('Final Reports:', contentWidth, 16);
+        y += 0;
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(12);
+        writeWrapped(finRep, contentWidth, lineHeight);
+        y += 12;
+      }
+      
+      // Final Processing subsection
+      if (processing) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(14);
+        writeWrapped('Final Processing:', contentWidth, 16);
+        y += 0;
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(12);
+        writeWrapped(processing, contentWidth, lineHeight);
+        y += 12;
+      }
+    }
+
     // Return data URI or save; for now, trigger download with filename
     const filename = `Account_Instructions_${(client.name || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
     pdf.save(filename);
@@ -395,6 +463,47 @@ function buildHtml(client) {
               <div class="section-title">Non-Count Products</div>
               <div class="info" style="margin-top:8px;">
                 <p style="white-space:pre-wrap;">${escapeHtml(noncount)}</p>
+              </div>
+            </div>
+          `;
+        })()}
+
+        ${(() => {
+          const progRep = String(client.Prog_Rep ?? '').trim();
+          const finalize = String(client.Finalize ?? '').trim();
+          const finRep = String(client.Fin_Rep ?? '').trim();
+          const processing = String(client.Processing ?? '').trim();
+          
+          if (!progRep && !finalize && !finRep && !processing) return '';
+          
+          return `
+            <div class="section">
+              <div class="section-title">REPORTS</div>
+              <div class="info" style="margin-top:8px;">
+                ${progRep ? `
+                  <div class="subsection" style="margin-top:8px;">
+                    <div class="section-title" style="font-size:14px;">Progressives:</div>
+                    <div class="info"><p style="white-space:pre-wrap;">${escapeHtml(progRep)}</p></div>
+                  </div>
+                ` : ''}
+                ${finalize ? `
+                  <div class="subsection" style="margin-top:8px;">
+                    <div class="section-title" style="font-size:14px;">Finalizing the Count:</div>
+                    <div class="info"><p style="white-space:pre-wrap;">${escapeHtml(finalize)}</p></div>
+                  </div>
+                ` : ''}
+                ${finRep ? `
+                  <div class="subsection" style="margin-top:8px;">
+                    <div class="section-title" style="font-size:14px;">Final Reports:</div>
+                    <div class="info"><p style="white-space:pre-wrap;">${escapeHtml(finRep)}</p></div>
+                  </div>
+                ` : ''}
+                ${processing ? `
+                  <div class="subsection" style="margin-top:8px;">
+                    <div class="section-title" style="font-size:14px;">Final Processing:</div>
+                    <div class="info"><p style="white-space:pre-wrap;">${escapeHtml(processing)}</p></div>
+                  </div>
+                ` : ''}
               </div>
             </div>
           `;
