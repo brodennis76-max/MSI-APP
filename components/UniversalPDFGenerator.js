@@ -122,11 +122,11 @@ export async function generateAccountInstructionsPDF(options) {
     // Double space before next section
     y += 20;
 
-    // Pre-Inventory section
+    // Pre-Inventory section (wrapped heading)
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(16);
-    pdf.text('Pre-Inventory', MARGIN_PT, y);
-    y += 20;
+    writeWrapped('Pre-Inventory', contentWidth, 18);
+    y += 2; // small spacer after wrapped heading
 
     // General information (no label)
     pdf.setFont('helvetica', 'normal');
@@ -139,26 +139,26 @@ export async function generateAccountInstructionsPDF(options) {
       y += 8;
     }
 
-    // Area Mapping
+    // Area Mapping (wrapped subheading)
     const areaMapping = String(areaMappingRaw).trim();
     if (areaMapping) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
-      pdf.text('Area Mapping', MARGIN_PT, y);
-      y += 16;
+      writeWrapped('Area Mapping', contentWidth, 16);
+      y += 0;
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
       writeWrapped(areaMapping, contentWidth, lineHeight);
       y += 12;
     }
 
-    // Store Prep/Instructions
+    // Store Prep/Instructions (wrapped subheading)
     const storePrep = String(storePrepRaw).trim();
     if (storePrep) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
-      pdf.text('Store Prep/Instructions', MARGIN_PT, y);
-      y += 16;
+      writeWrapped('Store Prep/Instructions', contentWidth, 16);
+      y += 0;
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
       writeWrapped(storePrep, contentWidth, lineHeight);
