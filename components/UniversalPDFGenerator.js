@@ -116,6 +116,8 @@ export async function generateAccountInstructionsPDF(options) {
     const preInvText = String(
       client['Pre-Inventory'] ?? client.Pre_Inv ?? client.preInventory ?? ''
     ).trim();
+    const areaMappingRaw = client['Area Mapping'] ?? client.Area_Mapping ?? client.areaMapping ?? '';
+    const storePrepRaw = client['Store Prep Instructions'] ?? client['Store Prep/Instructions'] ?? client.Store_Prep ?? client.storePrep ?? client.Store_Instr ?? client.storeInstructions ?? '';
     if (preInvText) {
       const wrappedPreInv = pdf.splitTextToSize(preInvText, contentWidth);
       wrappedPreInv.forEach(line => {
@@ -126,9 +128,7 @@ export async function generateAccountInstructionsPDF(options) {
     }
 
     // Area Mapping
-    const areaMapping = String(
-      client['Area Mapping'] ?? client.Area_Mapping ?? client.areaMapping ?? ''
-    ).trim();
+    const areaMapping = String(areaMappingRaw).trim();
     if (areaMapping) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
@@ -145,9 +145,7 @@ export async function generateAccountInstructionsPDF(options) {
     }
 
     // Store Prep/Instructions
-    const storePrep = String(
-      client['Store Prep Instructions'] ?? client.Store_Prep ?? client.storePrep ?? client.Store_Instr ?? client.storeInstructions ?? ''
-    ).trim();
+    const storePrep = String(storePrepRaw).trim();
     if (storePrep) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
@@ -183,6 +181,9 @@ export async function generateAccountInstructionsPDF(options) {
 function buildHtml(client) {
   const safeName = client.name || client.id || 'Unknown Client';
   const updatedAt = formatUpdatedAt(client.updatedAt);
+  const preInv = String(client['Pre-Inventory'] ?? client.Pre_Inv ?? client.preInventory ?? '').trim();
+  const areaMapping = String(client['Area Mapping'] ?? client.Area_Mapping ?? client.areaMapping ?? '').trim();
+  const storePrep = String(client['Store Prep Instructions'] ?? client['Store Prep/Instructions'] ?? client.Store_Prep ?? client.storePrep ?? client.Store_Instr ?? client.storeInstructions ?? '').trim();
   return `
     <!DOCTYPE html>
     <html>
@@ -223,18 +224,20 @@ function buildHtml(client) {
         <div class="section">
           <div class="section-title">Pre-Inventory</div>
           <div class="info" style="margin-top:8px;">
-            <p style="white-space:pre-wrap;">${escapeHtml(String((client['Pre-Inventory'] ?? client.Pre_Inv ?? client.preInventory ?? '').toString().trim()))}</p>
+            <p style="white-space:pre-wrap;">${escapeHtml(preInv)}</p>
           </div>
-          ${(() => {
-            const area = String((client['Area Mapping'] ?? client.Area_Mapping ?? client.areaMapping ?? '').toString().trim());
-            if (!area) return '';
-            return `
+          ${areaMapping ? `
               <div class="subsection" style="margin-top:8px;">
                 <div class="section-title" style="font-size:14px;">Area Mapping</div>
-                <div class="info"><p style="white-space:pre-wrap;">${escapeHtml(area)}</p></div>
+                <div class="info"><p style="white-space:pre-wrap;">${escapeHtml(areaMapping)}</p></div>
               </div>
-            `;
-          })()}
+            ` : ''}
+          ${storePrep ? `
+              <div class="subsection" style="margin-top:8px;">
+                <div class="section-title" style="font-size:14px;">Store Prep/Instructions</div>
+                <div class="info"><p style="white-space:pre-wrap;">${escapeHtml(storePrep)}</p></div>
+              </div>
+            ` : ''}
         </div>
       </body>
     </html>
