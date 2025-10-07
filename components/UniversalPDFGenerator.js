@@ -113,11 +113,10 @@ export async function generateAccountInstructionsPDF(options) {
     // General information (no label)
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(12);
-    const preInvText = String(
-      client['Pre-Inventory'] ?? client.Pre_Inv ?? client.preInventory ?? ''
-    ).trim();
-    const areaMappingRaw = client['Area Mapping'] ?? client.Area_Mapping ?? client.areaMapping ?? '';
-    const storePrepRaw = client['Store Prep Instructions'] ?? client['Store Prep/Instructions'] ?? client.Store_Prep ?? client.storePrep ?? client.Store_Instr ?? client.storeInstructions ?? '';
+    const preInvText = String(client.preInventory ?? '').trim();
+    const sections = (client && typeof client === 'object' && client.sections) ? client.sections : {};
+    const areaMappingRaw = sections ? (sections['Area Mapping'] ?? '') : '';
+    const storePrepRaw = sections ? (sections['Store Prep Instructions'] ?? '') : '';
     if (preInvText) {
       const wrappedPreInv = pdf.splitTextToSize(preInvText, contentWidth);
       wrappedPreInv.forEach(line => {
@@ -181,9 +180,10 @@ export async function generateAccountInstructionsPDF(options) {
 function buildHtml(client) {
   const safeName = client.name || client.id || 'Unknown Client';
   const updatedAt = formatUpdatedAt(client.updatedAt);
-  const preInv = String(client['Pre-Inventory'] ?? client.Pre_Inv ?? client.preInventory ?? '').trim();
-  const areaMapping = String(client['Area Mapping'] ?? client.Area_Mapping ?? client.areaMapping ?? '').trim();
-  const storePrep = String(client['Store Prep Instructions'] ?? client['Store Prep/Instructions'] ?? client.Store_Prep ?? client.storePrep ?? client.Store_Instr ?? client.storeInstructions ?? '').trim();
+  const preInv = String(client.preInventory ?? '').trim();
+  const sections = (client && typeof client === 'object' && client.sections) ? client.sections : {};
+  const areaMapping = String(sections ? (sections['Area Mapping'] ?? '') : '').trim();
+  const storePrep = String(sections ? (sections['Store Prep Instructions'] ?? '') : '').trim();
   return `
     <!DOCTYPE html>
     <html>
