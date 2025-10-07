@@ -1,14 +1,38 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
   TouchableOpacity, 
   ScrollView, 
-  Image
+  Image,
+  Alert,
+  ActivityIndicator,
+  Platform
 } from 'react-native';
+import { generateAccountInstructionsPDF } from './UniversalPDFGenerator';
 
 const CompletionScreen = ({ clientData, onComplete }) => {
+  const [generating, setGenerating] = useState(false);
+
+  const handleGeneratePDF = async () => {
+    setGenerating(true);
+    try {
+      console.log('🔥 CompletionScreen: Starting PDF generation...');
+      await generateAccountInstructionsPDF({ clientId: clientData.id });
+      console.log('🔥 CompletionScreen: PDF generation completed successfully');
+    } catch (e) {
+      console.error('🔥 CompletionScreen: PDF generation error:', e);
+      const msg = e?.message || 'Failed to generate PDF';
+      if (Platform.OS === 'web') {
+        window.alert(msg);
+      } else {
+        Alert.alert('Error', msg);
+      }
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -30,6 +54,18 @@ const CompletionScreen = ({ clientData, onComplete }) => {
       </ScrollView>
 
       <View style={styles.bottomButtonContainer}>
+        <TouchableOpacity 
+          style={[styles.generateButton, generating && styles.disabledButton]}
+          onPress={handleGeneratePDF}
+          disabled={generating}
+        >
+          {generating ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Generate PDF</Text>
+          )}
+        </TouchableOpacity>
+
         <TouchableOpacity 
           style={styles.completeButton}
           onPress={onComplete}
@@ -108,6 +144,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
+    gap: 15,
+  },
+  generateButton: {
+    backgroundColor: '#007AFF',
+    padding: 18,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
   },
   completeButton: {
     backgroundColor: '#28a745',

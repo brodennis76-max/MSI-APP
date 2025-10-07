@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { db } from '../firebase-config';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
-import { generateAccountInstructionsPDF } from './UniversalPDFGenerator';
+// PDF generation moved to CompletionScreen
 // Removed PDF-related imports
 
 const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
@@ -231,34 +231,7 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
           <Text style={styles.backButtonText}>Back</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={[styles.generateButton, saving && styles.disabledButton]}
-          onPress={async () => {
-            try {
-              console.log('🔥 FinalProcessingForm: Starting PDF generation...');
-              // Ensure latest saved data, then generate
-              await handleSaveData();
-              console.log('🔥 FinalProcessingForm: Data saved, calling generateAccountInstructionsPDF...');
-              await generateAccountInstructionsPDF({ clientId: clientData.id });
-              console.log('🔥 FinalProcessingForm: PDF generation completed successfully');
-            } catch (e) {
-              console.error('🔥 FinalProcessingForm: PDF generation error:', e);
-              const msg = e?.message || 'Failed to generate PDF';
-              if (Platform.OS === 'web') {
-                window.alert(msg);
-              } else {
-                Alert.alert('Error', msg);
-              }
-            }
-          }}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Generate PDF</Text>
-          )}
-        </TouchableOpacity>
+        {/* PDF generation moved to CompletionScreen */}
 
         <TouchableOpacity style={styles.completeButton} onPress={() => {
           // Navigate back to dashboard
