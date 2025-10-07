@@ -113,10 +113,8 @@ export async function generateAccountInstructionsPDF(options) {
     // General information (no label)
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(12);
-    const preInvText = String(client.preInventory ?? '').trim();
-    const sections = (client && typeof client === 'object' && client.sections) ? client.sections : {};
-    const areaMappingRaw = sections ? (sections['Area Mapping'] ?? '') : '';
-    const storePrepRaw = sections ? (sections['Store Prep Instructions'] ?? '') : '';
+    const { generalText, areaMappingRaw, storePrepRaw } = extractPreInventoryBundle(client.sections);
+    const preInvText = String(generalText || client.preInventory || '').trim();
     if (preInvText) {
       const wrappedPreInv = pdf.splitTextToSize(preInvText, contentWidth);
       wrappedPreInv.forEach(line => {
@@ -180,10 +178,10 @@ export async function generateAccountInstructionsPDF(options) {
 function buildHtml(client) {
   const safeName = client.name || client.id || 'Unknown Client';
   const updatedAt = formatUpdatedAt(client.updatedAt);
-  const preInv = String(client.preInventory ?? '').trim();
-  const sections = (client && typeof client === 'object' && client.sections) ? client.sections : {};
-  const areaMapping = String(sections ? (sections['Area Mapping'] ?? '') : '').trim();
-  const storePrep = String(sections ? (sections['Store Prep Instructions'] ?? '') : '').trim();
+  const extracted = extractPreInventoryBundle(client.sections);
+  const preInv = String(extracted.generalText || client.preInventory || '').trim();
+  const areaMapping = String(extracted.areaMappingRaw).trim();
+  const storePrep = String(extracted.storePrepRaw).trim();
   return `
     <!DOCTYPE html>
     <html>
@@ -267,6 +265,38 @@ function formatUpdatedAt(val) {
   } catch {
     return '';
   }
+}
+
+// Resolve section texts from either a map object or an array of entries
+function extractPreInventoryBundle(sections) {
+  // Returns { generalText, areaMappingRaw, storePrepRaw }
+  const empty = { generalText: '', areaMappingRaw: '', storePrepRaw: '' };
+  if (!sections) return empty;
+  // Map form not expected for nested subsections, but support minimal keys
+  if (typeof sections === 'object' && !Array.isArray(sections)) {
+    return {
+      generalText: sections['Pre-Inventory'] ?? '',
+      areaMappingRaw: sections['Area Mapping'] ?? '',
+      storePrepRaw: sections['Store Prep Instructions'] ?? ''
+    };
+  }
+  if (Array.isArray(sections)) {
+    const pre = sections.find(s => (s?.sectionName || '').toString().toLowerCase() === 'pre-inventory'.toLowerCase());
+    if (!pre) return empty;
+    const generalText = typeof pre.content === 'string' ? pre.content : '';
+    const subs = Array.isArray(pre.subsections) ? pre.subsections : [];
+    const findSub = (title) => {
+      const entry = subs.find(x => (x?.sectionName || '').toString().toLowerCase() === title.toLowerCase());
+      const text = entry ? (entry.content ?? entry.text ?? entry.value ?? '') : '';
+      return typeof text === 'string' ? text : '';
+    };
+    return {
+      generalText,
+      areaMappingRaw: findSub('Area Mapping'),
+      storePrepRaw: findSub('Store Prep Instructions')
+    };
+  }
+  return empty;
 }
 
 
