@@ -40,8 +40,17 @@ export async function generateAccountInstructionsPDF(options) {
 
     pdf.setFont('helvetica', 'bold');
     let y = MARGIN_PT;
-    const checkPageBreak = (advance) => {
+    const checkPageBreak = (advance, keepWithNext = false) => {
       if (y + advance > PAGE_HEIGHT_PT - MARGIN_PT) {
+        pdf.addPage();
+        y = MARGIN_PT;
+      }
+    };
+
+    const checkPageBreakWithContent = (headerHeight, contentHeight) => {
+      // If header would be orphaned (less than 2 lines of content after it), start new page
+      if (y + headerHeight + contentHeight > PAGE_HEIGHT_PT - MARGIN_PT && 
+          y + headerHeight + 30 > PAGE_HEIGHT_PT - MARGIN_PT) {
         pdf.addPage();
         y = MARGIN_PT;
       }
@@ -83,6 +92,7 @@ export async function generateAccountInstructionsPDF(options) {
     const contentWidth = PAGE_WIDTH_PT - (2 * MARGIN_PT);
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(16);
+    checkPageBreakWithContent(20, 100); // Ensure header stays with content
     pdf.text('Client Information', MARGIN_PT, y);
     y += 20;
 
@@ -125,6 +135,7 @@ export async function generateAccountInstructionsPDF(options) {
     // Pre-Inventory section (wrapped heading)
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(16);
+    checkPageBreakWithContent(18, 50); // Ensure header stays with content
     writeWrapped('Pre-Inventory', contentWidth, 18);
     y += 2; // small spacer after wrapped heading
 
@@ -173,6 +184,7 @@ export async function generateAccountInstructionsPDF(options) {
     if (invProc) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
+      checkPageBreakWithContent(18, 50); // Ensure header stays with content
       writeWrapped('INVENTORY PROCEDURES', contentWidth, 18);
       y += 2;
       pdf.setFont('helvetica', 'normal');
@@ -189,6 +201,7 @@ export async function generateAccountInstructionsPDF(options) {
     if (audits) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
+      checkPageBreakWithContent(18, 50); // Ensure header stays with content
       writeWrapped('Audits', contentWidth, 18);
       y += 2;
       pdf.setFont('helvetica', 'normal');
@@ -202,6 +215,7 @@ export async function generateAccountInstructionsPDF(options) {
     if (invFlow) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
+      checkPageBreakWithContent(18, 50); // Ensure header stays with content
       writeWrapped('Inventory Flow', contentWidth, 18);
       y += 2;
       pdf.setFont('helvetica', 'normal');
@@ -215,11 +229,29 @@ export async function generateAccountInstructionsPDF(options) {
     if (teamInstr) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
+      checkPageBreakWithContent(18, 50); // Ensure header stays with content
       writeWrapped('Pre-Inventory Crew Instructions', contentWidth, 18);
       y += 2;
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
       writeWrapped(teamInstr, contentWidth, lineHeight);
+      y += 12;
+    }
+
+    // Double space before next section
+    y += 20;
+
+    // NON-COUNT PRODUCTS section (from noncount)
+    const noncount = String(client.noncount ?? '').trim();
+    if (noncount) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(16);
+      checkPageBreakWithContent(18, 50); // Ensure header stays with content
+      writeWrapped('Non-Count Products', contentWidth, 18);
+      y += 2;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(12);
+      writeWrapped(noncount, contentWidth, lineHeight);
       y += 12;
     }
 
@@ -350,6 +382,19 @@ function buildHtml(client) {
               <div class="section-title">Pre-Inventory Crew Instructions</div>
               <div class="info" style="margin-top:8px;">
                 <p style="white-space:pre-wrap;">${escapeHtml(teamInstr)}</p>
+              </div>
+            </div>
+          `;
+        })()}
+
+        ${(() => {
+          const noncount = String(client.noncount ?? '').trim();
+          if (!noncount) return '';
+          return `
+            <div class="section">
+              <div class="section-title">Non-Count Products</div>
+              <div class="info" style="margin-top:8px;">
+                <p style="white-space:pre-wrap;">${escapeHtml(noncount)}</p>
               </div>
             </div>
           `;
