@@ -165,6 +165,22 @@ export async function generateAccountInstructionsPDF(options) {
       y += 12;
     }
 
+    // Double space before next section
+    y += 20;
+
+    // INVENTORY PROCEDURES section (from Inv_Proc)
+    const invProc = String(client.Inv_Proc ?? '').trim();
+    if (invProc) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(16);
+      writeWrapped('INVENTORY PROCEDURES', contentWidth, 18);
+      y += 2;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(12);
+      writeWrapped(invProc, contentWidth, lineHeight);
+      y += 12;
+    }
+
     // Return data URI or save; for now, trigger download with filename
     const filename = `Account_Instructions_${(client.name || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
     pdf.save(filename);
@@ -244,6 +260,19 @@ function buildHtml(client) {
               </div>
             ` : ''}
         </div>
+
+        ${(() => {
+          const invProc = String(client.Inv_Proc ?? '').trim();
+          if (!invProc) return '';
+          return `
+            <div class="section">
+              <div class="section-title">INVENTORY PROCEDURES</div>
+              <div class="info" style="margin-top:8px;">
+                <p style="white-space:pre-wrap;">${escapeHtml(invProc)}</p>
+              </div>
+            </div>
+          `;
+        })()}
       </body>
     </html>
   `;
