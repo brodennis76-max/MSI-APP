@@ -41,11 +41,24 @@ export async function generateAccountInstructionsPDF(options) {
     pdf.setFont('helvetica', 'bold');
     let y = MARGIN_PT;
     headerLines.forEach((text, i) => {
-      const fontSize = i === 0 ? 20 : i === 1 ? 18 : 16;
+      // First two lines bold; client name normal weight and slightly smaller than subheader
+      if (i < 2) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(0, 0, 0);
+      } else {
+        pdf.setFont('helvetica', 'normal');
+        // lighter gray for client name
+        pdf.setTextColor(102, 102, 102);
+      }
+      const fontSize = i === 0 ? 20 : i === 1 ? 18 : 14;
       pdf.setFontSize(fontSize);
       const textWidth = pdf.getTextWidth(text);
       const x = (PAGE_WIDTH_PT - textWidth) / 2;
       pdf.text(text, x, y);
+      // reset to black after client name line to avoid affecting following content
+      if (i === 2) {
+        pdf.setTextColor(0, 0, 0);
+      }
       y += i === 2 ? 30 : 20; // extra space after client name
     });
 
@@ -88,6 +101,68 @@ export async function generateAccountInstructionsPDF(options) {
     });
     y += boxHeight + 20;
 
+    // Double space before next section
+    y += 20;
+
+    // Pre-Inventory section
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(16);
+    pdf.text('Pre-Inventory', MARGIN_PT, y);
+    y += 20;
+
+    // General information (no label)
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(12);
+    const preInvText = String(
+      client['Pre-Inventory'] ?? client.Pre_Inv ?? client.preInventory ?? ''
+    ).trim();
+    if (preInvText) {
+      const wrappedPreInv = pdf.splitTextToSize(preInvText, contentWidth);
+      wrappedPreInv.forEach(line => {
+        pdf.text(line, MARGIN_PT, y);
+        y += lineHeight;
+      });
+      y += 8;
+    }
+
+    // Area Mapping
+    const areaMapping = String(
+      client['Area Mapping'] ?? client.Area_Mapping ?? client.areaMapping ?? ''
+    ).trim();
+    if (areaMapping) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(14);
+      pdf.text('Area Mapping', MARGIN_PT, y);
+      y += 16;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(12);
+      const wrappedArea = pdf.splitTextToSize(areaMapping, contentWidth);
+      wrappedArea.forEach(line => {
+        pdf.text(line, MARGIN_PT, y);
+        y += lineHeight;
+      });
+      y += 12;
+    }
+
+    // Store Prep/Instructions
+    const storePrep = String(
+      client['Store Prep Instructions'] ?? client.Store_Prep ?? client.storePrep ?? client.Store_Instr ?? client.storeInstructions ?? ''
+    ).trim();
+    if (storePrep) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(14);
+      pdf.text('Store Prep/Instructions', MARGIN_PT, y);
+      y += 16;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(12);
+      const wrappedPrep = pdf.splitTextToSize(storePrep, contentWidth);
+      wrappedPrep.forEach(line => {
+        pdf.text(line, MARGIN_PT, y);
+        y += lineHeight;
+      });
+      y += 12;
+    }
+
     // Return data URI or save; for now, trigger download with filename
     const filename = `Account_Instructions_${(client.name || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
     pdf.save(filename);
@@ -120,7 +195,7 @@ function buildHtml(client) {
           .header { text-align: center; }
           .header h1 { font-size: 20px; margin: 0 0 8px 0; }
           .header h2 { font-size: 18px; margin: 0 0 8px 0; }
-          .header h3 { font-size: 16px; margin: 0 0 20px 0; }
+          .header h3 { font-size: 14px; font-weight: normal; color: #666666; margin: 0 0 20px 0; }
           .section { margin-top: 8px; }
           .section-title { font-size: 16px; font-weight: bold; margin: 0 0 8px 0; }
           .info p { margin: 4px 0; font-size: 12px; }
@@ -143,6 +218,23 @@ function buildHtml(client) {
             <p><strong>Verification:</strong> ${escapeHtml(client.verification ?? '')}</p>
           </div>
           <div class="notice">"If you are going to be more than 5 minutes late to a store you must contact the store BEFORE you are late. NO EXCEPTIONS!!!"</div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Pre-Inventory</div>
+          <div class="info" style="margin-top:8px;">
+            <p style="white-space:pre-wrap;">${escapeHtml(String((client['Pre-Inventory'] ?? client.Pre_Inv ?? client.preInventory ?? '').toString().trim()))}</p>
+          </div>
+          ${(() => {
+            const area = String((client['Area Mapping'] ?? client.Area_Mapping ?? client.areaMapping ?? '').toString().trim());
+            if (!area) return '';
+            return `
+              <div class="subsection" style="margin-top:8px;">
+                <div class="section-title" style="font-size:14px;">Area Mapping</div>
+                <div class="info"><p style="white-space:pre-wrap;">${escapeHtml(area)}</p></div>
+              </div>
+            `;
+          })()}
         </div>
       </body>
     </html>
