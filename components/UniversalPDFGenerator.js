@@ -150,6 +150,20 @@ const UniversalPDFGenerator = ({
       clientId,
       loading
     });
+    
+    // CRITICAL DEBUG: Log the actual client data being used
+    if (data) {
+      console.log('🚨 CRITICAL DEBUG - Client data being used for PDF:');
+      console.log('  - Name:', data.name);
+      console.log('  - inventoryType:', data.inventoryType);
+      console.log('  - PIC:', data.PIC);
+      console.log('  - startTime:', data.startTime);
+      console.log('  - verification:', data.verification);
+      console.log('  - All keys:', Object.keys(data));
+    } else {
+      console.log('❌ NO CLIENT DATA AVAILABLE!');
+    }
+    
     return data;
   };
 
@@ -192,6 +206,10 @@ const UniversalPDFGenerator = ({
     console.log('  - client.storeStartTime exists:', !!client?.storeStartTime);
     console.log('  - client.verification exists:', !!client?.verification);
     console.log('  - client.updatedAt exists:', !!client?.updatedAt);
+    
+    // COMPLETE CLIENT DATA DUMP
+    console.log('🚨 COMPLETE CLIENT DATA DUMP:');
+    console.log(JSON.stringify(client, null, 2));
     
     console.log('🎨 Other field values:', {
       preInventory: client?.preInventory,
@@ -462,34 +480,77 @@ const UniversalPDFGenerator = ({
               <div class="client-name">${client.name}</div>
             </div>
 
+            <!-- CLIENT INFORMATION SECTION -->
+            <div class="avoid-break">
+              <div class="section-title">Client Information</div>
+              <div class="content">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                  <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #007AFF;">
+                    <div style="font-weight: bold; color: #555; font-size: 14px; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">Inventory Type</div>
+                    <div style="color: #2c3e50; font-size: 16px;">${client.inventoryType || 'Not specified'}</div>
+                  </div>
+                  <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #007AFF;">
+                    <div style="font-weight: bold; color: #555; font-size: 14px; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">PIC (Pre-Inventory Call)</div>
+                    <div style="color: #2c3e50; font-size: 16px;">${client.PIC || 'Not specified'}</div>
+                  </div>
+                  <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #007AFF;">
+                    <div style="font-weight: bold; color: #555; font-size: 14px; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">Start Time</div>
+                    <div style="color: #2c3e50; font-size: 16px;">${client.startTime || 'Not specified'}</div>
+                  </div>
+                  <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #007AFF;">
+                    <div style="font-weight: bold; color: #555; font-size: 14px; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px;">Verification</div>
+                    <div style="color: #2c3e50; font-size: 16px;">${client.verification || 'Not specified'}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- IMPORTANT WARNING BOX -->
+            <div class="avoid-break" style="background-color: #fff3cd; border: 2px solid #ffc107; border-left: 6px solid #f39c12; padding: 20px; margin: 20px 0; border-radius: 8px; text-align: center;">
+              <div style="color: #856404; font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">
+                ⚠️ IMPORTANT: If you are going to be more than five minutes late to a store you must contact that store before you are late. NO EXCEPTIONS!!!
+              </div>
+            </div>
+
             <div class="info-section avoid-break">
               <div class="info-row">
-                <div class="info-label">Inventory:</div>
-                <div class="info-value">${client.inventoryType || client.accountType || 'Not specified'}</div>
+                <div class="info-label">Inventory Type:</div>
+                <div class="info-value">${client.inventoryType || 'TEST DATA - inventoryType is empty'}</div>
               </div>
               
               <div class="info-row">
-                <div class="info-label">Updated:</div>
-                <div class="info-value">${client.updatedAt ? new Date(client.updatedAt.toDate ? client.updatedAt.toDate() : client.updatedAt).toLocaleDateString('en-US', { 
-                  year: 'numeric',
-                  month: 'long', 
-                  day: 'numeric'
-                }) : currentDate}</div>
+                <div class="info-label">PIC (Pre-Inventory Call):</div>
+                <div class="info-value">${client.PIC || 'TEST DATA - PIC is empty'}</div>
               </div>
               
               <div class="info-row">
-                <div class="info-label">PIC:</div>
-                <div class="info-value">${client.PIC || 'Not specified'}</div>
-              </div>
-              
-              <div class="info-row">
-                <div class="info-label">Store Start Time:</div>
-                <div class="info-value">${client.startTime || client.storeStartTime || 'Not specified'}</div>
+                <div class="info-label">Start Time:</div>
+                <div class="info-value">${client.startTime || 'TEST DATA - startTime is empty'}</div>
               </div>
               
               <div class="info-row">
                 <div class="info-label">Verification:</div>
-                <div class="info-value">${client.verification || 'Not specified'}</div>
+                <div class="info-value">${client.verification || 'TEST DATA - verification is empty'}</div>
+              </div>
+              
+              <!-- DEBUG SECTION - Remove this after testing -->
+              <div class="info-row" style="background-color: #f0f0f0; padding: 10px; margin-top: 10px; border: 1px solid #ccc;">
+                <div class="info-label">DEBUG - Field Values:</div>
+                <div class="info-value" style="font-size: 10px;">
+                  inventoryType: "${client.inventoryType || 'undefined'}"<br/>
+                  PIC: "${client.PIC || 'undefined'}"<br/>
+                  startTime: "${client.startTime || 'undefined'}"<br/>
+                  verification: "${client.verification || 'undefined'}"<br/>
+                  <strong>Raw client object keys:</strong> ${Object.keys(client || {}).join(', ')}
+                </div>
+              </div>
+              
+              <!-- FORCE TEST SECTION - This should ALWAYS show -->
+              <div class="info-row" style="background-color: #ffeb3b; padding: 10px; margin-top: 10px; border: 2px solid #ff9800;">
+                <div class="info-label">FORCE TEST - This section should ALWAYS appear:</div>
+                <div class="info-value" style="font-size: 12px; font-weight: bold;">
+                  If you can see this, the client info section is working!
+                </div>
               </div>
             </div>
 
@@ -510,7 +571,7 @@ const UniversalPDFGenerator = ({
                   
                   // If there's existing content, add the ALR instructions at the beginning
                   if (content.trim()) {
-                    content = baseInstructions + '\\n\\n' + content;
+                    content = baseInstructions + '\n\n' + content;
                   } else {
                     content = baseInstructions;
                   }
