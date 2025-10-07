@@ -44,7 +44,8 @@ public class PdfGenerationService {
                 // Add header with logo placeholder and title
                 yPosition = addHeader(contentStream, clientData.getName(), yPosition);
                 
-                // Client information section removed as requested
+                // Add client information section
+                yPosition = addClientInfo(contentStream, clientData, yPosition);
                 
                 // Add account instructions sections
                 yPosition = addAccountInstructions(document, contentStream, clientData, yPosition);
