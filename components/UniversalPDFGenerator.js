@@ -181,6 +181,48 @@ export async function generateAccountInstructionsPDF(options) {
       y += 12;
     }
 
+    // Double space before next section
+    y += 20;
+
+    // AUDITS section (from Audits)
+    const audits = String(client.Audits ?? '').trim();
+    if (audits) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(16);
+      writeWrapped('Audits', contentWidth, 18);
+      y += 2;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(12);
+      writeWrapped(audits, contentWidth, lineHeight);
+      y += 12;
+    }
+
+    // INVENTORY FLOW section (from Inv_Flow)
+    const invFlow = String(client.Inv_Flow ?? '').trim();
+    if (invFlow) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(16);
+      writeWrapped('Inventory Flow', contentWidth, 18);
+      y += 2;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(12);
+      writeWrapped(invFlow, contentWidth, lineHeight);
+      y += 12;
+    }
+
+    // PRE-INVENTORY CREW INSTRUCTIONS section (from Team-Instr)
+    const teamInstr = String(client['Team-Instr'] ?? '').trim();
+    if (teamInstr) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(16);
+      writeWrapped('Pre-Inventory Crew Instructions', contentWidth, 18);
+      y += 2;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(12);
+      writeWrapped(teamInstr, contentWidth, lineHeight);
+      y += 12;
+    }
+
     // Return data URI or save; for now, trigger download with filename
     const filename = `Account_Instructions_${(client.name || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
     pdf.save(filename);
@@ -269,6 +311,45 @@ function buildHtml(client) {
               <div class="section-title">INVENTORY PROCEDURES</div>
               <div class="info" style="margin-top:8px;">
                 <p style="white-space:pre-wrap;">${escapeHtml(invProc)}</p>
+              </div>
+            </div>
+          `;
+        })()}
+
+        ${(() => {
+          const audits = String(client.Audits ?? '').trim();
+          if (!audits) return '';
+          return `
+            <div class="section">
+              <div class="section-title">Audits</div>
+              <div class="info" style="margin-top:8px;">
+                <p style="white-space:pre-wrap;">${escapeHtml(audits)}</p>
+              </div>
+            </div>
+          `;
+        })()}
+
+        ${(() => {
+          const invFlow = String(client.Inv_Flow ?? '').trim();
+          if (!invFlow) return '';
+          return `
+            <div class="section">
+              <div class="section-title">Inventory Flow</div>
+              <div class="info" style="margin-top:8px;">
+                <p style="white-space:pre-wrap;">${escapeHtml(invFlow)}</p>
+              </div>
+            </div>
+          `;
+        })()}
+
+        ${(() => {
+          const teamInstr = String(client['Team-Instr'] ?? '').trim();
+          if (!teamInstr) return '';
+          return `
+            <div class="section">
+              <div class="section-title">Pre-Inventory Crew Instructions</div>
+              <div class="info" style="margin-top:8px;">
+                <p style="white-space:pre-wrap;">${escapeHtml(teamInstr)}</p>
               </div>
             </div>
           `;
