@@ -162,13 +162,13 @@ const EditAccountFlow = ({ onBack }) => {
           </TouchableOpacity>
         </View>
         <View style={styles.content}>
-          <View style={styles.clientInfoContainer}>
+          <View style={styles.formContainer}>
             <Text style={styles.sectionTitle}>Client Information</Text>
             
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>Client Name (Locked)</Text>
+              <Text style={styles.label}>Client Name (Locked)</Text>
               <TextInput
-                style={[styles.textInput, styles.lockedField]}
+                style={[styles.input, styles.lockedField]}
                 value={activeClient.name || ''}
                 editable={false}
                 placeholder="Client Name"
@@ -176,7 +176,7 @@ const EditAccountFlow = ({ onBack }) => {
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>Inventory Type</Text>
+              <Text style={styles.label}>Inventory Type</Text>
               <View style={styles.inventoryTypeContainer}>
                 {['scan', 'financial', 'hand written', 'price verification'].map((type) => (
                   <TouchableOpacity
@@ -196,7 +196,8 @@ const EditAccountFlow = ({ onBack }) => {
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>PIC</Text>
+              <Text style={styles.label}>PIC (Person in Charge)</Text>
+              <Text style={styles.helperText}>Enter the name and contact information of the person in charge during the inventory count.</Text>
               <RichTextEditor
                 value={activeClient.PIC || ''}
                 onChange={(text) => setActiveClient({...activeClient, PIC: text})}
@@ -204,9 +205,10 @@ const EditAccountFlow = ({ onBack }) => {
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>Start Time</Text>
+              <Text style={styles.label}>Start Time</Text>
+              <Text style={styles.helperText}>Enter the scheduled start time for the inventory count.</Text>
               <TextInput
-                style={styles.textInput}
+                style={styles.input}
                 value={activeClient.startTime || ''}
                 placeholder="e.g., 8:00 AM"
                 onChangeText={(text) => setActiveClient({...activeClient, startTime: text})}
@@ -214,7 +216,8 @@ const EditAccountFlow = ({ onBack }) => {
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>Verification</Text>
+              <Text style={styles.label}>Verification</Text>
+              <Text style={styles.helperText}>Enter any verification requirements or special instructions for the count.</Text>
               <RichTextEditor
                 value={activeClient.verification || ''}
                 onChange={(text) => setActiveClient({...activeClient, verification: text})}
@@ -222,7 +225,8 @@ const EditAccountFlow = ({ onBack }) => {
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>Additional Notes</Text>
+              <Text style={styles.label}>Additional Notes</Text>
+              <Text style={styles.helperText}>Enter any additional notes or special instructions for this client.</Text>
               <RichTextEditor
                 value={activeClient.additionalNotes || ''}
                 onChange={(text) => setActiveClient({...activeClient, additionalNotes: text})}
@@ -230,15 +234,24 @@ const EditAccountFlow = ({ onBack }) => {
             </View>
           </View>
 
-          <TouchableOpacity 
-            style={[styles.primaryButton, saving && styles.disabled]}
-            onPress={saveClientInfo}
-            disabled={saving}
-          >
-            <Text style={styles.primaryText}>
-              {saving ? 'Saving...' : 'Save & Continue to Forms'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.bottomButtonContainer}>
+            <TouchableOpacity 
+              style={styles.backButtonBottom}
+              onPress={() => setStep('picker')}
+            >
+              <Text style={styles.backButtonText}>Back</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+              onPress={saveClientInfo}
+              disabled={saving}
+            >
+              <Text style={styles.saveButtonText}>
+                {saving ? 'Saving...' : 'Save & Continue to Forms'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -318,43 +331,89 @@ const EditAccountFlow = ({ onBack }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
-  headerLogo: { width: 40, height: 40, resizeMode: 'contain' },
-  headerTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', marginLeft: 10, flex: 1, textAlign: 'center' },
-  backButton: { backgroundColor: '#6c757d', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 5 },
-  backButtonText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
-  content: { flex: 1, padding: 20 },
-  searchContainer: { marginBottom: 15 },
-  searchInput: { height: 50, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, paddingHorizontal: 15, fontSize: 16, backgroundColor: '#fff' },
-  pickerContainer: { width: '100%', marginBottom: 20 },
-  picker: { height: 50, width: '100%', borderWidth: 1, borderColor: '#ccc', borderRadius: 8, backgroundColor: '#fff' },
-  primaryButton: { backgroundColor: '#007AFF', padding: 15, borderRadius: 8, alignItems: 'center' },
-  disabled: { opacity: 0.5 },
-  primaryText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  loadingText: { marginTop: 10, color: '#666', textAlign: 'center' },
-  clientInfoContainer: { marginBottom: 20 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 15 },
-  fieldContainer: { marginBottom: 15 },
-  fieldLabel: { fontSize: 14, fontWeight: '600', color: '#555', marginBottom: 5 },
-  textInput: { 
-    height: 50, 
+  container: { 
+    flex: 1, 
+    backgroundColor: '#f8f8f8' 
+  },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingHorizontal: 20, 
+    paddingVertical: 15, 
+    backgroundColor: '#fff',
+    borderBottomWidth: 1, 
+    borderBottomColor: '#e0e0e0' 
+  },
+  headerLogo: { 
+    width: 40, 
+    height: 40, 
+    resizeMode: 'contain' 
+  },
+  headerTitle: { 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    color: '#333', 
+    marginLeft: 10, 
+    flex: 1 
+  },
+  backButton: { 
+    backgroundColor: '#6c757d', 
+    paddingHorizontal: 15, 
+    paddingVertical: 8, 
+    borderRadius: 5 
+  },
+  backButtonText: { 
+    color: '#fff', 
+    fontSize: 14, 
+    fontWeight: 'bold' 
+  },
+  content: { 
+    flex: 1, 
+    padding: 20 
+  },
+  formContainer: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 10,
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  fieldContainer: { 
+    marginBottom: 15 
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 15,
+    marginBottom: 8,
+    color: '#333',
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 8,
+    fontStyle: 'italic',
+  },
+  input: { 
     borderWidth: 1, 
     borderColor: '#ccc', 
     borderRadius: 8, 
     paddingHorizontal: 15, 
+    paddingVertical: 12,
     fontSize: 16, 
-    backgroundColor: '#fff' 
+    backgroundColor: '#fff',
+    height: 50,
   },
   lockedField: { 
     backgroundColor: '#f5f5f5', 
     color: '#666',
     borderColor: '#ddd'
-  },
-  textArea: { 
-    height: 100, 
-    textAlignVertical: 'top',
-    paddingTop: 15
   },
   inventoryTypeContainer: {
     flexDirection: 'row',
@@ -401,6 +460,65 @@ const styles = StyleSheet.create({
   },
   inventoryTypeTextSelected: {
     fontWeight: 'bold',
+  },
+  searchContainer: { 
+    marginBottom: 15 
+  },
+  searchInput: { 
+    height: 50, 
+    borderWidth: 1, 
+    borderColor: '#ccc', 
+    borderRadius: 8, 
+    paddingHorizontal: 15, 
+    fontSize: 16, 
+    backgroundColor: '#fff' 
+  },
+  pickerContainer: { 
+    width: '100%', 
+    marginBottom: 20 
+  },
+  picker: { 
+    height: 50, 
+    width: '100%', 
+    borderWidth: 1, 
+    borderColor: '#ccc', 
+    borderRadius: 8, 
+    backgroundColor: '#fff' 
+  },
+  bottomButtonContainer: {
+    flexDirection: 'row',
+    padding: 20,
+    gap: 15,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  backButtonBottom: {
+    flex: 1,
+    backgroundColor: '#6c757d',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  saveButton: {
+    flex: 2,
+    backgroundColor: '#007bff',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  saveButtonDisabled: {
+    opacity: 0.5,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  loadingText: { 
+    marginTop: 10, 
+    color: '#666', 
+    textAlign: 'center' 
   },
 });
 

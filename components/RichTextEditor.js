@@ -53,30 +53,41 @@ const RichTextEditor = ({ value, onChange }) => {
     }
   };
 
-  // Custom toolbar with buttons
+  // Custom toolbar with grouped buttons
   const CustomToolbar = () => (
     <View style={styles.toolbar}>
-      <TouchableOpacity style={styles.button} onPress={() => applyFormat('header', 1)}>
-        <Text style={styles.buttonText}>H1</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={() => applyFormat('header', 2)}>
-        <Text style={styles.buttonText}>H2</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={() => applyFormat('bold')}>
-        <Text style={styles.buttonText}>B</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={() => applyFormat('italic')}>
-        <Text style={styles.buttonText}>I</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={() => applyFormat('underline')}>
-        <Text style={styles.buttonText}>U</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={() => applyFormat('list', 'ordered')}>
-        <Text style={styles.buttonText}>1.</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={() => applyFormat('list', 'bullet')}>
-        <Text style={styles.buttonText}>•</Text>
-      </TouchableOpacity>
+      {/* Header group */}
+      <View style={styles.buttonGroup}>
+        <TouchableOpacity style={styles.button} onPress={() => applyFormat('header', 1)}>
+          <Text style={styles.buttonText}>H1</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.button} onPress={() => applyFormat('header', 2)}>
+          <Text style={styles.buttonText}>H2</Text>
+        </TouchableOpacity>
+      </View>
+      
+      {/* Text formatting group */}
+      <View style={styles.buttonGroup}>
+        <TouchableOpacity style={styles.button} onPress={() => applyFormat('bold')}>
+          <Text style={styles.buttonText}>B</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.button} onPress={() => applyFormat('italic')}>
+          <Text style={styles.buttonText}>I</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.button} onPress={() => applyFormat('underline')}>
+          <Text style={styles.buttonText}>U</Text>
+        </TouchableOpacity>
+      </View>
+      
+      {/* List group */}
+      <View style={styles.buttonGroup}>
+        <TouchableOpacity style={styles.button} onPress={() => applyFormat('list', 'ordered')}>
+          <Text style={styles.buttonText}>1.</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.button} onPress={() => applyFormat('list', 'bullet')}>
+          <Text style={styles.buttonText}>•</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -126,46 +137,57 @@ const RichTextEditor = ({ value, onChange }) => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 8,
+    marginBottom: 15,
   },
   toolbar: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 10,
-    backgroundColor: '#f0f0f0',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: '#f8f9fa',
     borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
+    borderBottomColor: '#e0e0e0',
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
   },
+  buttonGroup: {
+    flexDirection: 'row',
+    gap: 2,
+  },
   button: {
-    padding: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
     backgroundColor: '#007bff',
-    borderRadius: 5,
-    minWidth: 40,
+    borderRadius: 4,
+    minWidth: 32,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   buttonText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
   },
   editor: {
-    height: 300,
+    minHeight: 120,
     borderColor: '#ccc',
     borderWidth: 1,
     margin: 10,
-    padding: 10,
+    padding: 15,
+    fontSize: 16,
+    backgroundColor: '#fff',
+    textAlignVertical: 'top',
     ...(Platform.OS === 'web' ? { 
       outline: 'none', 
-      minHeight: 300,
-      fontSize: '14px',
+      minHeight: 120,
+      fontSize: '16px',
       lineHeight: '1.5',
-      fontFamily: 'Arial, sans-serif'
+      fontFamily: 'Arial, sans-serif',
+      resize: 'vertical'
     } : {}),
   },
 });
