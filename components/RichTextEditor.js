@@ -15,7 +15,38 @@ const RichTextEditor = ({ value, onChange }) => {
   // Update content when value prop changes
   React.useEffect(() => {
     if (Platform.OS === 'web' && editorRef.current) {
-      editorRef.current.innerHTML = value || '';
+      const editor = editorRef.current;
+      const currentContent = editor.innerHTML;
+      const newContent = value || '';
+      
+      // Only update if content is actually different to avoid cursor issues
+      if (currentContent !== newContent) {
+        // Store cursor position
+        const selection = window.getSelection();
+        const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+        const cursorOffset = range ? range.startOffset : 0;
+        
+        // Update content
+        editor.innerHTML = newContent;
+        
+        // Restore cursor position
+        if (range && editor.firstChild) {
+          try {
+            const newRange = document.createRange();
+            newRange.setStart(editor.firstChild, Math.min(cursorOffset, editor.firstChild.textContent?.length || 0));
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+          } catch (e) {
+            // If cursor restoration fails, just place at end
+            const newRange = document.createRange();
+            newRange.selectNodeContents(editor);
+            newRange.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+          }
+        }
+      }
     }
     setContent(value || '');
   }, [value]);
@@ -109,10 +140,9 @@ const RichTextEditor = ({ value, onChange }) => {
           style={styles.editor}
           onInput={(e) => {
             const newContent = e.target.innerHTML;
-            if (newContent !== content) {
-              setContent(newContent);
-              onChange && onChange(newContent);
-            }
+            // Always update content on input to ensure cursor stays in place
+            setContent(newContent);
+            onChange && onChange(newContent);
           }}
           onBlur={(e) => {
             const newContent = e.target.innerHTML;
@@ -120,6 +150,16 @@ const RichTextEditor = ({ value, onChange }) => {
               setContent(newContent);
               onChange && onChange(newContent);
             }
+          }}
+          onFocus={(e) => {
+            // Ensure cursor is at the end when focusing
+            const editor = e.target;
+            const range = document.createRange();
+            const selection = window.getSelection();
+            range.selectNodeContents(editor);
+            range.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(range);
           }}
           suppressContentEditableWarning={true}
         />
