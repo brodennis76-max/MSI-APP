@@ -13,6 +13,7 @@ import {
 import { Picker } from '@react-native-picker/picker';
 import { db } from '../firebase-config';
 import { collection, onSnapshot, doc, setDoc } from 'firebase/firestore';
+import RichTextEditor from './RichTextEditor';
 import PreInventoryForm from './PreInventoryForm';
 import InventoryProceduresForm from './InventoryProceduresForm';
 import AuditsInventoryFlowForm from './AuditsInventoryFlowForm';
@@ -452,16 +453,9 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
               </View>
 
               <Text style={styles.label}>PIC (Pre Inventory Call)</Text>
-              <TextInput
-                ref={picRef}
-                style={styles.textArea}
+              <RichTextEditor
                 value={newClientData.PIC}
-                onChangeText={(text) => handleNewClientInputChange('PIC', text)}
-                placeholder="Enter PIC information..."
-                multiline
-                numberOfLines={3}
-                returnKeyType="next"
-                onSubmitEditing={() => startTimeRef.current?.focus()}
+                onChange={(text) => handleNewClientInputChange('PIC', text)}
               />
 
               <Text style={styles.label}>Start Time</Text>
@@ -476,28 +470,15 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
               />
 
               <Text style={styles.label}>Verification</Text>
-              <TextInput
-                ref={verificationRef}
-                style={styles.textArea}
+              <RichTextEditor
                 value={newClientData.verification}
-                onChangeText={(text) => handleNewClientInputChange('verification', text)}
-                placeholder="Edit verification details as needed..."
-                multiline
-                numberOfLines={3}
-                returnKeyType="next"
-                onSubmitEditing={() => additionalNotesRef.current?.focus()}
+                onChange={(text) => handleNewClientInputChange('verification', text)}
               />
 
               <Text style={styles.label}>Additional Notes</Text>
-              <TextInput
-                ref={additionalNotesRef}
-                style={styles.textArea}
+              <RichTextEditor
                 value={newClientData.additionalNotes}
-                onChangeText={(text) => handleNewClientInputChange('additionalNotes', text)}
-                placeholder="Any additional notes or comments..."
-                multiline
-                numberOfLines={4}
-                returnKeyType="done"
+                onChange={(text) => handleNewClientInputChange('additionalNotes', text)}
               />
             </View>
           )}
