@@ -443,6 +443,19 @@ function buildHtml(client) {
         })()}
 
         ${(() => {
+          const specialNotes = String(client.Special_Notes ?? '').trim();
+          if (!specialNotes) return '';
+          return `
+            <div class="section">
+              <div class="section-title">Special Notes</div>
+              <div class="info" style="margin-top:8px;">
+                <p style="white-space:pre-wrap;">${escapeHtml(specialNotes)}</p>
+              </div>
+            </div>
+          `;
+        })()}
+
+        ${(() => {
           const teamInstr = String(client['Team-Instr'] ?? '').trim();
           if (!teamInstr) return '';
           return `
