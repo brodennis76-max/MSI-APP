@@ -240,25 +240,25 @@ const EditAccountFlow = ({ onBack }) => {
           </View>
         </ScrollView>
 
-          <View style={styles.bottomButtonContainer}>
-            <TouchableOpacity 
-              style={styles.backButtonBottom}
-              onPress={() => setStep('picker')}
-            >
-              <Text style={styles.backButtonText}>Back</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-              onPress={saveClientInfo}
-              disabled={saving}
-            >
-              <Text style={styles.saveButtonText}>
-                {saving ? 'Saving...' : 'Save & Continue to Forms'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+        <View style={styles.bottomButtonContainer}>
+          <TouchableOpacity 
+            style={styles.backButtonBottom}
+            onPress={() => setStep('picker')}
+          >
+            <Text style={styles.backButtonText}>Back</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+            onPress={saveClientInfo}
+            disabled={saving}
+          >
+            <Text style={styles.saveButtonText}>
+              {saving ? 'Saving...' : 'Save & Continue to Forms'}
+            </Text>
+          </TouchableOpacity>
         </View>
+      </View>
     );
   }
 
