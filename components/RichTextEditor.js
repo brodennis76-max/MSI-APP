@@ -1,5 +1,7 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { Platform, View, StyleSheet, TextInput, Text, TouchableOpacity } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { Platform, View, TouchableOpacity, Text, StyleSheet, TextInput } from 'react-native';
+import { WebView } from 'react-native-webview';
+import { MaterialIcons, FontAwesome } from '@expo/vector-icons';
 
 // Convert markdown-style formatting to HTML
 const convertMarkdownToHtml = (text) => {
@@ -35,6 +37,98 @@ const convertHtmlToMarkdown = (html) => {
     .replace(/<br\s*\/?>/g, '\n')
     .replace(/<[^>]*>/g, ''); // Remove any remaining HTML tags
 };
+
+const quillWebHtml = (initial) => `
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <style>
+      body { 
+        font-family: Helvetica, Arial, sans-serif; 
+        margin: 0; 
+        padding: 0; 
+        background: #fff;
+      }
+      #editor { 
+        height: 300px; 
+      }
+      .ql-editor {
+        font-size: 14px;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="editor">${initial}</div>
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    <script>
+      var quill = new Quill('#editor', {
+        theme: 'snow',
+        modules: {
+          toolbar: [
+            ['bold', 'italic', 'underline'],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            [{ 'header': [1, 2, 3, false] }],
+            ['clean']
+          ],
+          keyboard: {
+            bindings: {
+              bold: {
+                key: 'B',
+                shortKey: true,
+                handler: function(range, context) {
+                  quill.format('bold', !quill.getFormat(range).bold);
+                }
+              },
+              italic: {
+                key: 'I',
+                shortKey: true,
+                handler: function(range, context) {
+                  quill.format('italic', !quill.getFormat(range).italic);
+                }
+              },
+              underline: {
+                key: 'U',
+                shortKey: true,
+                handler: function(range, context) {
+                  quill.format('underline', !quill.getFormat(range).underline);
+                }
+              }
+            }
+          }
+        }
+      });
+
+      function postContent() {
+        const html = quill.root.innerHTML;
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(html);
+        }
+      }
+
+      quill.on('text-change', function() {
+        postContent();
+      });
+
+      window.addEventListener('message', function(e) {
+        try {
+          const data = JSON.parse(e.data);
+          if (data && data.type === 'set') {
+            quill.root.innerHTML = data.html || '';
+          }
+        } catch (error) {
+          console.log('Error parsing message:', error);
+        }
+      });
+
+      setTimeout(postContent, 100);
+    </script>
+  </body>
+</html>
+`;
 
 const simpleEditorHtml = (initial) => `
 <!DOCTYPE html>
@@ -180,27 +274,26 @@ const simpleEditorHtml = (initial) => `
 `;
 
 export default function RichTextEditor({ value, onChange }) {
-  const [textValue, setTextValue] = useState('');
-  const [showPreview, setShowPreview] = useState(false);
+  const [content, setContent] = useState('');
+  const webRef = useRef(null);
 
-  useEffect(() => {
-    // Convert HTML back to markdown for editing
-    const markdownValue = convertHtmlToMarkdown(value || '');
-    setTextValue(markdownValue);
-  }, [value]);
-
-  const handleTextChange = (text) => {
-    setTextValue(text);
-    // Convert markdown to HTML for storage
-    const htmlText = convertMarkdownToHtml(text);
-    onChange && onChange(htmlText);
+  // Formatting functions
+  const applyFormat = (format, formatValue = null) => {
+    if (Platform.OS === 'web') {
+      // For web, we'll use the WebView with Quill
+      const message = JSON.stringify({
+        type: 'format',
+        format: format,
+        value: formatValue
+      });
+      webRef.current?.postMessage(message);
+    } else {
+      // For native, we'll use simple text insertion
+      insertFormatting(format);
+    }
   };
 
   const insertFormatting = (format) => {
-    const selectionStart = 0; // For simplicity, we'll insert at the beginning
-    const selectionEnd = 0;
-    
-    let newText = textValue;
     let insertText = '';
     
     switch (format) {
@@ -224,88 +317,77 @@ export default function RichTextEditor({ value, onChange }) {
         break;
     }
     
-    newText = newText.slice(0, selectionStart) + insertText + newText.slice(selectionEnd);
-    handleTextChange(newText);
+    const newContent = content + insertText;
+    setContent(newContent);
+    onChange && onChange(convertMarkdownToHtml(newContent));
   };
 
-  return (
-    <View style={styles.container}>
-      {/* Toolbar */}
-      <View style={styles.toolbar}>
-        <TouchableOpacity style={styles.toolbarButton} onPress={() => insertFormatting('bold')}>
-          <Text style={styles.toolbarButtonText}><Text style={{fontWeight: 'bold'}}>B</Text></Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.toolbarButton} onPress={() => insertFormatting('italic')}>
-          <Text style={styles.toolbarButtonText}><Text style={{fontStyle: 'italic'}}>I</Text></Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.toolbarButton} onPress={() => insertFormatting('header1')}>
-          <Text style={styles.toolbarButtonText}>H1</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.toolbarButton} onPress={() => insertFormatting('header2')}>
-          <Text style={styles.toolbarButtonText}>H2</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.toolbarButton} onPress={() => insertFormatting('list')}>
-          <Text style={styles.toolbarButtonText}>•</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.toolbarButton} onPress={() => insertFormatting('numbered')}>
-          <Text style={styles.toolbarButtonText}>1.</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.toolbarButton, showPreview && styles.activeButton]} 
-          onPress={() => setShowPreview(!showPreview)}
-        >
-          <Text style={styles.toolbarButtonText}>👁</Text>
-        </TouchableOpacity>
-      </View>
+  // Toolbar component with custom buttons
+  const CustomToolbar = () => (
+    <View style={styles.toolbar}>
+      <TouchableOpacity style={styles.button} onPress={() => applyFormat('header', 1)}>
+        <Text style={styles.buttonText}>H1</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.button} onPress={() => applyFormat('header', 2)}>
+        <Text style={styles.buttonText}>H2</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.button} onPress={() => applyFormat('bold')}>
+        <MaterialIcons name="format-bold" size={16} color="#fff" />
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.button} onPress={() => applyFormat('italic')}>
+        <MaterialIcons name="format-italic" size={16} color="#fff" />
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.button} onPress={() => applyFormat('underline')}>
+        <MaterialIcons name="format-underline" size={16} color="#fff" />
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.button} onPress={() => applyFormat('list', 'ordered')}>
+        <MaterialIcons name="format-list-numbered" size={16} color="#fff" />
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.button} onPress={() => applyFormat('list', 'bullet')}>
+        <MaterialIcons name="format-list-bulleted" size={16} color="#fff" />
+      </TouchableOpacity>
+    </View>
+  );
 
-      {/* Editor */}
-      {!showPreview ? (
+  // Render editor based on platform
+  const renderEditor = () => {
+    if (Platform.OS === 'web') {
+      return (
+        <WebView
+          ref={webRef}
+          source={{ html: quillWebHtml(value || '') }}
+          onMessage={(e) => {
+            const html = e?.nativeEvent?.data || '';
+            onChange && onChange(html);
+          }}
+          style={styles.editor}
+          javaScriptEnabled
+          domStorageEnabled
+          scrollEnabled={false}
+        />
+      );
+    } else {
+      return (
         <TextInput
           style={styles.textInput}
-          value={textValue}
-          onChangeText={handleTextChange}
+          value={content}
+          onChangeText={(text) => {
+            setContent(text);
+            onChange && onChange(convertMarkdownToHtml(text));
+          }}
           placeholder="Enter text here... Use **bold**, *italic*, # Header, - List items"
           multiline
           numberOfLines={10}
           textAlignVertical="top"
         />
-      ) : (
-        <View style={styles.previewContainer}>
-          <Text style={styles.previewText}>
-            {textValue.split('\n').map((line, index) => {
-              if (line.startsWith('# ')) {
-                return <Text key={index} style={styles.h1}>{line.substring(2)}\n</Text>;
-              } else if (line.startsWith('## ')) {
-                return <Text key={index} style={styles.h2}>{line.substring(3)}\n</Text>;
-              } else if (line.startsWith('- ')) {
-                return <Text key={index} style={styles.listItem}>• {line.substring(2)}\n</Text>;
-              } else if (line.match(/^\d+\. /)) {
-                return <Text key={index} style={styles.listItem}>{line}\n</Text>;
-              } else {
-                // Simple markdown parsing for bold and italic
-                const parts = line.split(/(\*\*.*?\*\*|\*.*?\*)/);
-                return (
-                  <Text key={index}>
-                    {parts.map((part, partIndex) => {
-                      if (part.startsWith('**') && part.endsWith('**')) {
-                        return <Text key={partIndex} style={styles.bold}>{part.slice(2, -2)}</Text>;
-                      } else if (part.startsWith('*') && part.endsWith('*')) {
-                        return <Text key={partIndex} style={styles.italic}>{part.slice(1, -1)}</Text>;
-                      }
-                      return part;
-                    })}
-                    {'\n'}
-                  </Text>
-                );
-              }
-            })}
-          </Text>
-        </View>
-      )}
+      );
+    }
+  };
 
-      <Text style={styles.formattingHint}>
-        <Text style={{fontWeight: 'bold'}}>Formatting:</Text> **bold**, *italic*, # Header, - List items
-      </Text>
+  return (
+    <View style={styles.container}>
+      <CustomToolbar />
+      {renderEditor()}
     </View>
   );
 }
@@ -319,6 +401,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#fff',
   },
+  quillEditor: {
+    height: 250,
+  },
   toolbar: {
     flexDirection: 'row',
     padding: 8,
@@ -329,23 +414,20 @@ const styles = StyleSheet.create({
     borderBottomColor: '#ddd',
     flexWrap: 'wrap',
     gap: 4,
+    justifyContent: 'space-around',
   },
-  toolbarButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 4,
-    marginRight: 4,
-  },
-  activeButton: {
+  button: {
+    padding: 8,
     backgroundColor: '#007bff',
+    borderRadius: 4,
+    minWidth: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  toolbarButtonText: {
+  buttonText: {
+    color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#333',
   },
   textInput: {
     flex: 1,
