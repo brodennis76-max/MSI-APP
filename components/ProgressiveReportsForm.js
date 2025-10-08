@@ -38,6 +38,10 @@ All posting sheets must be reviewed by the inventory manager before they can be 
         currentSection = 'utility';
         continue;
       }
+      // Skip "POSTING SHEETS" header line
+      if (line.toLowerCase().trim() === 'posting sheets') {
+        continue;
+      }
       if (currentSection === 'posting') {
         postingSheets.push(line);
       } else {
@@ -104,7 +108,7 @@ All posting sheets must be reviewed by the inventory manager before they can be 
       const clientRef = doc(db, 'clients', clientData.id);
       
       // Combine posting sheets and utility reports
-      const combinedText = `POSTING SHEETS\n${postingSheetsText}\n\nUTILITY REPORTS\n${utilityReportsText}`;
+      const combinedText = `${postingSheetsText}\n\nUTILITY REPORTS\n${utilityReportsText}`;
       
       // Update the client with progressive reports (user can modify the text in the editor)
       await updateDoc(clientRef, {

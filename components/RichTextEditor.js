@@ -25,8 +25,8 @@ const toolbarHtml = (initial) => `
       <button class="btn" onclick="document.execCommand('bold')"><b>B</b></button>
       <button class="btn" onclick="document.execCommand('italic')"><i>I</i></button>
       <button class="btn" onclick="document.execCommand('underline')"><u>U</u></button>
-      <button class="btn" onclick="document.execCommand('insertUnorderedList')">• List</button>
-      <button class="btn" onclick="document.execCommand('insertOrderedList')">1. List</button>
+      <button class="btn" onclick="insertList('unordered')">• List</button>
+      <button class="btn" onclick="insertList('ordered')">1. List</button>
       <input id="imgInput" type="file" accept="image/*" style="display:none" />
       <button class="btn" onclick="document.getElementById('imgInput').click()">Image</button>
     </div>
@@ -36,6 +36,24 @@ const toolbarHtml = (initial) => `
       const imgInput = document.getElementById('imgInput');
       function post() {
         window.ReactNativeWebView && window.ReactNativeWebView.postMessage(editor.innerHTML);
+      }
+      function insertList(type) {
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          const listItem = document.createElement('li');
+          listItem.textContent = 'List item';
+          if (type === 'ordered') {
+            const ol = document.createElement('ol');
+            ol.appendChild(listItem);
+            range.insertNode(ol);
+          } else {
+            const ul = document.createElement('ul');
+            ul.appendChild(listItem);
+            range.insertNode(ul);
+          }
+          post();
+        }
       }
       editor.addEventListener('input', post);
       editor.addEventListener('blur', post);

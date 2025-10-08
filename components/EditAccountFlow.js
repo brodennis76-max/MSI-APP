@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Image, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { db } from '../firebase-config';
-import { collection, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, getDoc, updateDoc } from 'firebase/firestore';
 import RichTextEditor from './RichTextEditor';
 import PreInventoryForm from './PreInventoryForm';
 import InventoryProceduresForm from './InventoryProceduresForm';
@@ -19,6 +19,7 @@ const EditAccountFlow = ({ onBack }) => {
   const [searchText, setSearchText] = useState('');
   const [filteredClients, setFilteredClients] = useState([]);
   const [activeClient, setActiveClient] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   const [step, setStep] = useState('picker');
 
@@ -61,6 +62,30 @@ const EditAccountFlow = ({ onBack }) => {
     } catch (e) {
       console.error('Failed to load client:', e);
       Alert.alert('Error', 'Failed to load client.');
+    }
+  };
+
+  const saveClientInfo = async () => {
+    if (!activeClient) return;
+    
+    setSaving(true);
+    try {
+      const clientRef = doc(db, 'clients', activeClient.id);
+      await updateDoc(clientRef, {
+        inventoryType: activeClient.inventoryType,
+        PIC: activeClient.PIC,
+        startTime: activeClient.startTime,
+        verification: activeClient.verification,
+        additionalNotes: activeClient.additionalNotes,
+        updatedAt: new Date(),
+      });
+      Alert.alert('Success', 'Client information updated successfully!');
+      setStep('preInventory');
+    } catch (error) {
+      console.error('Error saving client info:', error);
+      Alert.alert('Error', 'Failed to save client information.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -195,13 +220,24 @@ const EditAccountFlow = ({ onBack }) => {
                 onChange={(text) => setActiveClient({...activeClient, verification: text})}
               />
             </View>
+
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>Additional Notes</Text>
+              <RichTextEditor
+                value={activeClient.additionalNotes || ''}
+                onChange={(text) => setActiveClient({...activeClient, additionalNotes: text})}
+              />
+            </View>
           </View>
 
           <TouchableOpacity 
-            style={styles.primaryButton}
-            onPress={() => setStep('preInventory')}
+            style={[styles.primaryButton, saving && styles.disabled]}
+            onPress={saveClientInfo}
+            disabled={saving}
           >
-            <Text style={styles.primaryText}>Continue to Forms</Text>
+            <Text style={styles.primaryText}>
+              {saving ? 'Saving...' : 'Save & Continue to Forms'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

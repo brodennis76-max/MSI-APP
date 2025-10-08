@@ -456,6 +456,19 @@ function buildHtml(client) {
         })()}
 
         ${(() => {
+          const departments = String(client.Departments ?? '').trim();
+          if (!departments) return '';
+          return `
+            <div class="section">
+              <div class="section-title">Departments</div>
+              <div class="info" style="margin-top:8px;">
+                <p style="white-space:pre-wrap;">${escapeHtml(departments)}</p>
+              </div>
+            </div>
+          `;
+        })()}
+
+        ${(() => {
           const teamInstr = String(client['Team-Instr'] ?? '').trim();
           if (!teamInstr) return '';
           return `
@@ -517,6 +530,19 @@ function buildHtml(client) {
                     <div class="info"><p style="white-space:pre-wrap;">${escapeHtml(processing)}</p></div>
                   </div>
                 ` : ''}
+              </div>
+            </div>
+          `;
+        })()}
+
+        ${(() => {
+          const additionalNotes = String(client.additionalNotes ?? '').trim();
+          if (!additionalNotes) return '';
+          return `
+            <div class="section">
+              <div class="section-title">Additional Notes</div>
+              <div class="info" style="margin-top:8px;">
+                <p style="white-space:pre-wrap;">${escapeHtml(additionalNotes)}</p>
               </div>
             </div>
           `;
