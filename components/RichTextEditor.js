@@ -58,17 +58,54 @@ const RichTextEditor = ({ value, onChange }) => {
       const editor = editorRef.current;
       if (editor) {
         editor.focus(); // Ensure editor is focused
+        
+        // Store current selection
+        const selection = window.getSelection();
+        const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+        
         if (format === 'header') {
-          document.execCommand('formatBlock', false, value === 1 ? 'h1' : value === 2 ? 'h2' : 'p');
+          // For headers, wrap selected text or insert new header
+          if (range && !range.collapsed) {
+            const selectedText = range.toString();
+            const tag = value === 1 ? 'h1' : 'h2';
+            range.deleteContents();
+            const headerElement = document.createElement(tag);
+            headerElement.textContent = selectedText;
+            range.insertNode(headerElement);
+          } else {
+            document.execCommand('formatBlock', false, value === 1 ? 'h1' : value === 2 ? 'h2' : 'p');
+          }
         } else if (format === 'list' && value === 'ordered') {
-          document.execCommand('insertOrderedList', false, null);
+          // For ordered lists, check if we're in a list already
+          const listElement = editor.querySelector('ol, ul');
+          if (listElement) {
+            // Convert existing list to ordered
+            if (listElement.tagName.toLowerCase() === 'ul') {
+              listElement.tagName = 'ol';
+            }
+          } else {
+            document.execCommand('insertOrderedList', false, null);
+          }
         } else if (format === 'list' && value === 'bullet') {
-          document.execCommand('insertUnorderedList', false, null);
+          // For bullet lists, check if we're in a list already
+          const listElement = editor.querySelector('ol, ul');
+          if (listElement) {
+            // Convert existing list to unordered
+            if (listElement.tagName.toLowerCase() === 'ol') {
+              listElement.tagName = 'ul';
+            }
+          } else {
+            document.execCommand('insertUnorderedList', false, null);
+          }
         } else {
+          // For bold, italic, underline
           document.execCommand(format, false, null);
         }
-        setContent(editor.innerHTML); // Update content
-        onChange && onChange(editor.innerHTML);
+        
+        // Update content and trigger change
+        const newContent = editor.innerHTML;
+        setContent(newContent);
+        onChange && onChange(newContent);
       }
     } else {
       // React Native: Use react-native-pell-rich-editor actions
@@ -97,33 +134,75 @@ const RichTextEditor = ({ value, onChange }) => {
     <View style={styles.toolbar}>
       {/* Header group */}
       <View style={styles.buttonGroup}>
-        <TouchableOpacity style={styles.button} onPress={() => applyFormat('header', 1)}>
+        <TouchableOpacity 
+          style={styles.button} 
+          onPress={(e) => {
+            e.preventDefault();
+            applyFormat('header', 1);
+          }}
+        >
           <Text style={styles.buttonText}>H1</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={() => applyFormat('header', 2)}>
+        <TouchableOpacity 
+          style={styles.button} 
+          onPress={(e) => {
+            e.preventDefault();
+            applyFormat('header', 2);
+          }}
+        >
           <Text style={styles.buttonText}>H2</Text>
         </TouchableOpacity>
       </View>
       
       {/* Text formatting group */}
       <View style={[styles.buttonGroup, styles.textFormatGroup]}>
-        <TouchableOpacity style={styles.button} onPress={() => applyFormat('bold')}>
+        <TouchableOpacity 
+          style={styles.button} 
+          onPress={(e) => {
+            e.preventDefault();
+            applyFormat('bold');
+          }}
+        >
           <Text style={styles.buttonText}>B</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={() => applyFormat('italic')}>
+        <TouchableOpacity 
+          style={styles.button} 
+          onPress={(e) => {
+            e.preventDefault();
+            applyFormat('italic');
+          }}
+        >
           <Text style={styles.buttonText}>I</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={() => applyFormat('underline')}>
+        <TouchableOpacity 
+          style={styles.button} 
+          onPress={(e) => {
+            e.preventDefault();
+            applyFormat('underline');
+          }}
+        >
           <Text style={styles.buttonText}>U</Text>
         </TouchableOpacity>
       </View>
       
       {/* List group */}
       <View style={[styles.buttonGroup, styles.listGroup]}>
-        <TouchableOpacity style={styles.button} onPress={() => applyFormat('list', 'ordered')}>
+        <TouchableOpacity 
+          style={styles.button} 
+          onPress={(e) => {
+            e.preventDefault();
+            applyFormat('list', 'ordered');
+          }}
+        >
           <Text style={styles.buttonText}>1.</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={() => applyFormat('list', 'bullet')}>
+        <TouchableOpacity 
+          style={styles.button} 
+          onPress={(e) => {
+            e.preventDefault();
+            applyFormat('list', 'bullet');
+          }}
+        >
           <Text style={styles.buttonText}>•</Text>
         </TouchableOpacity>
       </View>
