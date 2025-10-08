@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
+import RichTextEditor from './RichTextEditor';
 
 const FinalReportsForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
@@ -121,19 +122,9 @@ const FinalReportsForm = ({ clientData, onBack, onComplete }) => {
           <Text style={styles.label}>Final Reports</Text>
           <Text style={styles.helperText}>Enter final report information. Each item on a new line - bullet points will be added automatically.</Text>
           
-          <TextInput
-            ref={finRepRef}
-            style={styles.textArea}
+          <RichTextEditor
             value={finRepText}
-            onChangeText={handleInputChange}
-            onBlur={handleInputBlur}
-            placeholder="Enter final report details on a new line"
-            multiline
-            numberOfLines={10}
-            autoCapitalize="sentences"
-            autoCorrect={true}
-            spellCheck={true}
-            returnKeyType="done"
+            onChange={handleInputChange}
           />
         </View>
       </ScrollView>

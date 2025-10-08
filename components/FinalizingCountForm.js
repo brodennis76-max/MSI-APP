@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
+import RichTextEditor from './RichTextEditor';
 
 const FinalizingCountForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
@@ -182,19 +183,9 @@ Review the following reports with the store manager/DM and determine if 3 more r
           <Text style={styles.label}>Finalizing Count Details</Text>
           <Text style={styles.helperText}>Store-type-specific finalizing procedures are pre-populated below. You can modify, add to, or customize this content as needed. Each item on a new line - bullet points will be added automatically.</Text>
           
-          <TextInput
-            ref={finalizeRef}
-            style={styles.textArea}
+          <RichTextEditor
             value={finalizeText}
-            onChangeText={handleInputChange}
-            onBlur={handleInputBlur}
-            placeholder="Enter finalizing count details on a new line"
-            multiline
-            numberOfLines={10}
-            autoCapitalize="sentences"
-            autoCorrect={true}
-            spellCheck={true}
-            returnKeyType="done"
+            onChange={handleInputChange}
           />
         </View>
       </ScrollView>

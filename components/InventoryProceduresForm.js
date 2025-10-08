@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
+import RichTextEditor from './RichTextEditor';
+
 const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
   const [additionalProcedures, setAdditionalProcedures] = useState('');
@@ -135,19 +137,9 @@ const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
           <Text style={styles.label}>Additional Procedures (Optional)</Text>
           <Text style={styles.helperText}>Enter any additional procedures specific to this client. Each procedure on a new line - bullet points will be added automatically.</Text>
           
-          <TextInput
-            ref={additionalProceduresRef}
-            style={styles.textArea}
+          <RichTextEditor
             value={additionalProcedures}
-            onChangeText={handleInputChange}
-            onBlur={handleInputBlur}
-            placeholder="Enter additional procedures on a new line"
-            multiline
-            numberOfLines={6}
-            autoCapitalize="sentences"
-            autoCorrect={true}
-            spellCheck={true}
-            returnKeyType="done"
+            onChange={handleInputChange}
           />
         </View>
       </ScrollView>

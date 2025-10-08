@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { db } from '../firebase-config';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import RichTextEditor from './RichTextEditor';
 // PDF generation moved to CompletionScreen
 // Removed PDF-related imports
 
@@ -208,19 +209,9 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
           <Text style={styles.label}>Final Processing Details</Text>
           <Text style={styles.helperText}>"MSI Inventory Reports" is pre-populated below. You can modify, add to, or customize this content as needed. Each item on a new line - bullet points will be added automatically.</Text>
           
-          <TextInput
-            ref={processingRef}
-            style={styles.textArea}
+          <RichTextEditor
             value={processingText}
-            onChangeText={handleInputChange}
-            onBlur={handleInputBlur}
-            placeholder="Enter final processing details on a new line"
-            multiline
-            numberOfLines={10}
-            autoCapitalize="sentences"
-            autoCorrect={true}
-            spellCheck={true}
-            returnKeyType="done"
+            onChange={handleInputChange}
           />
         </View>
       </ScrollView>

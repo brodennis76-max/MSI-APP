@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Image, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Image, TouchableOpacity, TextInput, Alert, ScrollView, Platform } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { db } from '../firebase-config';
 import { collection, onSnapshot, doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -161,7 +161,12 @@ const EditAccountFlow = ({ onBack }) => {
             <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
         </View>
-        <View style={styles.content}>
+        <ScrollView 
+          style={[styles.content, Platform.OS === 'web' && styles.webScrollView]}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={true}
+          scrollEventThrottle={16}
+        >
           <View style={styles.formContainer}>
             <Text style={styles.sectionTitle}>Client Information</Text>
             
@@ -233,6 +238,7 @@ const EditAccountFlow = ({ onBack }) => {
               />
             </View>
           </View>
+        </ScrollView>
 
           <View style={styles.bottomButtonContainer}>
             <TouchableOpacity 
@@ -253,7 +259,6 @@ const EditAccountFlow = ({ onBack }) => {
             </TouchableOpacity>
           </View>
         </View>
-      </View>
     );
   }
 
@@ -369,7 +374,20 @@ const styles = StyleSheet.create({
   },
   content: { 
     flex: 1, 
-    padding: 20 
+    padding: 20,
+    ...(Platform.OS === 'web' && {
+      overflowY: 'auto',
+      WebkitOverflowScrolling: 'touch',
+    }),
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20,
+  },
+  webScrollView: {
+    overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch',
+    height: '100%',
   },
   formContainer: {
     backgroundColor: '#fff',

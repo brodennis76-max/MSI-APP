@@ -100,9 +100,16 @@ const RichTextEditor = ({ value, onChange }) => {
           contentEditable={true}
           style={styles.editor}
           onInput={(e) => {
-            setContent(e.target.innerHTML);
-            onChange && onChange(e.target.innerHTML);
+            const newContent = e.target.innerHTML;
+            setContent(newContent);
+            onChange && onChange(newContent);
           }}
+          onBlur={(e) => {
+            const newContent = e.target.innerHTML;
+            setContent(newContent);
+            onChange && onChange(newContent);
+          }}
+          suppressContentEditableWarning={true}
           dangerouslySetInnerHTML={{ __html: content }}
         />
       );
@@ -160,10 +167,10 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   textFormatGroup: {
-    marginLeft: 10,
+    marginLeft: 20,
   },
   listGroup: {
-    marginLeft: 10,
+    marginLeft: 20,
   },
   button: {
     paddingHorizontal: 8,
@@ -191,10 +198,19 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web' ? { 
       outline: 'none', 
       minHeight: 120,
+      maxHeight: 300,
       fontSize: '16px',
       lineHeight: '1.5',
       fontFamily: 'Arial, sans-serif',
-      resize: 'vertical'
+      overflowY: 'auto',
+      overflowX: 'hidden',
+      wordWrap: 'break-word',
+      whiteSpace: 'pre-wrap',
+      cursor: 'text',
+      userSelect: 'text',
+      WebkitUserSelect: 'text',
+      MozUserSelect: 'text',
+      msUserSelect: 'text'
     } : {}),
   },
 });

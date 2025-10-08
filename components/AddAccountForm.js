@@ -14,6 +14,7 @@ import {
 import { Picker } from '@react-native-picker/picker';
 import { db } from '../firebase-config';
 import { collection, onSnapshot, doc, setDoc } from 'firebase/firestore';
+import RichTextEditor from './RichTextEditor';
 import PreInventoryForm from './PreInventoryForm';
 import InventoryProceduresForm from './InventoryProceduresForm';
 import AuditsInventoryFlowForm from './AuditsInventoryFlowForm';

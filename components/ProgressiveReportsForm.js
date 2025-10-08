@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
+import RichTextEditor from './RichTextEditor';
 
 const ProgressiveReportsForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
@@ -173,38 +174,17 @@ All posting sheets must be reviewed by the inventory manager before they can be 
           <Text style={styles.label}>Posting Sheets</Text>
           <Text style={styles.helperText}>Standard posting sheets information is pre-populated below. You can modify, add to, or customize this content as needed. Each item on a new line - bullet points will be added automatically.</Text>
           
-          <TextInput
-            ref={postingSheetsRef}
-            style={styles.textArea}
+          <RichTextEditor
             value={postingSheetsText}
-            onChangeText={handlePostingSheetsChange}
-            onBlur={handlePostingSheetsBlur}
-            placeholder="Enter posting sheets details on a new line"
-            multiline
-            numberOfLines={6}
-            autoCapitalize="sentences"
-            autoCorrect={true}
-            spellCheck={true}
-            returnKeyType="next"
-            onSubmitEditing={() => utilityReportsRef.current?.focus()}
+            onChange={handlePostingSheetsChange}
           />
 
           <Text style={styles.label}>Utility Reports</Text>
           <Text style={styles.helperText}>Enter utility reports information. Each item on a new line - bullet points will be added automatically.</Text>
           
-          <TextInput
-            ref={utilityReportsRef}
-            style={styles.textArea}
+          <RichTextEditor
             value={utilityReportsText}
-            onChangeText={handleUtilityReportsChange}
-            onBlur={handleUtilityReportsBlur}
-            placeholder="Enter utility reports details on a new line"
-            multiline
-            numberOfLines={6}
-            autoCapitalize="sentences"
-            autoCorrect={true}
-            spellCheck={true}
-            returnKeyType="done"
+            onChange={handleUtilityReportsChange}
           />
         </View>
       </ScrollView>

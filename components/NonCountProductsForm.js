@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
+import RichTextEditor from './RichTextEditor';
 
 const NonCountProductsForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
@@ -108,19 +109,9 @@ const NonCountProductsForm = ({ clientData, onBack, onComplete }) => {
           <Text style={styles.label}>Products Not to be Counted</Text>
           <Text style={styles.helperText}>Enter each product or category that should not be counted during inventory. Each item on a new line - bullet points will be added automatically.</Text>
           
-          <TextInput
-            ref={nonCountRef}
-            style={styles.textArea}
+          <RichTextEditor
             value={nonCountText}
-            onChangeText={handleInputChange}
-            onBlur={handleInputBlur}
-            placeholder="Enter each non-count product on a new line"
-            multiline
-            numberOfLines={10}
-            autoCapitalize="sentences"
-            autoCorrect={true}
-            spellCheck={true}
-            returnKeyType="done"
+            onChange={handleInputChange}
           />
 
           <View style={styles.exampleContainer}>

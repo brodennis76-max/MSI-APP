@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
+import RichTextEditor from './RichTextEditor';
 
 const PreInventoryForm = ({ clientData, onBack, onComplete }) => {
   console.log('PreInventoryForm: Received clientData:', clientData);
@@ -460,55 +461,23 @@ ALL LOCATIONS MUST HAVE A DESCRIPTION. BE EXTRA DESCRIPTIVE IN THE CHECKOUT AREA
           </View>
           <Text style={styles.label}>General Instructions *</Text>
           <Text style={styles.helperText}>Enter each instruction on a new line - they will be automatically formatted as bullet points when you finish typing</Text>
-          <TextInput
-            ref={generalInstructionsRef}
-            style={styles.textArea}
+          <RichTextEditor
             value={formData.generalInstructions}
-            onChangeText={(text) => handleInputChange('generalInstructions', text)}
-            onBlur={() => handleInputBlur('generalInstructions')}
-            placeholder="Enter each instruction on a new line"
-            multiline
-            numberOfLines={6}
-            autoCapitalize="sentences"
-            autoCorrect={true}
-            spellCheck={true}
-            returnKeyType="next"
-            onSubmitEditing={() => areaMappingRef.current?.focus()}
+            onChange={(text) => handleInputChange('generalInstructions', text)}
           />
 
           <Text style={styles.label}>Area Mapping</Text>
           <Text style={styles.helperText}>Enter each area on a new line</Text>
-          <TextInput
-            ref={areaMappingRef}
-            style={styles.textArea}
+          <RichTextEditor
             value={formData.areaMapping}
-            onChangeText={(text) => handleInputChange('areaMapping', text)}
-            onBlur={() => handleInputBlur('areaMapping')}
-            placeholder="Enter each instruction on a new line"
-            multiline
-            numberOfLines={4}
-            autoCapitalize="sentences"
-            autoCorrect={true}
-            spellCheck={true}
-            returnKeyType="next"
-            onSubmitEditing={() => storePrepInstructionsRef.current?.focus()}
+            onChange={(text) => handleInputChange('areaMapping', text)}
           />
 
           <Text style={styles.label}>Store Prep Instructions</Text>
           <Text style={styles.helperText}>Enter each instruction on a new line - they will be automatically formatted as a numbered list (1., 2., 3.) when you finish typing</Text>
-          <TextInput
-            ref={storePrepInstructionsRef}
-            style={styles.textArea}
+          <RichTextEditor
             value={formData.storePrepInstructions}
-            onChangeText={(text) => handleInputChange('storePrepInstructions', text)}
-            onBlur={() => handleInputBlur('storePrepInstructions')}
-            placeholder="Enter each instruction on a new line"
-            multiline
-            numberOfLines={4}
-            autoCapitalize="sentences"
-            autoCorrect={true}
-            spellCheck={true}
-            returnKeyType="done"
+            onChange={(text) => handleInputChange('storePrepInstructions', text)}
           />
         </View>
       </ScrollView>
