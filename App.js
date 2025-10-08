@@ -3,13 +3,14 @@ import { Image, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AccInstPicker from './components/AccInstPicker';
 import AddAccountFormTest from './components/AddAccountFormTest';
+import EditAccountFlow from './components/EditAccountFlow';
 // Removed PDF generator import
 import { useEffect, useState } from 'react';
 
 export default function App() {
   const [showLanding, setShowLanding] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [currentScreen, setCurrentScreen] = useState('landing'); // 'landing' | 'accountInstructions' | 'addAccount'
+  const [currentScreen, setCurrentScreen] = useState('landing'); // 'landing' | 'accountInstructions' | 'addAccount' | 'editAccount'
 
   // Removed test data for PDF generator
 
@@ -127,6 +128,18 @@ export default function App() {
     );
   }
 
+  // Edit Account screen
+  if (currentScreen === 'editAccount') {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.container}>
+          <StatusBar style="auto" />
+          <EditAccountFlow onBack={() => setCurrentScreen('landing')} />
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
+
   // Test PDF Generator screen removed
 
 
@@ -165,7 +178,15 @@ export default function App() {
             >
               <Text style={styles.menuText}>Add Account</Text>
             </TouchableOpacity>
-              
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              onPress={() => {
+                setCurrentScreen('editAccount');
+                setMenuOpen(false);
+              }}
+            >
+              <Text style={styles.menuText}>Edit Account</Text>
+            </TouchableOpacity>
           </View>
         )}
         <View style={styles.content}>
@@ -195,6 +216,19 @@ export default function App() {
             >
               <Image 
                 source={require('./assets/MSI APP BUTTONS/AddAct-Button.png')} 
+                style={styles.buttonImage}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.dashboardButton}
+              onPress={() => {
+                setCurrentScreen('editAccount');
+                setMenuOpen(false);
+              }}
+            >
+              <Image 
+                source={require('./assets/MSI APP BUTTONS/ActIns-Button.png')} 
                 style={styles.buttonImage}
                 resizeMode="contain"
               />
