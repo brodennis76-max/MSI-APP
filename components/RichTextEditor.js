@@ -67,7 +67,7 @@ const RichTextEditor = ({ value, onChange }) => {
       </View>
       
       {/* Text formatting group */}
-      <View style={styles.buttonGroup}>
+      <View style={[styles.buttonGroup, styles.textFormatGroup]}>
         <TouchableOpacity style={styles.button} onPress={() => applyFormat('bold')}>
           <Text style={styles.buttonText}>B</Text>
         </TouchableOpacity>
@@ -80,7 +80,7 @@ const RichTextEditor = ({ value, onChange }) => {
       </View>
       
       {/* List group */}
-      <View style={styles.buttonGroup}>
+      <View style={[styles.buttonGroup, styles.listGroup]}>
         <TouchableOpacity style={styles.button} onPress={() => applyFormat('list', 'ordered')}>
           <Text style={styles.buttonText}>1.</Text>
         </TouchableOpacity>
@@ -145,7 +145,8 @@ const styles = StyleSheet.create({
   },
   toolbar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 8,
     backgroundColor: '#f8f9fa',
@@ -157,6 +158,12 @@ const styles = StyleSheet.create({
   buttonGroup: {
     flexDirection: 'row',
     gap: 2,
+  },
+  textFormatGroup: {
+    marginLeft: 10,
+  },
+  listGroup: {
+    marginLeft: 10,
   },
   button: {
     paddingHorizontal: 8,

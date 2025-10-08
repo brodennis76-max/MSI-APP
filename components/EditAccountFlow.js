@@ -140,11 +140,11 @@ const EditAccountFlow = ({ onBack }) => {
           </View>
 
           <TouchableOpacity 
-            style={[styles.primaryButton, !selectedClientId && styles.disabled]}
+            style={[styles.startEditingButton, !selectedClientId && styles.disabled]}
             onPress={() => selectedClientId && loadClient(selectedClientId)}
             disabled={!selectedClientId}
           >
-            <Text style={styles.primaryText}>Start Editing</Text>
+            <Text style={styles.startEditingText}>Start Editing</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -484,6 +484,18 @@ const styles = StyleSheet.create({
     borderColor: '#ccc', 
     borderRadius: 8, 
     backgroundColor: '#fff' 
+  },
+  startEditingButton: {
+    backgroundColor: '#007bff',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  startEditingText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   bottomButtonContainer: {
     flexDirection: 'row',
