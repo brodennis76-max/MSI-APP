@@ -6,7 +6,7 @@ import {
   Text,
   StyleSheet,
 } from 'react-native';
-import { RichEditor, actions } from 'react-native-pell-rich-editor'; // For React Native
+import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor'; // For React Native
 
 const RichTextEditor = ({ value, onChange }) => {
   const [content, setContent] = useState(value || ''); // Store editor content as HTML
@@ -136,7 +136,32 @@ const RichTextEditor = ({ value, onChange }) => {
 
   return (
     <View style={styles.container}>
-      <CustomToolbar />
+      {Platform.OS === 'web' ? <CustomToolbar /> : (
+        <RichToolbar
+          editor={editorRef}
+          actions={[
+            actions.setBold,
+            actions.setItalic,
+            actions.setUnderline,
+            actions.insertBulletsList,
+            actions.insertOrderedList,
+            actions.setStrikethrough,
+            actions.foreColor,
+            actions.hiliteColor,
+            actions.removeFormat,
+            actions.insertLink,
+            actions.setHeading1,
+            actions.setHeading2,
+            actions.setHeading3,
+            actions.undo,
+            actions.redo,
+          ]}
+          iconTint="#000000"
+          selectedIconTint="#2095F2"
+          selectedButtonStyle={styles.selectedButton}
+          style={styles.toolbar}
+        />
+      )}
       {renderEditor()}
     </View>
   );
@@ -185,6 +210,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  selectedButton: {
+    backgroundColor: '#2095F2',
   },
   editor: {
     minHeight: 120,
