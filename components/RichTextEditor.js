@@ -1,6 +1,15 @@
-import React, { useRef, useEffect } from 'react';
-import { Platform, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useRef, useEffect, useMemo, useState } from 'react';
+import { Platform, View, StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
+let Quill; let ReactQuill;
+if (Platform.OS === 'web') {
+  try {
+    // Dynamically require to avoid bundling issues on native
+    Quill = require('quill');
+    ReactQuill = require('react-quill');
+    require('react-quill/dist/quill.snow.css');
+  } catch {}
+}
 
 const toolbarHtml = (initial) => `
 <!DOCTYPE html>
@@ -69,6 +78,7 @@ const toolbarHtml = (initial) => `
 export default function RichTextEditor({ value, onChange }) {
   const webRef = useRef(null);
   const initialHtml = value && value.trim().length > 0 ? value : '';
+  const [webValue, setWebValue] = useState(value || '');
 
   useEffect(() => {
     // Sync external value changes into the editor
@@ -78,7 +88,38 @@ export default function RichTextEditor({ value, onChange }) {
         webRef.current.postMessage(msg);
       } catch {}
     }
+    if (Platform.OS === 'web') {
+      setWebValue(value || '');
+    }
   }, [value]);
+
+  if (Platform.OS === 'web' && ReactQuill) {
+    const modules = useMemo(() => ({
+      toolbar: [
+        [{ header: [1, 2, false] }],
+        ['bold', 'italic', 'underline'],
+        [{ list: 'ordered' }, { list: 'bullet' }],
+        ['link', 'image'],
+        ['clean'],
+      ],
+    }), []);
+    const formats = useMemo(() => (
+      ['header', 'bold', 'italic', 'underline', 'list', 'bullet', 'link', 'image']
+    ), []);
+
+    return (
+      <View style={styles.container}>
+        <ReactQuill
+          theme="snow"
+          value={webValue}
+          onChange={(html) => onChange && onChange(html)}
+          modules={modules}
+          formats={formats}
+          style={{ height: 300 }}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

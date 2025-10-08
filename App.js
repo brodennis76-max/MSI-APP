@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { Image, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { Image, StyleSheet, Text, View, TouchableOpacity, useWindowDimensions, Dimensions } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AccInstPicker from './components/AccInstPicker';
 import AddAccountFormTest from './components/AddAccountFormTest';
@@ -11,6 +11,10 @@ export default function App() {
   const [showLanding, setShowLanding] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [currentScreen, setCurrentScreen] = useState('landing'); // 'landing' | 'accountInstructions' | 'addAccount' | 'editAccount'
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  const isTablet = width >= 768;
+  const isLargeScreen = width >= 1024;
 
   // Removed test data for PDF generator
 
@@ -192,46 +196,41 @@ export default function App() {
         <View style={styles.content}>
           <Text style={styles.contentText}>Welcome to MSI Dashboard</Text>
           
-          <View style={styles.topButtonsContainer}>
+          <View style={styles.buttonsContainer}>
             <TouchableOpacity 
-              style={styles.dashboardButton}
+              style={[styles.modernButton, styles.primaryButton]}
               onPress={() => {
                 setCurrentScreen('accountInstructions');
                 setMenuOpen(false);
               }}
             >
-              <Image 
-                source={require('./assets/MSI APP BUTTONS/ActIns-Button.png')} 
-                style={styles.buttonImage}
-                resizeMode="contain"
-              />
+              <Text style={styles.buttonIcon}>📋</Text>
+              <Text style={styles.buttonText}>Account Instructions</Text>
+              <Text style={styles.buttonSubtext}>Generate PDFs</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={styles.dashboardButton}
+              style={[styles.modernButton, styles.secondaryButton]}
               onPress={() => {
                 setCurrentScreen('addAccount');
                 setMenuOpen(false);
               }}
             >
-              <Image 
-                source={require('./assets/MSI APP BUTTONS/AddAct-Button.png')} 
-                style={styles.buttonImage}
-                resizeMode="contain"
-              />
+              <Text style={styles.buttonIcon}>➕</Text>
+              <Text style={styles.buttonText}>Add Account</Text>
+              <Text style={styles.buttonSubtext}>Create New Client</Text>
             </TouchableOpacity>
+
             <TouchableOpacity 
-              style={styles.dashboardButton}
+              style={[styles.modernButton, styles.tertiaryButton]}
               onPress={() => {
                 setCurrentScreen('editAccount');
                 setMenuOpen(false);
               }}
             >
-              <Image 
-                source={require('./assets/MSI APP BUTTONS/ActIns-Button.png')} 
-                style={styles.buttonImage}
-                resizeMode="contain"
-              />
+              <Text style={styles.buttonIcon}>✏️</Text>
+              <Text style={styles.buttonText}>Edit Account</Text>
+              <Text style={styles.buttonSubtext}>Modify Existing</Text>
             </TouchableOpacity>
           </View>
           
@@ -332,25 +331,63 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     alignSelf: 'center',
   },
-  topButtonsContainer: {
+  buttonsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: 2,
-    width: '100%',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'stretch',
+    paddingHorizontal: 20,
+    marginTop: 20,
+    gap: 15,
+  },
+  modernButton: {
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 140,
+    flex: 1,
+    minWidth: 280,
+    maxWidth: 350,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  primaryButton: {
+    backgroundColor: '#4F46E5', // Indigo
+    borderColor: '#4338CA',
+  },
+  secondaryButton: {
+    backgroundColor: '#059669', // Emerald
+    borderColor: '#047857',
+  },
+  tertiaryButton: {
+    backgroundColor: '#DC2626', // Red
+    borderColor: '#B91C1C',
+  },
+  buttonIcon: {
+    fontSize: 32,
     marginBottom: 8,
   },
-  dashboardButton: {
-    width: '48%',
-    padding: 2,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    backgroundColor: 'transparent',
+  buttonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 4,
   },
-  buttonImage: {
-    width: '100%',
-    height: undefined,
-    aspectRatio: 1.875, // Maintains the original aspect ratio (150/80)
+  buttonSubtext: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: 'rgba(255, 255, 255, 0.8)',
+    textAlign: 'center',
   },
   backButton: {
     position: 'absolute',
