@@ -27,9 +27,6 @@
         "buildConfiguration": "Release",
         "autoIncrement": "buildNumber"
       }
-    },
-    "web": {
-      "platform": "web"
     }
   },
   "submit": {
