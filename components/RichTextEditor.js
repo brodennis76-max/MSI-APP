@@ -1,14 +1,16 @@
 import React, { useRef, useEffect, useMemo, useState } from 'react';
-import { Platform, View, StyleSheet } from 'react-native';
+import { Platform, View, StyleSheet, TextInput } from 'react-native';
 import { WebView } from 'react-native-webview';
-let Quill; let ReactQuill;
+
+// Platform-specific imports
+let ReactQuill = null;
 if (Platform.OS === 'web') {
   try {
-    // Dynamically require to avoid bundling issues on native
-    Quill = require('quill');
     ReactQuill = require('react-quill');
     require('react-quill/dist/quill.snow.css');
-  } catch {}
+  } catch (error) {
+    console.warn('Failed to load react-quill:', error);
+  }
 }
 
 const toolbarHtml = (initial) => `
@@ -93,6 +95,7 @@ export default function RichTextEditor({ value, onChange }) {
     }
   }, [value]);
 
+  // Use react-quill on web platform if available
   if (Platform.OS === 'web' && ReactQuill) {
     const modules = useMemo(() => ({
       toolbar: [
@@ -116,6 +119,25 @@ export default function RichTextEditor({ value, onChange }) {
           modules={modules}
           formats={formats}
           style={{ height: 300 }}
+        />
+      </View>
+    );
+  }
+
+  // Fallback for web if react-quill is not available - use a simple TextInput
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.container}>
+        <TextInput
+          style={styles.fallbackInput}
+          value={webValue}
+          onChangeText={(text) => {
+            setWebValue(text);
+            onChange && onChange(text);
+          }}
+          placeholder="Enter text here..."
+          multiline
+          numberOfLines={10}
         />
       </View>
     );
@@ -146,6 +168,17 @@ export default function RichTextEditor({ value, onChange }) {
 const styles = StyleSheet.create({
   container: { width: '100%', height: 320 },
   webview: { flex: 1, backgroundColor: 'transparent' },
+  fallbackInput: {
+    width: '100%',
+    height: 300,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    padding: 15,
+    fontSize: 16,
+    textAlignVertical: 'top',
+    backgroundColor: '#fff',
+  },
 });
 
 
