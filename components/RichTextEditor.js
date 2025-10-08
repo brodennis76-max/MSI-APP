@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Platform, View, TouchableOpacity, Text, StyleSheet, TextInput } from 'react-native';
+import { Platform, View, StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { MaterialIcons, FontAwesome } from '@expo/vector-icons';
+import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor';
 
 // Convert markdown-style formatting to HTML
 const convertMarkdownToHtml = (text) => {
@@ -130,255 +130,87 @@ const quillWebHtml = (initial) => `
 </html>
 `;
 
-const simpleEditorHtml = (initial) => `
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <style>
-      body { 
-        font-family: Helvetica, Arial, sans-serif; 
-        margin: 0; 
-        padding: 8px; 
-        background: #fff;
-        overflow: hidden;
-      }
-      .toolbar { 
-        position: sticky; 
-        top: 0; 
-        background: #f7f7f7; 
-        border: 1px solid #ddd; 
-        border-radius: 6px 6px 0 0; 
-        padding: 6px; 
-        display: flex; 
-        flex-wrap: wrap; 
-        gap: 6px; 
-        z-index: 1000;
-      }
-      .btn { 
-        border: 1px solid #ccc; 
-        padding: 6px 8px; 
-        border-radius: 4px; 
-        background: #fff; 
-        cursor: pointer; 
-        font-size: 12px; 
-        user-select: none;
-      }
-      .btn:hover { background: #f0f0f0; }
-      .btn.active { background: #007bff; color: white; }
-      .editor { 
-        margin-top: 0; 
-        min-height: 250px; 
-        max-height: 300px;
-        border: 1px solid #ccc; 
-        border-top: none;
-        border-radius: 0 0 6px 6px;
-        padding: 10px; 
-        overflow-y: auto;
-        font-size: 14px;
-        line-height: 1.5;
-      }
-      .editor:focus { outline: none; }
-      img { max-width: 100%; height: auto; }
-      .hints {
-        font-size: 11px;
-        color: #666;
-        margin-top: 4px;
-        padding: 4px 8px;
-        background: #f8f9fa;
-        border-radius: 4px;
-        border: 1px solid #e9ecef;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="toolbar">
-      <button class="btn" onclick="formatText('bold')"><b>B</b></button>
-      <button class="btn" onclick="formatText('italic')"><i>I</i></button>
-      <button class="btn" onclick="formatText('underline')"><u>U</u></button>
-      <button class="btn" onclick="formatBlock('h1')">H1</button>
-      <button class="btn" onclick="formatBlock('h2')">H2</button>
-      <button class="btn" onclick="formatBlock('p')">P</button>
-      <button class="btn" onclick="insertList('ul')">• List</button>
-      <button class="btn" onclick="insertList('ol')">1. List</button>
-    </div>
-    <div id="editor" class="editor" contenteditable="true">${initial}</div>
-    <div class="hints">
-      <strong>Shortcuts:</strong> Ctrl+B (Bold), Ctrl+I (Italic), Ctrl+U (Underline)
-    </div>
-    <script>
-      const editor = document.getElementById('editor');
-      
-      function post() {
-        const html = editor.innerHTML;
-        if (window.ReactNativeWebView) {
-          window.ReactNativeWebView.postMessage(html);
-        }
-      }
-      
-      function formatText(command) {
-        document.execCommand(command, false, null);
-        post();
-      }
-      
-      function formatBlock(tag) {
-        document.execCommand('formatBlock', false, tag);
-        post();
-      }
-      
-      function insertList(type) {
-        document.execCommand('insertUnorderedList', false, null);
-        post();
-      }
-      
-      // Keyboard shortcuts
-      editor.addEventListener('keydown', function(e) {
-        if (e.ctrlKey) {
-          switch(e.key.toLowerCase()) {
-            case 'b':
-              e.preventDefault();
-              formatText('bold');
-              break;
-            case 'i':
-              e.preventDefault();
-              formatText('italic');
-              break;
-            case 'u':
-              e.preventDefault();
-              formatText('underline');
-              break;
-          }
-        }
-      });
-      
-      editor.addEventListener('input', post);
-      editor.addEventListener('blur', post);
-      
-      window.addEventListener('message', function(e) {
-        try {
-          const data = JSON.parse(e.data);
-          if (data && data.type === 'set') {
-            editor.innerHTML = data.html || '';
-          }
-        } catch (error) {
-          console.log('Error parsing message:', error);
-        }
-      });
-      
-      // Initial post
-      setTimeout(post, 50);
-    </script>
-  </body>
-</html>
-`;
-
 export default function RichTextEditor({ value, onChange }) {
-  const [content, setContent] = useState('');
-  const webRef = useRef(null);
+  const [content, setContent] = useState(value || '');
+  const editorRef = useRef(null);
 
-  // Formatting functions
-  const applyFormat = (format, formatValue = null) => {
-    if (Platform.OS === 'web') {
-      // For web, we'll use the WebView with Quill
-      const message = JSON.stringify({
-        type: 'format',
-        format: format,
-        value: formatValue
-      });
-      webRef.current?.postMessage(message);
-    } else {
-      // For native, we'll use simple text insertion
-      insertFormatting(format);
-    }
+  // Handle content changes
+  const handleContentChange = (html) => {
+    setContent(html);
+    onChange && onChange(html);
   };
-
-  const insertFormatting = (format) => {
-    let insertText = '';
-    
-    switch (format) {
-      case 'bold':
-        insertText = '**bold text**';
-        break;
-      case 'italic':
-        insertText = '*italic text*';
-        break;
-      case 'header1':
-        insertText = '# Header 1\n';
-        break;
-      case 'header2':
-        insertText = '## Header 2\n';
-        break;
-      case 'list':
-        insertText = '- List item\n';
-        break;
-      case 'numbered':
-        insertText = '1. Numbered item\n';
-        break;
-    }
-    
-    const newContent = content + insertText;
-    setContent(newContent);
-    onChange && onChange(convertMarkdownToHtml(newContent));
-  };
-
-  // Toolbar component with custom buttons
-  const CustomToolbar = () => (
-    <View style={styles.toolbar}>
-      <TouchableOpacity style={styles.button} onPress={() => applyFormat('header', 1)}>
-        <Text style={styles.buttonText}>H1</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={() => applyFormat('header', 2)}>
-        <Text style={styles.buttonText}>H2</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={() => applyFormat('bold')}>
-        <MaterialIcons name="format-bold" size={16} color="#fff" />
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={() => applyFormat('italic')}>
-        <MaterialIcons name="format-italic" size={16} color="#fff" />
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={() => applyFormat('underline')}>
-        <MaterialIcons name="format-underline" size={16} color="#fff" />
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={() => applyFormat('list', 'ordered')}>
-        <MaterialIcons name="format-list-numbered" size={16} color="#fff" />
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={() => applyFormat('list', 'bullet')}>
-        <MaterialIcons name="format-list-bulleted" size={16} color="#fff" />
-      </TouchableOpacity>
-    </View>
-  );
 
   // Render editor based on platform
   const renderEditor = () => {
     if (Platform.OS === 'web') {
+      // For web, use WebView with Quill CDN
       return (
         <WebView
-          ref={webRef}
           source={{ html: quillWebHtml(value || '') }}
           onMessage={(e) => {
             const html = e?.nativeEvent?.data || '';
-            onChange && onChange(html);
+            handleContentChange(html);
           }}
-          style={styles.editor}
+          style={styles.webview}
           javaScriptEnabled
           domStorageEnabled
           scrollEnabled={false}
         />
       );
     } else {
+      // For native, use RichEditor
       return (
-        <TextInput
-          style={styles.textInput}
-          value={content}
-          onChangeText={(text) => {
-            setContent(text);
-            onChange && onChange(convertMarkdownToHtml(text));
+        <RichEditor
+          ref={editorRef}
+          initialContentHTML={content}
+          onChange={handleContentChange}
+          style={styles.richEditor}
+          editorStyle={{
+            backgroundColor: '#fff',
+            color: '#000',
+            placeholderColor: '#a9a9a9',
+            fontSize: 16,
+            lineHeight: 24,
           }}
-          placeholder="Enter text here... Use **bold**, *italic*, # Header, - List items"
-          multiline
-          numberOfLines={10}
-          textAlignVertical="top"
+          placeholder="Start typing..."
+          useContainer={true}
+          containerStyle={styles.editorContainer}
+        />
+      );
+    }
+  };
+
+  // Render toolbar based on platform
+  const renderToolbar = () => {
+    if (Platform.OS === 'web') {
+      // Web toolbar is handled by Quill in the WebView
+      return null;
+    } else {
+      // Native toolbar
+      return (
+        <RichToolbar
+          editor={editorRef}
+          actions={[
+            actions.setBold,
+            actions.setItalic,
+            actions.setUnderline,
+            actions.insertBulletsList,
+            actions.insertOrderedList,
+            actions.setStrikethrough,
+            actions.foreColor,
+            actions.hiliteColor,
+            actions.removeFormat,
+            actions.insertLink,
+            actions.setHeading1,
+            actions.setHeading2,
+            actions.setHeading3,
+            actions.undo,
+            actions.redo,
+          ]}
+          iconTint="#000000"
+          selectedIconTint="#2095F2"
+          selectedButtonStyle={styles.selectedButton}
+          style={styles.toolbar}
         />
       );
     }
@@ -386,7 +218,7 @@ export default function RichTextEditor({ value, onChange }) {
 
   return (
     <View style={styles.container}>
-      <CustomToolbar />
+      {renderToolbar()}
       {renderEditor()}
     </View>
   );
@@ -401,80 +233,26 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#fff',
   },
-  quillEditor: {
-    height: 250,
+  webview: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  richEditor: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  editorContainer: {
+    flex: 1,
+    padding: 10,
   },
   toolbar: {
-    flexDirection: 'row',
-    padding: 8,
     backgroundColor: '#f7f7f7',
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
-    flexWrap: 'wrap',
-    gap: 4,
-    justifyContent: 'space-around',
   },
-  button: {
-    padding: 8,
-    backgroundColor: '#007bff',
-    borderRadius: 4,
-    minWidth: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  textInput: {
-    flex: 1,
-    padding: 12,
-    fontSize: 14,
-    textAlignVertical: 'top',
-    backgroundColor: '#fff',
-    minHeight: 200,
-  },
-  previewContainer: {
-    flex: 1,
-    padding: 12,
-    backgroundColor: '#fff',
-    minHeight: 200,
-  },
-  previewText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  h1: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  h2: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 6,
-  },
-  bold: {
-    fontWeight: 'bold',
-  },
-  italic: {
-    fontStyle: 'italic',
-  },
-  listItem: {
-    marginLeft: 16,
-    marginBottom: 2,
-  },
-  formattingHint: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-    paddingHorizontal: 12,
-    paddingBottom: 8,
-    fontStyle: 'italic',
+  selectedButton: {
+    backgroundColor: '#2095F2',
   },
 });
-
-
