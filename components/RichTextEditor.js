@@ -12,6 +12,14 @@ const RichTextEditor = ({ value, onChange }) => {
   const [content, setContent] = useState(value || ''); // Store editor content as HTML
   const editorRef = useRef(null); // Reference to editor
 
+  // Update content when value prop changes
+  React.useEffect(() => {
+    if (Platform.OS === 'web' && editorRef.current) {
+      editorRef.current.innerHTML = value || '';
+    }
+    setContent(value || '');
+  }, [value]);
+
   // Formatting functions
   const applyFormat = (format, value = null) => {
     if (Platform.OS === 'web') {
@@ -101,16 +109,19 @@ const RichTextEditor = ({ value, onChange }) => {
           style={styles.editor}
           onInput={(e) => {
             const newContent = e.target.innerHTML;
-            setContent(newContent);
-            onChange && onChange(newContent);
+            if (newContent !== content) {
+              setContent(newContent);
+              onChange && onChange(newContent);
+            }
           }}
           onBlur={(e) => {
             const newContent = e.target.innerHTML;
-            setContent(newContent);
-            onChange && onChange(newContent);
+            if (newContent !== content) {
+              setContent(newContent);
+              onChange && onChange(newContent);
+            }
           }}
           suppressContentEditableWarning={true}
-          dangerouslySetInnerHTML={{ __html: content }}
         />
       );
     } else {
