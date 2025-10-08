@@ -9,21 +9,16 @@ import {
   Alert,
   ActivityIndicator,
   Image,
-  Platform,
-  Switch
+  Platform
 } from 'react-native';
 import { db } from '../firebase-config';
-import { doc, updateDoc, deleteField, getDoc } from 'firebase/firestore';
-import RichTextEditor from './RichTextEditor';
+import { doc, updateDoc } from 'firebase/firestore';
 const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
   const [additionalProcedures, setAdditionalProcedures] = useState('');
-  const [hasDepartments, setHasDepartments] = useState(false);
-  const [departments, setDepartments] = useState('');
 
   // Ref for keyboard navigation
   const additionalProceduresRef = React.useRef(null);
-  const departmentsRef = React.useRef(null);
 
   const permanentProcedures = [
     "The inventory manager's first task when entering the store is to have a pre-inventory meeting with the store manager. During this meeting they will perform the following function:",
@@ -32,42 +27,6 @@ const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
     "• Walk the store and discuss any areas that need to be addressed (prep/pricing), cooler and stockroom organization, and any hidden product.",
     "• IF THE STORE IS NOT COUNTABLE CONTACT MSI CORPORATE IMMEDIATELY TO CANCEL THE INVENTORY."
   ];
-
-  // Load latest saved values on mount
-  React.useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      try {
-        const clientRef = doc(db, 'clients', clientData.id);
-        const snap = await getDoc(clientRef);
-        if (!snap.exists()) return;
-        const data = snap.data() || {};
-
-        // Restore departments toggle and value
-        if (isMounted) {
-          setHasDepartments(!!data.Has_Departments);
-          setDepartments(typeof data.Departments === 'string' ? data.Departments : '');
-        }
-
-        // Attempt to extract additional procedures from combined Inv_Proc
-        if (typeof data.Inv_Proc === 'string' && data.Inv_Proc.trim()) {
-          const permanentBlock = permanentProcedures.join('\n\n');
-          if (data.Inv_Proc.startsWith(permanentBlock)) {
-            const rest = data.Inv_Proc.slice(permanentBlock.length).trim();
-            // Remove leading double newlines if present
-            const cleaned = rest.replace(/^\n+/, '').trim();
-            if (isMounted) setAdditionalProcedures(cleaned);
-          }
-        }
-      } catch (e) {
-        // Non-fatal: keep defaults if fetch fails
-        console.warn('InventoryProceduresForm: failed to load existing values', e);
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, [clientData?.id]);
 
   const handleInputChange = (value) => {
     // Store raw input without formatting for better typing experience
@@ -78,23 +37,6 @@ const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
     // Apply bullet point formatting when user finishes typing (on blur)
     const formattedValue = formatAsBulletPoints(additionalProcedures);
     setAdditionalProcedures(formattedValue);
-  };
-
-  const handleDepartmentsChange = (value) => {
-    setDepartments(value);
-  };
-
-  const handleDepartmentsBlur = () => {
-    const formattedValue = formatAsBulletPoints(departments);
-    setDepartments(formattedValue);
-  };
-
-  const toggleHasDepartments = (value) => {
-    setHasDepartments(value);
-    if (!value) {
-      // If turned off, clear local departments text
-      setDepartments('');
-    }
   };
 
   const formatAsBulletPoints = (text) => {
@@ -129,23 +71,11 @@ const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
         ...(additionalProcedures.trim() ? [additionalProcedures] : [])
       ].join('\n\n');
       
-      // Update the client with inventory procedures and departments (if provided)
-      const updatePayload = {
+      // Update the client with inventory procedures
+      await updateDoc(clientRef, {
         Inv_Proc: combinedProcedures,
         updatedAt: new Date(),
-      };
-
-      // Persist a flag for clarity
-      updatePayload.Has_Departments = !!hasDepartments;
-
-      if (hasDepartments && departments && departments.trim()) {
-        updatePayload.Departments = departments.trim();
-      } else {
-        // Remove Departments field if previously set and now not applicable
-        updatePayload.Departments = deleteField();
-      }
-
-      await updateDoc(clientRef, updatePayload);
+      });
 
       // Use platform-specific alerts
       if (Platform.OS === 'web') {
@@ -205,40 +135,20 @@ const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
           <Text style={styles.label}>Additional Procedures (Optional)</Text>
           <Text style={styles.helperText}>Enter any additional procedures specific to this client. Each procedure on a new line - bullet points will be added automatically.</Text>
           
-          <RichTextEditor
+          <TextInput
+            ref={additionalProceduresRef}
+            style={styles.textArea}
             value={additionalProcedures}
-            onChange={setAdditionalProcedures}
+            onChangeText={handleInputChange}
+            onBlur={handleInputBlur}
+            placeholder="Enter additional procedures on a new line"
+            multiline
+            numberOfLines={6}
+            autoCapitalize="sentences"
+            autoCorrect={true}
+            spellCheck={true}
+            returnKeyType="done"
           />
-
-          <Text style={styles.label}>Does this account have departments?</Text>
-          <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>{hasDepartments ? 'Yes' : 'No'}</Text>
-            <Switch
-              value={hasDepartments}
-              onValueChange={toggleHasDepartments}
-            />
-          </View>
-
-          {hasDepartments && (
-            <>
-              <Text style={styles.label}>Departments</Text>
-              <Text style={styles.helperText}>List departments relevant to inventory. One per line; bullets added automatically.</Text>
-              <TextInput
-                ref={departmentsRef}
-                style={styles.textArea}
-                value={departments}
-                onChangeText={handleDepartmentsChange}
-                onBlur={handleDepartmentsBlur}
-                placeholder={"e.g. Grocery\nDairy\nFrozen\nHealth & Beauty"}
-                multiline
-                numberOfLines={6}
-                autoCapitalize="sentences"
-                autoCorrect={true}
-                spellCheck={true}
-                returnKeyType="done"
-              />
-            </>
-          )}
         </View>
       </ScrollView>
 

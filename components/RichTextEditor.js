@@ -2,86 +2,221 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Platform, View, StyleSheet, TextInput, Text } from 'react-native';
 import { WebView } from 'react-native-webview';
 
-const toolbarHtml = (initial) => `
+// Convert markdown-style formatting to HTML
+const convertMarkdownToHtml = (text) => {
+  if (!text) return '';
+  
+  return text
+    // Convert **bold** to <strong>bold</strong>
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    // Convert *italic* to <em>italic</em>
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    // Convert # Header to <h1>Header</h1>
+    .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+    // Convert ## Subheader to <h2>Subheader</h2>
+    .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+    // Convert - List item to <li>List item</li>
+    .replace(/^- (.*$)/gm, '<li>$1</li>')
+    // Convert numbered lists
+    .replace(/^\d+\. (.*$)/gm, '<li>$1</li>')
+    // Convert line breaks to <br>
+    .replace(/\n/g, '<br>');
+};
+
+// Convert HTML back to markdown for editing
+const convertHtmlToMarkdown = (html) => {
+  if (!html) return '';
+  
+  return html
+    .replace(/<strong>(.*?)<\/strong>/g, '**$1**')
+    .replace(/<em>(.*?)<\/em>/g, '*$1*')
+    .replace(/<h1>(.*?)<\/h1>/g, '# $1')
+    .replace(/<h2>(.*?)<\/h2>/g, '## $1')
+    .replace(/<li>(.*?)<\/li>/g, '- $1')
+    .replace(/<br\s*\/?>/g, '\n')
+    .replace(/<[^>]*>/g, ''); // Remove any remaining HTML tags
+};
+
+const quillHtml = (initial) => `
 <!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Include Quill styles -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <style>
-      body { font-family: Helvetica, Arial, sans-serif; margin: 0; padding: 8px; }
-      .toolbar { position: sticky; top: 0; background: #f7f7f7; border: 1px solid #ddd; border-radius: 6px; padding: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
-      .btn { border: 1px solid #ccc; padding: 6px 8px; border-radius: 4px; background: #fff; cursor: pointer; font-size: 12px; }
-      .editor { margin-top: 8px; min-height: 220px; border: 1px solid #ccc; border-radius: 6px; padding: 10px; }
-      .editor:focus { outline: none; }
-      img { max-width: 100%; height: auto; }
+      body { 
+        font-family: Helvetica, Arial, sans-serif; 
+        margin: 0; 
+        padding: 8px; 
+        background: #fff;
+      }
+      #editor { 
+        height: 300px; 
+        border: 1px solid #ccc; 
+        border-radius: 6px;
+      }
+      .ql-editor {
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      .ql-toolbar {
+        border-top: 1px solid #ccc;
+        border-left: 1px solid #ccc;
+        border-right: 1px solid #ccc;
+        border-radius: 6px 6px 0 0;
+      }
+      .ql-container {
+        border-bottom: 1px solid #ccc;
+        border-left: 1px solid #ccc;
+        border-right: 1px solid #ccc;
+        border-radius: 0 0 6px 6px;
+      }
+      .keyboard-hints {
+        font-size: 11px;
+        color: #666;
+        margin-top: 4px;
+        padding: 4px 8px;
+        background: #f8f9fa;
+        border-radius: 4px;
+        border: 1px solid #e9ecef;
+      }
     </style>
   </head>
   <body>
-    <div class="toolbar">
-      <button class="btn" onclick="document.execCommand('formatBlock', false, 'H1')">H1</button>
-      <button class="btn" onclick="document.execCommand('formatBlock', false, 'H2')">H2</button>
-      <button class="btn" onclick="document.execCommand('formatBlock', false, 'P')">Body</button>
-      <button class="btn" onclick="document.execCommand('bold')"><b>B</b></button>
-      <button class="btn" onclick="document.execCommand('italic')"><i>I</i></button>
-      <button class="btn" onclick="document.execCommand('underline')"><u>U</u></button>
-      <button class="btn" onclick="insertList('unordered')">• List</button>
-      <button class="btn" onclick="insertList('ordered')">1. List</button>
-      <input id="imgInput" type="file" accept="image/*" style="display:none" />
-      <button class="btn" onclick="document.getElementById('imgInput').click()">Image</button>
+    <!-- Create the editor container -->
+    <div id="editor">${initial}</div>
+    
+    <!-- Keyboard shortcuts hints -->
+    <div class="keyboard-hints">
+      <strong>Keyboard shortcuts:</strong> Ctrl+B (Bold), Ctrl+I (Italic), Ctrl+U (Underline), 
+      Ctrl+1/2/3 (Headers), Ctrl+Shift+7/8 (Lists)
     </div>
-    <div id="editor" class="editor" contenteditable="true">${initial}</div>
+
+    <!-- Include Quill script -->
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     <script>
-      const editor = document.getElementById('editor');
-      const imgInput = document.getElementById('imgInput');
-      function post() {
-        window.ReactNativeWebView && window.ReactNativeWebView.postMessage(editor.innerHTML);
-      }
-      function insertList(type) {
-        const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-          const range = selection.getRangeAt(0);
-          const listItem = document.createElement('li');
-          listItem.textContent = 'List item';
-          if (type === 'ordered') {
-            const ol = document.createElement('ol');
-            ol.appendChild(listItem);
-            range.insertNode(ol);
-          } else {
-            const ul = document.createElement('ul');
-            ul.appendChild(listItem);
-            range.insertNode(ul);
+      var quill = new Quill('#editor', {
+        theme: 'snow',
+        modules: {
+          toolbar: [
+            ['bold', 'italic', 'underline'],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            [{ 'header': [1, 2, 3, false] }],
+            ['clean']
+          ],
+          keyboard: {
+            bindings: {
+              // Bold: Ctrl+B
+              bold: {
+                key: 'B',
+                shortKey: true,
+                handler: function(range, context) {
+                  quill.format('bold', !quill.getFormat(range).bold);
+                }
+              },
+              // Italic: Ctrl+I
+              italic: {
+                key: 'I',
+                shortKey: true,
+                handler: function(range, context) {
+                  quill.format('italic', !quill.getFormat(range).italic);
+                }
+              },
+              // Underline: Ctrl+U
+              underline: {
+                key: 'U',
+                shortKey: true,
+                handler: function(range, context) {
+                  quill.format('underline', !quill.getFormat(range).underline);
+                }
+              },
+              // Bullet list: Ctrl+Shift+8
+              'list bullet': {
+                key: '8',
+                shortKey: true,
+                shiftKey: true,
+                handler: function(range, context) {
+                  quill.format('list', 'bullet');
+                }
+              },
+              // Numbered list: Ctrl+Shift+7
+              'list ordered': {
+                key: '7',
+                shortKey: true,
+                shiftKey: true,
+                handler: function(range, context) {
+                  quill.format('list', 'ordered');
+                }
+              },
+              // Header 1: Ctrl+1
+              'header 1': {
+                key: '1',
+                shortKey: true,
+                handler: function(range, context) {
+                  quill.format('header', 1);
+                }
+              },
+              // Header 2: Ctrl+2
+              'header 2': {
+                key: '2',
+                shortKey: true,
+                handler: function(range, context) {
+                  quill.format('header', 2);
+                }
+              },
+              // Header 3: Ctrl+3
+              'header 3': {
+                key: '3',
+                shortKey: true,
+                handler: function(range, context) {
+                  quill.format('header', 3);
+                }
+              },
+              // Normal text: Ctrl+0
+              'header normal': {
+                key: '0',
+                shortKey: true,
+                handler: function(range, context) {
+                  quill.format('header', false);
+                }
+              }
+            }
           }
-          post();
+        }
+      });
+
+      // Function to send content to React Native
+      function postContent() {
+        const html = quill.root.innerHTML;
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(html);
         }
       }
-      editor.addEventListener('input', post);
-      editor.addEventListener('blur', post);
-      window.addEventListener('message', (e) => {
+
+      // Listen for content changes
+      quill.on('text-change', function() {
+        postContent();
+      });
+
+      // Listen for messages from React Native
+      window.addEventListener('message', function(e) {
         try {
           const data = JSON.parse(e.data);
           if (data && data.type === 'set') {
-            editor.innerHTML = data.html || '';
-            post();
+            quill.root.innerHTML = data.html || '';
           }
-        } catch {}
+        } catch (error) {
+          console.log('Error parsing message:', error);
+        }
       });
-      imgInput.addEventListener('change', (e) => {
-        const file = e.target.files && e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(evt) {
-          const src = evt.target.result;
-          document.execCommand('insertImage', false, src);
-          post();
-        };
-        reader.readAsDataURL(file);
-      });
-      // Initial post on load
-      setTimeout(post, 50);
+
+      // Initial post
+      setTimeout(postContent, 100);
     </script>
   </body>
-  </html>
+</html>
 `;
 
 export default function RichTextEditor({ value, onChange }) {
@@ -98,28 +233,131 @@ export default function RichTextEditor({ value, onChange }) {
       } catch {}
     }
     if (Platform.OS === 'web') {
-      setWebValue(value || '');
+      // Convert HTML back to markdown for display in TextInput
+      const markdownValue = convertHtmlToMarkdown(value || '');
+      setWebValue(markdownValue);
     }
   }, [value]);
 
-  // For web platform, use a simple TextInput with basic formatting
+  // For web platform, use Quill CDN
   if (Platform.OS === 'web') {
     return (
       <View style={styles.container}>
-        <TextInput
-          style={styles.fallbackInput}
-          value={webValue}
-          onChangeText={(text) => {
-            setWebValue(text);
-            onChange && onChange(text);
+        <div 
+          id={`quill-editor-${Math.random().toString(36).substr(2, 9)}`}
+          style={{ height: 300, border: '1px solid #ccc', borderRadius: 8 }}
+          dangerouslySetInnerHTML={{
+            __html: `
+              <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+              <div id="quill-toolbar"></div>
+              <div id="quill-editor" style="height: 250px;">${webValue}</div>
+              <div style="font-size: 11px; color: #666; margin-top: 4px; padding: 4px 8px; background: #f8f9fa; border-radius: 4px; border: 1px solid #e9ecef;">
+                <strong>Keyboard shortcuts:</strong> Ctrl+B (Bold), Ctrl+I (Italic), Ctrl+U (Underline), 
+                Ctrl+1/2/3 (Headers), Ctrl+Shift+7/8 (Lists)
+              </div>
+              <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+              <script>
+                var quill = new Quill('#quill-editor', {
+                  theme: 'snow',
+                  modules: {
+                    toolbar: [
+                      ['bold', 'italic', 'underline'],
+                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                      [{ 'header': [1, 2, 3, false] }],
+                      ['clean']
+                    ],
+                    keyboard: {
+                      bindings: {
+                        // Bold: Ctrl+B
+                        bold: {
+                          key: 'B',
+                          shortKey: true,
+                          handler: function(range, context) {
+                            quill.format('bold', !quill.getFormat(range).bold);
+                          }
+                        },
+                        // Italic: Ctrl+I
+                        italic: {
+                          key: 'I',
+                          shortKey: true,
+                          handler: function(range, context) {
+                            quill.format('italic', !quill.getFormat(range).italic);
+                          }
+                        },
+                        // Underline: Ctrl+U
+                        underline: {
+                          key: 'U',
+                          shortKey: true,
+                          handler: function(range, context) {
+                            quill.format('underline', !quill.getFormat(range).underline);
+                          }
+                        },
+                        // Bullet list: Ctrl+Shift+8
+                        'list bullet': {
+                          key: '8',
+                          shortKey: true,
+                          shiftKey: true,
+                          handler: function(range, context) {
+                            quill.format('list', 'bullet');
+                          }
+                        },
+                        // Numbered list: Ctrl+Shift+7
+                        'list ordered': {
+                          key: '7',
+                          shortKey: true,
+                          shiftKey: true,
+                          handler: function(range, context) {
+                            quill.format('list', 'ordered');
+                          }
+                        },
+                        // Header 1: Ctrl+1
+                        'header 1': {
+                          key: '1',
+                          shortKey: true,
+                          handler: function(range, context) {
+                            quill.format('header', 1);
+                          }
+                        },
+                        // Header 2: Ctrl+2
+                        'header 2': {
+                          key: '2',
+                          shortKey: true,
+                          handler: function(range, context) {
+                            quill.format('header', 2);
+                          }
+                        },
+                        // Header 3: Ctrl+3
+                        'header 3': {
+                          key: '3',
+                          shortKey: true,
+                          handler: function(range, context) {
+                            quill.format('header', 3);
+                          }
+                        },
+                        // Normal text: Ctrl+0
+                        'header normal': {
+                          key: '0',
+                          shortKey: true,
+                          handler: function(range, context) {
+                            quill.format('header', false);
+                          }
+                        }
+                      }
+                    }
+                  }
+                });
+                
+                quill.on('text-change', function() {
+                  const html = quill.root.innerHTML;
+                  // Send to parent component
+                  if (window.ReactNativeWebView) {
+                    window.ReactNativeWebView.postMessage(html);
+                  }
+                });
+              </script>
+            `
           }}
-          placeholder="Enter text here... (Use **bold**, *italic*, # Header, - List items)"
-          multiline
-          numberOfLines={10}
         />
-        <Text style={styles.formattingHint}>
-          Formatting hints: **bold**, *italic*, # Header, - List items
-        </Text>
       </View>
     );
   }
@@ -129,7 +367,7 @@ export default function RichTextEditor({ value, onChange }) {
       <WebView
         ref={webRef}
         originWhitelist={["*"]}
-        source={{ html: toolbarHtml(initialHtml) }}
+        source={{ html: quillHtml(initialHtml) }}
         onMessage={(e) => {
           const html = e?.nativeEvent?.data || '';
           onChange && onChange(html);
