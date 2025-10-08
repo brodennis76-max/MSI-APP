@@ -3,13 +3,14 @@ import { Image, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AccInstPicker from './components/AccInstPicker';
 import AddAccountFormTest from './components/AddAccountFormTest';
+import EditAccountFlow from './components/EditAccountFlow';
 // Removed PDF generator import
 import { useEffect, useState } from 'react';
 
 export default function App() {
   const [showLanding, setShowLanding] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [currentScreen, setCurrentScreen] = useState('landing'); // 'landing' | 'accountInstructions' | 'addAccount'
+  const [currentScreen, setCurrentScreen] = useState('landing'); // 'landing' | 'accountInstructions' | 'addAccount' | 'editAccount'
 
   // Removed test data for PDF generator
 
@@ -127,6 +128,18 @@ export default function App() {
     );
   }
 
+  // Edit Account screen
+  if (currentScreen === 'editAccount') {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.container}>
+          <StatusBar style="auto" />
+          <EditAccountFlow onBack={() => setCurrentScreen('landing')} />
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
+
   // Test PDF Generator screen removed
 
 
@@ -165,7 +178,15 @@ export default function App() {
             >
               <Text style={styles.menuText}>Add Account</Text>
             </TouchableOpacity>
-              
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              onPress={() => {
+                setCurrentScreen('editAccount');
+                setMenuOpen(false);
+              }}
+            >
+              <Text style={styles.menuText}>Edit Account</Text>
+            </TouchableOpacity>
           </View>
         )}
         <View style={styles.content}>
@@ -173,7 +194,7 @@ export default function App() {
           
           <View style={styles.topButtonsContainer}>
             <TouchableOpacity 
-              style={styles.dashboardButton}
+              style={[styles.dashboardButton, { width: '31%' }]}
               onPress={() => {
                 setCurrentScreen('accountInstructions');
                 setMenuOpen(false);
@@ -184,10 +205,11 @@ export default function App() {
                 style={styles.buttonImage}
                 resizeMode="contain"
               />
+              <Text style={styles.buttonLabel}>Account Instructions</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={styles.dashboardButton}
+              style={[styles.dashboardButton, { width: '31%' }]}
               onPress={() => {
                 setCurrentScreen('addAccount');
                 setMenuOpen(false);
@@ -198,6 +220,21 @@ export default function App() {
                 style={styles.buttonImage}
                 resizeMode="contain"
               />
+              <Text style={styles.buttonLabel}>Add Account</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.dashboardButton, { width: '31%' }]}
+              onPress={() => {
+                setCurrentScreen('editAccount');
+                setMenuOpen(false);
+              }}
+            >
+              <Image 
+                source={require('./assets/MSI APP BUTTONS/ActIns-Button.png')} 
+                style={styles.buttonImage}
+                resizeMode="contain"
+              />
+              <Text style={styles.buttonLabel}>Edit Account</Text>
             </TouchableOpacity>
           </View>
           
@@ -300,6 +337,7 @@ const styles = StyleSheet.create({
   },
   topButtonsContainer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     paddingHorizontal: 2,
@@ -317,6 +355,12 @@ const styles = StyleSheet.create({
     width: '100%',
     height: undefined,
     aspectRatio: 1.875, // Maintains the original aspect ratio (150/80)
+  },
+  buttonLabel: {
+    marginTop: 6,
+    fontSize: 14,
+    color: '#333',
+    textAlign: 'center',
   },
   backButton: {
     position: 'absolute',
