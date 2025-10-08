@@ -53,15 +53,22 @@ const RichTextEditor = ({ value, onChange }) => {
 
   // Formatting functions
   const applyFormat = (format, value = null) => {
+    console.log('applyFormat called:', format, value); // Debug log
+    
     if (Platform.OS === 'web') {
       // Web: Use document.execCommand for formatting
       const editor = editorRef.current;
       if (editor) {
-        editor.focus(); // Ensure editor is focused
+        console.log('Editor found:', editor); // Debug log
+        
+        // Ensure editor is focused
+        editor.focus();
         
         // Store current selection
         const selection = window.getSelection();
         const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+        
+        console.log('Selection:', selection.toString(), 'Range:', range); // Debug log
         
         if (format === 'header') {
           // For headers, wrap selected text or insert new header
@@ -73,63 +80,37 @@ const RichTextEditor = ({ value, onChange }) => {
             headerElement.textContent = selectedText;
             range.insertNode(headerElement);
           } else {
-            document.execCommand('formatBlock', false, value === 1 ? 'h1' : value === 2 ? 'h2' : 'p');
+            const success = document.execCommand('formatBlock', false, value === 1 ? 'h1' : value === 2 ? 'h2' : 'p');
+            console.log('formatBlock success:', success); // Debug log
           }
         } else if (format === 'list' && value === 'ordered') {
-          // For ordered lists, check if we're in a list already
-          const listElement = editor.querySelector('ol, ul');
-          if (listElement) {
-            // Convert existing list to ordered
-            if (listElement.tagName.toLowerCase() === 'ul') {
-              listElement.tagName = 'ol';
-            }
-          } else {
-            document.execCommand('insertOrderedList', false, null);
-          }
+          const success = document.execCommand('insertOrderedList', false, null);
+          console.log('insertOrderedList success:', success); // Debug log
         } else if (format === 'list' && value === 'bullet') {
-          // For bullet lists, check if we're in a list already
-          const listElement = editor.querySelector('ol, ul');
-          if (listElement) {
-            // Convert existing list to unordered
-            if (listElement.tagName.toLowerCase() === 'ol') {
-              listElement.tagName = 'ul';
-            }
-          } else {
-            document.execCommand('insertUnorderedList', false, null);
-          }
+          const success = document.execCommand('insertUnorderedList', false, null);
+          console.log('insertUnorderedList success:', success); // Debug log
         } else {
           // For bold, italic, underline - use a more reliable approach
+          let success = false;
           if (format === 'bold') {
-            // Check if text is already bold
-            const isBold = document.queryCommandState('bold');
-            if (isBold) {
-              document.execCommand('removeFormat', false, null);
-            } else {
-              document.execCommand('bold', false, null);
-            }
+            success = document.execCommand('bold', false, null);
+            console.log('bold success:', success); // Debug log
           } else if (format === 'italic') {
-            // Check if text is already italic
-            const isItalic = document.queryCommandState('italic');
-            if (isItalic) {
-              document.execCommand('removeFormat', false, null);
-            } else {
-              document.execCommand('italic', false, null);
-            }
+            success = document.execCommand('italic', false, null);
+            console.log('italic success:', success); // Debug log
           } else if (format === 'underline') {
-            // Check if text is already underlined
-            const isUnderlined = document.queryCommandState('underline');
-            if (isUnderlined) {
-              document.execCommand('removeFormat', false, null);
-            } else {
-              document.execCommand('underline', false, null);
-            }
+            success = document.execCommand('underline', false, null);
+            console.log('underline success:', success); // Debug log
           }
         }
         
         // Update content and trigger change
         const newContent = editor.innerHTML;
+        console.log('New content:', newContent); // Debug log
         setContent(newContent);
         onChange && onChange(newContent);
+      } else {
+        console.log('Editor not found!'); // Debug log
       }
     } else {
       // React Native: Use react-native-pell-rich-editor actions
@@ -154,84 +135,153 @@ const RichTextEditor = ({ value, onChange }) => {
   };
 
   // Custom toolbar with grouped buttons
-  const CustomToolbar = () => (
-    <View style={styles.toolbar}>
-      {/* Header group */}
-      <View style={styles.buttonGroup}>
-        <TouchableOpacity 
-          style={styles.button} 
-          onPress={(e) => {
-            e.preventDefault();
-            applyFormat('header', 1);
-          }}
-        >
-          <Text style={styles.buttonText}>H1</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.button} 
-          onPress={(e) => {
-            e.preventDefault();
-            applyFormat('header', 2);
-          }}
-        >
-          <Text style={styles.buttonText}>H2</Text>
-        </TouchableOpacity>
-      </View>
-      
-      {/* Text formatting group */}
-      <View style={[styles.buttonGroup, styles.textFormatGroup]}>
-        <TouchableOpacity 
-          style={styles.button} 
-          onPress={(e) => {
-            e.preventDefault();
-            applyFormat('bold');
-          }}
-        >
-          <Text style={styles.buttonText}>B</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.button} 
-          onPress={(e) => {
-            e.preventDefault();
-            applyFormat('italic');
-          }}
-        >
-          <Text style={styles.buttonText}>I</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.button} 
-          onPress={(e) => {
-            e.preventDefault();
-            applyFormat('underline');
-          }}
-        >
-          <Text style={styles.buttonText}>U</Text>
-        </TouchableOpacity>
-      </View>
-      
-      {/* List group */}
-      <View style={[styles.buttonGroup, styles.listGroup]}>
-        <TouchableOpacity 
-          style={styles.button} 
-          onPress={(e) => {
-            e.preventDefault();
-            applyFormat('list', 'ordered');
-          }}
-        >
-          <Text style={styles.buttonText}>1.</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.button} 
-          onPress={(e) => {
-            e.preventDefault();
-            applyFormat('list', 'bullet');
-          }}
-        >
-          <Text style={styles.buttonText}>•</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+  const CustomToolbar = () => {
+    if (Platform.OS === 'web') {
+      return (
+        <div style={styles.toolbar}>
+          {/* Header group */}
+          <div style={styles.buttonGroup}>
+            <button 
+              style={styles.webButton} 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                applyFormat('header', 1);
+              }}
+            >
+              H1
+            </button>
+            <button 
+              style={styles.webButton} 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                applyFormat('header', 2);
+              }}
+            >
+              H2
+            </button>
+          </div>
+          
+          {/* Text formatting group */}
+          <div style={[styles.buttonGroup, styles.textFormatGroup]}>
+            <button 
+              style={styles.webButton} 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                applyFormat('bold');
+              }}
+            >
+              B
+            </button>
+            <button 
+              style={styles.webButton} 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                applyFormat('italic');
+              }}
+            >
+              I
+            </button>
+            <button 
+              style={styles.webButton} 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                applyFormat('underline');
+              }}
+            >
+              U
+            </button>
+          </div>
+          
+          {/* List group */}
+          <div style={[styles.buttonGroup, styles.listGroup]}>
+            <button 
+              style={styles.webButton} 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                applyFormat('list', 'ordered');
+              }}
+            >
+              1.
+            </button>
+            <button 
+              style={styles.webButton} 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                applyFormat('list', 'bullet');
+              }}
+            >
+              •
+            </button>
+          </div>
+        </div>
+      );
+    } else {
+      return (
+        <View style={styles.toolbar}>
+          {/* Header group */}
+          <View style={styles.buttonGroup}>
+            <TouchableOpacity 
+              style={styles.button} 
+              onPress={() => applyFormat('header', 1)}
+            >
+              <Text style={styles.buttonText}>H1</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.button} 
+              onPress={() => applyFormat('header', 2)}
+            >
+              <Text style={styles.buttonText}>H2</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {/* Text formatting group */}
+          <View style={[styles.buttonGroup, styles.textFormatGroup]}>
+            <TouchableOpacity 
+              style={styles.button} 
+              onPress={() => applyFormat('bold')}
+            >
+              <Text style={styles.buttonText}>B</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.button} 
+              onPress={() => applyFormat('italic')}
+            >
+              <Text style={styles.buttonText}>I</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.button} 
+              onPress={() => applyFormat('underline')}
+            >
+              <Text style={styles.buttonText}>U</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {/* List group */}
+          <View style={[styles.buttonGroup, styles.listGroup]}>
+            <TouchableOpacity 
+              style={styles.button} 
+              onPress={() => applyFormat('list', 'ordered')}
+            >
+              <Text style={styles.buttonText}>1.</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.button} 
+              onPress={() => applyFormat('list', 'bullet')}
+            >
+              <Text style={styles.buttonText}>•</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+  };
 
   // Render editor based on platform
   const renderEditor = () => {
@@ -406,6 +456,21 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  webButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    backgroundColor: '#007bff',
+    borderRadius: 4,
+    minWidth: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    border: 'none',
+    cursor: 'pointer',
+    marginRight: 2,
   },
   selectedButton: {
     backgroundColor: '#2095F2',
