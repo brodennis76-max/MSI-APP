@@ -12,7 +12,7 @@ import {
   Platform
 } from 'react-native';
 import { db } from '../firebase-config';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import PreInventoryTeamInstructionsForm from './PreInventoryTeamInstructionsForm';
 
 const AuditsInventoryFlowForm = ({ clientData, onBack, onComplete }) => {
@@ -48,6 +48,24 @@ Audit trails will be provided as requested based on posting sheet results, withi
     const formattedValue = formatAsBulletPoints(inventoryFlowText);
     setInventoryFlowText(formattedValue);
   };
+
+  // Load latest saved values on mount to repopulate when navigating back
+  React.useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const ref = doc(db, 'clients', clientData.id);
+        const snap = await getDoc(ref);
+        if (!active || !snap.exists()) return;
+        const data = snap.data() || {};
+        if (typeof data.Audits === 'string') setAuditsText(data.Audits);
+        if (typeof data.Inv_Flow === 'string') setInventoryFlowText(data.Inv_Flow);
+      } catch (e) {
+        console.warn('AuditsInventoryFlowForm: failed to load existing values', e);
+      }
+    })();
+    return () => { active = false; };
+  }, [clientData?.id]);
 
   const formatAsBulletPoints = (text) => {
     if (!text.trim()) return text;
