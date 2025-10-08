@@ -1,17 +1,6 @@
-import React, { useRef, useEffect, useMemo, useState } from 'react';
-import { Platform, View, StyleSheet, TextInput } from 'react-native';
+import React, { useRef, useEffect, useState } from 'react';
+import { Platform, View, StyleSheet, TextInput, Text } from 'react-native';
 import { WebView } from 'react-native-webview';
-
-// Platform-specific imports
-let ReactQuill = null;
-if (Platform.OS === 'web') {
-  try {
-    ReactQuill = require('react-quill');
-    require('react-quill/dist/quill.snow.css');
-  } catch (error) {
-    console.warn('Failed to load react-quill:', error);
-  }
-}
 
 const toolbarHtml = (initial) => `
 <!DOCTYPE html>
@@ -95,36 +84,7 @@ export default function RichTextEditor({ value, onChange }) {
     }
   }, [value]);
 
-  // Use react-quill on web platform if available
-  if (Platform.OS === 'web' && ReactQuill) {
-    const modules = useMemo(() => ({
-      toolbar: [
-        [{ header: [1, 2, false] }],
-        ['bold', 'italic', 'underline'],
-        [{ list: 'ordered' }, { list: 'bullet' }],
-        ['link', 'image'],
-        ['clean'],
-      ],
-    }), []);
-    const formats = useMemo(() => (
-      ['header', 'bold', 'italic', 'underline', 'list', 'bullet', 'link', 'image']
-    ), []);
-
-    return (
-      <View style={styles.container}>
-        <ReactQuill
-          theme="snow"
-          value={webValue}
-          onChange={(html) => onChange && onChange(html)}
-          modules={modules}
-          formats={formats}
-          style={{ height: 300 }}
-        />
-      </View>
-    );
-  }
-
-  // Fallback for web if react-quill is not available - use a simple TextInput
+  // For web platform, use a simple TextInput with basic formatting
   if (Platform.OS === 'web') {
     return (
       <View style={styles.container}>
@@ -135,10 +95,13 @@ export default function RichTextEditor({ value, onChange }) {
             setWebValue(text);
             onChange && onChange(text);
           }}
-          placeholder="Enter text here..."
+          placeholder="Enter text here... (Use **bold**, *italic*, # Header, - List items)"
           multiline
           numberOfLines={10}
         />
+        <Text style={styles.formattingHint}>
+          Formatting hints: **bold**, *italic*, # Header, - List items
+        </Text>
       </View>
     );
   }
@@ -170,7 +133,7 @@ const styles = StyleSheet.create({
   webview: { flex: 1, backgroundColor: 'transparent' },
   fallbackInput: {
     width: '100%',
-    height: 300,
+    height: 250,
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 8,
@@ -178,6 +141,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlignVertical: 'top',
     backgroundColor: '#fff',
+  },
+  formattingHint: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 5,
+    fontStyle: 'italic',
   },
 });
 
