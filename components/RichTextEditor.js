@@ -98,8 +98,32 @@ const RichTextEditor = ({ value, onChange }) => {
             document.execCommand('insertUnorderedList', false, null);
           }
         } else {
-          // For bold, italic, underline
-          document.execCommand(format, false, null);
+          // For bold, italic, underline - use a more reliable approach
+          if (format === 'bold') {
+            // Check if text is already bold
+            const isBold = document.queryCommandState('bold');
+            if (isBold) {
+              document.execCommand('removeFormat', false, null);
+            } else {
+              document.execCommand('bold', false, null);
+            }
+          } else if (format === 'italic') {
+            // Check if text is already italic
+            const isItalic = document.queryCommandState('italic');
+            if (isItalic) {
+              document.execCommand('removeFormat', false, null);
+            } else {
+              document.execCommand('italic', false, null);
+            }
+          } else if (format === 'underline') {
+            // Check if text is already underlined
+            const isUnderlined = document.queryCommandState('underline');
+            if (isUnderlined) {
+              document.execCommand('removeFormat', false, null);
+            } else {
+              document.execCommand('underline', false, null);
+            }
+          }
         }
         
         // Update content and trigger change
@@ -213,35 +237,77 @@ const RichTextEditor = ({ value, onChange }) => {
   const renderEditor = () => {
     if (Platform.OS === 'web') {
       return (
-        <div
-          ref={editorRef}
-          contentEditable={true}
-          style={styles.editor}
-          onInput={(e) => {
-            const newContent = e.target.innerHTML;
-            // Always update content on input to ensure cursor stays in place
-            setContent(newContent);
-            onChange && onChange(newContent);
-          }}
-          onBlur={(e) => {
-            const newContent = e.target.innerHTML;
-            if (newContent !== content) {
+        <div>
+          <style>{`
+            .rich-editor * {
+              font-size: 16px !important;
+              line-height: 1.5 !important;
+              font-family: Arial, sans-serif !important;
+            }
+            .rich-editor h1 {
+              font-size: 24px !important;
+              font-weight: bold !important;
+              margin: 8px 0 !important;
+            }
+            .rich-editor h2 {
+              font-size: 20px !important;
+              font-weight: bold !important;
+              margin: 6px 0 !important;
+            }
+            .rich-editor p {
+              font-size: 16px !important;
+              margin: 4px 0 !important;
+            }
+            .rich-editor ul, .rich-editor ol {
+              font-size: 16px !important;
+              margin: 4px 0 !important;
+              padding-left: 20px !important;
+            }
+            .rich-editor li {
+              font-size: 16px !important;
+              margin: 2px 0 !important;
+            }
+            .rich-editor strong, .rich-editor b {
+              font-weight: bold !important;
+            }
+            .rich-editor em, .rich-editor i {
+              font-style: italic !important;
+            }
+            .rich-editor u {
+              text-decoration: underline !important;
+            }
+          `}</style>
+          <div
+            ref={editorRef}
+            contentEditable={true}
+            className="rich-editor"
+            style={styles.editor}
+            onInput={(e) => {
+              const newContent = e.target.innerHTML;
+              // Always update content on input to ensure cursor stays in place
               setContent(newContent);
               onChange && onChange(newContent);
-            }
-          }}
-          onFocus={(e) => {
-            // Ensure cursor is at the end when focusing
-            const editor = e.target;
-            const range = document.createRange();
-            const selection = window.getSelection();
-            range.selectNodeContents(editor);
-            range.collapse(false);
-            selection.removeAllRanges();
-            selection.addRange(range);
-          }}
-          suppressContentEditableWarning={true}
-        />
+            }}
+            onBlur={(e) => {
+              const newContent = e.target.innerHTML;
+              if (newContent !== content) {
+                setContent(newContent);
+                onChange && onChange(newContent);
+              }
+            }}
+            onFocus={(e) => {
+              // Ensure cursor is at the end when focusing
+              const editor = e.target;
+              const range = document.createRange();
+              const selection = window.getSelection();
+              range.selectNodeContents(editor);
+              range.collapse(false);
+              selection.removeAllRanges();
+              selection.addRange(range);
+            }}
+            suppressContentEditableWarning={true}
+          />
+        </div>
       );
     } else {
       return (
