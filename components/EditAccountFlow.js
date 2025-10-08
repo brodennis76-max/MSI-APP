@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator, Image, TouchableOpacity, Tex
 import { Picker } from '@react-native-picker/picker';
 import { db } from '../firebase-config';
 import { collection, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import RichTextEditor from './RichTextEditor';
 import PreInventoryForm from './PreInventoryForm';
 import InventoryProceduresForm from './InventoryProceduresForm';
 import AuditsInventoryFlowForm from './AuditsInventoryFlowForm';
@@ -150,44 +151,48 @@ const EditAccountFlow = ({ onBack }) => {
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>Account Type</Text>
-              <TextInput
-                style={styles.textInput}
-                value={activeClient.accountType || ''}
-                placeholder="Account Type"
-                onChangeText={(text) => setActiveClient({...activeClient, accountType: text})}
+              <Text style={styles.fieldLabel}>Inventory Type</Text>
+              <View style={styles.inventoryTypeContainer}>
+                {['scan', 'financial', 'hand written', 'price verification'].map((type) => (
+                  <TouchableOpacity
+                    key={type}
+                    style={[styles.inventoryTypeOption, activeClient.inventoryType === type && styles.inventoryTypeOptionSelected]}
+                    onPress={() => setActiveClient({...activeClient, inventoryType: type})}
+                  >
+                    <View style={[styles.inventoryTypeRadio, activeClient.inventoryType === type && styles.inventoryTypeRadioSelected]}>
+                      {activeClient.inventoryType === type && <View style={styles.inventoryTypeRadioInner} />}
+                    </View>
+                    <Text style={[styles.inventoryTypeText, activeClient.inventoryType === type && styles.inventoryTypeTextSelected]}>
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>PIC</Text>
+              <RichTextEditor
+                value={activeClient.PIC || ''}
+                onChange={(text) => setActiveClient({...activeClient, PIC: text})}
               />
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>Store Type</Text>
+              <Text style={styles.fieldLabel}>Start Time</Text>
               <TextInput
                 style={styles.textInput}
-                value={activeClient.storeType || ''}
-                placeholder="Store Type"
-                onChangeText={(text) => setActiveClient({...activeClient, storeType: text})}
+                value={activeClient.startTime || ''}
+                placeholder="e.g., 8:00 AM"
+                onChangeText={(text) => setActiveClient({...activeClient, startTime: text})}
               />
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>ALR</Text>
-              <TextInput
-                style={styles.textInput}
-                value={activeClient.ALR || ''}
-                placeholder="ALR"
-                onChangeText={(text) => setActiveClient({...activeClient, ALR: text})}
-              />
-            </View>
-
-            <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>Additional Notes</Text>
-              <TextInput
-                style={[styles.textInput, styles.textArea]}
-                value={activeClient.additionalNotes || ''}
-                placeholder="Additional Notes"
-                multiline
-                numberOfLines={4}
-                onChangeText={(text) => setActiveClient({...activeClient, additionalNotes: text})}
+              <Text style={styles.fieldLabel}>Verification</Text>
+              <RichTextEditor
+                value={activeClient.verification || ''}
+                onChange={(text) => setActiveClient({...activeClient, verification: text})}
               />
             </View>
           </View>
@@ -314,6 +319,52 @@ const styles = StyleSheet.create({
     height: 100, 
     textAlignVertical: 'top',
     paddingTop: 15
+  },
+  inventoryTypeContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+    marginBottom: 10,
+  },
+  inventoryTypeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    margin: 5,
+  },
+  inventoryTypeOptionSelected: {
+    backgroundColor: '#e6f2ff',
+    borderColor: '#007AFF',
+  },
+  inventoryTypeRadio: {
+    height: 20,
+    width: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#ccc',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  inventoryTypeRadioSelected: {
+    borderColor: '#007AFF',
+  },
+  inventoryTypeRadioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#007AFF',
+  },
+  inventoryTypeText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  inventoryTypeTextSelected: {
+    fontWeight: 'bold',
   },
 });
 

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { db } from '../firebase-config';
 import { doc, updateDoc, getDoc, deleteField } from 'firebase/firestore';
+import RichTextEditor from './RichTextEditor';
 import PreInventoryTeamInstructionsForm from './PreInventoryTeamInstructionsForm';
 
 const AuditsInventoryFlowForm = ({ clientData, onBack, onComplete }) => {
@@ -185,38 +186,17 @@ Audit trails will be provided as requested based on posting sheet results, withi
           <Text style={styles.label}>Audits *</Text>
           <Text style={styles.helperText}>Enter each audit item on a new line. Bullet points will be added automatically.</Text>
           
-          <TextInput
-            ref={auditsRef}
-            style={styles.textArea}
+          <RichTextEditor
             value={auditsText}
-            onChangeText={handleAuditsChange}
-            onBlur={handleAuditsBlur}
-            placeholder="Enter each audit item on a new line"
-            multiline
-            numberOfLines={6}
-            autoCapitalize="sentences"
-            autoCorrect={true}
-            spellCheck={true}
-            returnKeyType="next"
-            onSubmitEditing={() => inventoryFlowRef.current?.focus()}
+            onChange={setAuditsText}
           />
 
           <Text style={styles.label}>Inventory Flow *</Text>
           <Text style={styles.helperText}>Enter each flow step on a new line. Bullet points will be added automatically. A compliance statement will be automatically added to the final output.</Text>
           
-          <TextInput
-            ref={inventoryFlowRef}
-            style={styles.textArea}
+          <RichTextEditor
             value={inventoryFlowText}
-            onChangeText={handleInventoryFlowChange}
-            onBlur={handleInventoryFlowBlur}
-            placeholder="Enter each flow step on a new line"
-            multiline
-            numberOfLines={6}
-            autoCapitalize="sentences"
-            autoCorrect={true}
-            spellCheck={true}
-            returnKeyType="done"
+            onChange={setInventoryFlowText}
           />
 
         <Text style={styles.label}>Special Notes</Text>
@@ -226,18 +206,9 @@ Audit trails will be provided as requested based on posting sheet results, withi
           <Switch value={hasSpecialNotes} onValueChange={setHasSpecialNotes} />
         </View>
         {hasSpecialNotes && (
-          <TextInput
-            style={styles.textArea}
+          <RichTextEditor
             value={specialNotes}
-            onChangeText={handleSpecialNotesChange}
-            onBlur={handleSpecialNotesBlur}
-            placeholder="Enter any special notes for this account..."
-            multiline
-            numberOfLines={6}
-            autoCapitalize="sentences"
-            autoCorrect={true}
-            spellCheck={true}
-            returnKeyType="done"
+            onChange={setSpecialNotes}
           />
         )}
         </View>
