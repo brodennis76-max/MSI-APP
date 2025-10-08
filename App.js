@@ -198,28 +198,12 @@ export default function App() {
           
           <View style={styles.buttonsContainer}>
             <TouchableOpacity 
-<<<<<<< HEAD
-              style={[styles.dashboardButton, { width: '31%' }]}
-=======
               style={[styles.modernButton, styles.primaryButton]}
->>>>>>> ba4ee399db09e8a9493825c9d03513f2f3232463
               onPress={() => {
                 setCurrentScreen('accountInstructions');
                 setMenuOpen(false);
               }}
             >
-<<<<<<< HEAD
-              <Image 
-                source={require('./assets/MSI APP BUTTONS/ActIns-Button.png')} 
-                style={styles.buttonImage}
-                resizeMode="contain"
-              />
-              <Text style={styles.buttonLabel}>Account Instructions</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.dashboardButton, { width: '31%' }]}
-=======
               <Text style={styles.buttonIcon}>📋</Text>
               <Text style={styles.buttonText}>Account Instructions</Text>
               <Text style={styles.buttonSubtext}>Generate PDFs</Text>
@@ -227,23 +211,11 @@ export default function App() {
             
             <TouchableOpacity 
               style={[styles.modernButton, styles.secondaryButton]}
->>>>>>> ba4ee399db09e8a9493825c9d03513f2f3232463
               onPress={() => {
                 setCurrentScreen('addAccount');
                 setMenuOpen(false);
               }}
             >
-<<<<<<< HEAD
-              <Image 
-                source={require('./assets/MSI APP BUTTONS/AddAct-Button.png')} 
-                style={styles.buttonImage}
-                resizeMode="contain"
-              />
-              <Text style={styles.buttonLabel}>Add Account</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.dashboardButton, { width: '31%' }]}
-=======
               <Text style={styles.buttonIcon}>➕</Text>
               <Text style={styles.buttonText}>Add Account</Text>
               <Text style={styles.buttonSubtext}>Create New Client</Text>
@@ -251,24 +223,14 @@ export default function App() {
 
             <TouchableOpacity 
               style={[styles.modernButton, styles.tertiaryButton]}
->>>>>>> ba4ee399db09e8a9493825c9d03513f2f3232463
               onPress={() => {
                 setCurrentScreen('editAccount');
                 setMenuOpen(false);
               }}
             >
-<<<<<<< HEAD
-              <Image 
-                source={require('./assets/MSI APP BUTTONS/ActIns-Button.png')} 
-                style={styles.buttonImage}
-                resizeMode="contain"
-              />
-              <Text style={styles.buttonLabel}>Edit Account</Text>
-=======
               <Text style={styles.buttonIcon}>✏️</Text>
               <Text style={styles.buttonText}>Edit Account</Text>
               <Text style={styles.buttonSubtext}>Modify Existing</Text>
->>>>>>> ba4ee399db09e8a9493825c9d03513f2f3232463
             </TouchableOpacity>
           </View>
           
@@ -372,12 +334,6 @@ const styles = StyleSheet.create({
   buttonsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-<<<<<<< HEAD
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingHorizontal: 2,
-    width: '100%',
-=======
     justifyContent: 'center',
     alignItems: 'stretch',
     paddingHorizontal: 20,
@@ -418,7 +374,6 @@ const styles = StyleSheet.create({
   },
   buttonIcon: {
     fontSize: 32,
->>>>>>> ba4ee399db09e8a9493825c9d03513f2f3232463
     marginBottom: 8,
   },
   buttonText: {
