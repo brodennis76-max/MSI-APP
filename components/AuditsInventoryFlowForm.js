@@ -9,10 +9,11 @@ import {
   Alert,
   ActivityIndicator,
   Image,
-  Platform
+  Platform,
+  Switch
 } from 'react-native';
 import { db } from '../firebase-config';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, deleteField } from 'firebase/firestore';
 import PreInventoryTeamInstructionsForm from './PreInventoryTeamInstructionsForm';
 
 const AuditsInventoryFlowForm = ({ clientData, onBack, onComplete }) => {
@@ -22,6 +23,8 @@ const AuditsInventoryFlowForm = ({ clientData, onBack, onComplete }) => {
 Audit trails will be provided as requested based on posting sheet results, within reason, during the count.`);
   const [inventoryFlowText, setInventoryFlowText] = useState(clientData.Inv_Flow || '');
   const [showTeamInstructions, setShowTeamInstructions] = useState(false);
+  const [hasSpecialNotes, setHasSpecialNotes] = useState(false);
+  const [specialNotes, setSpecialNotes] = useState('');
 
   // Refs for keyboard navigation
   const auditsRef = React.useRef(null);
@@ -37,6 +40,10 @@ Audit trails will be provided as requested based on posting sheet results, withi
     setInventoryFlowText(value);
   };
 
+  const handleSpecialNotesChange = (value) => {
+    setSpecialNotes(value);
+  };
+
   const handleAuditsBlur = () => {
     // Apply bullet point formatting when user finishes typing (on blur)
     const formattedValue = formatAsBulletPoints(auditsText);
@@ -47,6 +54,11 @@ Audit trails will be provided as requested based on posting sheet results, withi
     // Apply bullet point formatting when user finishes typing (on blur)
     const formattedValue = formatAsBulletPoints(inventoryFlowText);
     setInventoryFlowText(formattedValue);
+  };
+
+  const handleSpecialNotesBlur = () => {
+    const formattedValue = formatAsBulletPoints(specialNotes);
+    setSpecialNotes(formattedValue);
   };
 
   // Load latest saved values on mount to repopulate when navigating back
@@ -60,6 +72,8 @@ Audit trails will be provided as requested based on posting sheet results, withi
         const data = snap.data() || {};
         if (typeof data.Audits === 'string') setAuditsText(data.Audits);
         if (typeof data.Inv_Flow === 'string') setInventoryFlowText(data.Inv_Flow);
+        if (typeof data.Special_Notes === 'string') setSpecialNotes(data.Special_Notes);
+        setHasSpecialNotes(!!data.Has_Special_Notes);
       } catch (e) {
         console.warn('AuditsInventoryFlowForm: failed to load existing values', e);
       }
@@ -88,8 +102,8 @@ Audit trails will be provided as requested based on posting sheet results, withi
   };
 
   const handleSave = async () => {
-    if (!auditsText.trim() && !inventoryFlowText.trim()) {
-      Alert.alert('Error', 'Please enter at least one field (Audits or Inventory Flow).');
+    if (!auditsText.trim() && !inventoryFlowText.trim() && !(hasSpecialNotes && specialNotes.trim())) {
+      Alert.alert('Error', 'Please enter at least one field (Audits, Inventory Flow, or Special Notes).');
       return;
     }
 
@@ -104,12 +118,19 @@ Audit trails will be provided as requested based on posting sheet results, withi
         ? `${inventoryFlowText}\n\n${complianceStatement}`
         : inventoryFlowText;
       
-      // Update the client with audits and inventory flow data
-      await updateDoc(clientRef, {
+      // Update the client with audits, inventory flow, and special notes
+      const payload = {
         Audits: auditsText,
         Inv_Flow: finalInventoryFlow,
+        Has_Special_Notes: !!hasSpecialNotes,
         updatedAt: new Date(),
-      });
+      };
+      if (hasSpecialNotes && specialNotes.trim()) {
+        payload.Special_Notes = specialNotes.trim();
+      } else {
+        payload.Special_Notes = deleteField();
+      }
+      await updateDoc(clientRef, payload);
 
       // Use platform-specific alerts
       if (Platform.OS === 'web') {
@@ -197,6 +218,28 @@ Audit trails will be provided as requested based on posting sheet results, withi
             spellCheck={true}
             returnKeyType="done"
           />
+
+        <Text style={styles.label}>Special Notes</Text>
+        <Text style={styles.helperText}>Enable if this account has special notes or additional items for the count.</Text>
+        <View style={styles.switchRow}>
+          <Text style={styles.switchLabel}>{hasSpecialNotes ? 'Yes' : 'No'}</Text>
+          <Switch value={hasSpecialNotes} onValueChange={setHasSpecialNotes} />
+        </View>
+        {hasSpecialNotes && (
+          <TextInput
+            style={styles.textArea}
+            value={specialNotes}
+            onChangeText={handleSpecialNotesChange}
+            onBlur={handleSpecialNotesBlur}
+            placeholder="Enter any special notes for this account..."
+            multiline
+            numberOfLines={6}
+            autoCapitalize="sentences"
+            autoCorrect={true}
+            spellCheck={true}
+            returnKeyType="done"
+          />
+        )}
         </View>
       </ScrollView>
 
