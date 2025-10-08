@@ -56,7 +56,7 @@ const EditAccountFlow = ({ onBack }) => {
         return;
       }
       setActiveClient({ id: snap.id, ...snap.data() });
-      setStep('preInventory');
+      setStep('clientInfo');
     } catch (e) {
       console.error('Failed to load client:', e);
       Alert.alert('Error', 'Failed to load client.');
@@ -125,11 +125,89 @@ const EditAccountFlow = ({ onBack }) => {
     );
   }
 
+  if (step === 'clientInfo' && activeClient) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Image source={require('../assets/msi-smalllogo.jpeg')} style={styles.headerLogo} />
+          <Text style={styles.headerTitle}>Edit Account - {activeClient.name}</Text>
+          <TouchableOpacity style={styles.backButton} onPress={() => setStep('picker')}>
+            <Text style={styles.backButtonText}>Back</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.content}>
+          <View style={styles.clientInfoContainer}>
+            <Text style={styles.sectionTitle}>Client Information</Text>
+            
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>Client Name (Locked)</Text>
+              <TextInput
+                style={[styles.textInput, styles.lockedField]}
+                value={activeClient.name || ''}
+                editable={false}
+                placeholder="Client Name"
+              />
+            </View>
+
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>Account Type</Text>
+              <TextInput
+                style={styles.textInput}
+                value={activeClient.accountType || ''}
+                placeholder="Account Type"
+                onChangeText={(text) => setActiveClient({...activeClient, accountType: text})}
+              />
+            </View>
+
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>Store Type</Text>
+              <TextInput
+                style={styles.textInput}
+                value={activeClient.storeType || ''}
+                placeholder="Store Type"
+                onChangeText={(text) => setActiveClient({...activeClient, storeType: text})}
+              />
+            </View>
+
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>ALR</Text>
+              <TextInput
+                style={styles.textInput}
+                value={activeClient.ALR || ''}
+                placeholder="ALR"
+                onChangeText={(text) => setActiveClient({...activeClient, ALR: text})}
+              />
+            </View>
+
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>Additional Notes</Text>
+              <TextInput
+                style={[styles.textInput, styles.textArea]}
+                value={activeClient.additionalNotes || ''}
+                placeholder="Additional Notes"
+                multiline
+                numberOfLines={4}
+                onChangeText={(text) => setActiveClient({...activeClient, additionalNotes: text})}
+              />
+            </View>
+          </View>
+
+          <TouchableOpacity 
+            style={styles.primaryButton}
+            onPress={() => setStep('preInventory')}
+          >
+            <Text style={styles.primaryText}>Continue to Forms</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   if (step === 'preInventory' && activeClient) {
     return (
       <PreInventoryForm
         clientData={activeClient}
-        onBack={() => setStep('picker')}
+        onBack={() => setStep('clientInfo')}
         onComplete={() => setStep('inventoryProcedures')}
       />
     );
@@ -214,6 +292,29 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.5 },
   primaryText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   loadingText: { marginTop: 10, color: '#666', textAlign: 'center' },
+  clientInfoContainer: { marginBottom: 20 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 15 },
+  fieldContainer: { marginBottom: 15 },
+  fieldLabel: { fontSize: 14, fontWeight: '600', color: '#555', marginBottom: 5 },
+  textInput: { 
+    height: 50, 
+    borderWidth: 1, 
+    borderColor: '#ccc', 
+    borderRadius: 8, 
+    paddingHorizontal: 15, 
+    fontSize: 16, 
+    backgroundColor: '#fff' 
+  },
+  lockedField: { 
+    backgroundColor: '#f5f5f5', 
+    color: '#666',
+    borderColor: '#ddd'
+  },
+  textArea: { 
+    height: 100, 
+    textAlignVertical: 'top',
+    paddingTop: 15
+  },
 });
 
 export default EditAccountFlow;
