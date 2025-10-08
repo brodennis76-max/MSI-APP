@@ -334,11 +334,11 @@ const styles = StyleSheet.create({
   buttonsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'stretch',
     paddingHorizontal: 20,
     marginTop: 20,
-    gap: 15,
+    gap: 10,
   },
   modernButton: {
     borderRadius: 16,
@@ -346,9 +346,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 140,
-    flex: 1,
-    minWidth: 280,
-    maxWidth: 350,
+    width: '30%',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -361,16 +359,16 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   primaryButton: {
-    backgroundColor: '#4F46E5', // Indigo
-    borderColor: '#4338CA',
+    backgroundColor: '#1E40AF', // Deep Blue
+    borderColor: '#1E3A8A',
   },
   secondaryButton: {
-    backgroundColor: '#059669', // Emerald
-    borderColor: '#047857',
+    backgroundColor: '#0F766E', // Teal
+    borderColor: '#0D5D56',
   },
   tertiaryButton: {
-    backgroundColor: '#DC2626', // Red
-    borderColor: '#B91C1C',
+    backgroundColor: '#0369A1', // Sky Blue
+    borderColor: '#075985',
   },
   buttonIcon: {
     fontSize: 32,
