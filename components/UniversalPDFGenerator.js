@@ -35,20 +35,24 @@ export async function generateAccountInstructionsPDF(options) {
     const htmlToPlain = (html) => {
       if (!html) return '';
       let text = String(html);
-      // Normalize line breaks for block boundaries
+      
+      // Convert lists to plain text with proper formatting
       text = text
+        .replace(/<\s*ul[^>]*>/gi, '')  // Remove ul opening tags
+        .replace(/<\s*\/ul\s*>/gi, '')  // Remove ul closing tags
+        .replace(/<\s*ol[^>]*>/gi, '')  // Remove ol opening tags
+        .replace(/<\s*\/ol\s*>/gi, '')  // Remove ol closing tags
+        .replace(/<\s*li\s*>/gi, '• ')  // Convert li opening to bullet
+        .replace(/<\s*\/li\s*>/gi, '\n') // Convert li closing to newline
         .replace(/<\s*br\s*\/?>/gi, '\n')
         .replace(/<\s*\/p\s*>/gi, '\n')
         .replace(/<\s*\/div\s*>/gi, '\n')
-        .replace(/<\s*\/li\s*>/gi, '\n')
         .replace(/<\s*h[1-6][^>]*>/gi, '')
-        .replace(/<\s*\/h[1-6]\s*>/gi, '\n')
-        .replace(/<\s*ul[^>]*>/gi, '')
-        .replace(/<\s*\/ul\s*>/gi, '\n')
-        .replace(/<\s*ol[^>]*>/gi, '')
-        .replace(/<\s*\/ol\s*>/gi, '\n');
+        .replace(/<\s*\/h[1-6]\s*>/gi, '\n');
+      
       // Strip remaining tags
       text = text.replace(/<[^>]+>/g, '');
+      
       // Decode common HTML entities
       text = text
         .replace(/&nbsp;/g, ' ')
@@ -57,6 +61,7 @@ export async function generateAccountInstructionsPDF(options) {
         .replace(/&gt;/g, '>')
         .replace(/&quot;/g, '"')
         .replace(/&#039;/g, "'");
+      
       // Collapse excessive whitespace but keep intentional line breaks
       text = text.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n');
       return text.trim();
@@ -653,19 +658,26 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
-// Allow only very basic inline formatting (b, strong, i, em, u, br) and convert block elements to line breaks
+// Allow basic formatting including lists (ul, ol, li) and inline formatting
 function sanitizeBasicHtml(html) {
   if (!html) return '';
   let s = String(html);
-  // Replace block closers with line breaks
+  
+  // Convert lists to plain text with proper formatting
   s = s
-    .replace(/<\s*\/p\s*>/gi, '\n')
-    .replace(/<\s*\/div\s*>/gi, '\n')
-    .replace(/<\s*li\s*>/gi, '')
-    .replace(/<\s*\/li\s*>/gi, '\n')
-    .replace(/<\s*br\s*\/?>/gi, '<br>');
+    .replace(/<\s*ul[^>]*>/gi, '')  // Remove ul opening tags
+    .replace(/<\s*\/ul\s*>/gi, '')  // Remove ul closing tags
+    .replace(/<\s*ol[^>]*>/gi, '')  // Remove ol opening tags
+    .replace(/<\s*\/ol\s*>/gi, '')  // Remove ol closing tags
+    .replace(/<\s*li\s*>/gi, '• ')  // Convert li opening to bullet
+    .replace(/<\s*\/li\s*>/gi, '\n') // Convert li closing to newline
+    .replace(/<\s*\/p\s*>/gi, '\n')  // Convert p closing to newline
+    .replace(/<\s*\/div\s*>/gi, '\n') // Convert div closing to newline
+    .replace(/<\s*br\s*\/?>/gi, '<br>'); // Keep br tags
+  
   // Strip disallowed tags, keep b/strong/i/em/u/br
   s = s.replace(/<(?!\/?(b|strong|i|em|u|br)\b)[^>]*>/gi, '');
+  
   // Decode entities commonly inserted by editors
   s = s
     .replace(/&nbsp;/g, ' ')
@@ -674,6 +686,7 @@ function sanitizeBasicHtml(html) {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#039;/g, "'");
+  
   // Collapse extra blank lines
   s = s.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n');
   return s.trim();
