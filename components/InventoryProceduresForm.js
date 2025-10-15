@@ -20,23 +20,45 @@ const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
   const [additionalProcedures, setAdditionalProcedures] = useState('');
   const [showDepartments, setShowDepartments] = useState(false);
   const [departments, setDepartments] = useState({
-    // Only Cigarettes and Liquor have sub-items for now per spec
+    // Grocery-related
+    Grocery: {
+      Grocery: { checked: false, number: '' },
+      Soda: { checked: false, number: '' },
+      Candy: { checked: false, number: '' },
+      Snacks: { checked: false, number: '' },
+      'Meat Pick 5': { checked: false, number: '' },
+      Meat: { checked: false, number: '' },
+    },
+    // General
+    General: {
+      'General Merchandise': { checked: false, number: '' },
+      Novelty: { checked: false, number: '' },
+      Lottery: { checked: false, number: '' },
+    },
+    // Frozen Foods
+    'Frozen Foods': {
+      'Ice Cream': { checked: false, number: '' },
+      'Frozen Food': { checked: false, number: '' },
+    },
+    // Dairy
+    Dairy: {
+      Dairy: { checked: false, number: '' },
+    },
+    // Cigarettes / Tobacco
     Cigarettes: {
       Cigarettes: { checked: false, number: '' },
       'Other Tobacco (OTP)': { checked: false, number: '' },
     },
+    // Liquor / Alcohol
     Liquor: {
       Beer: { checked: false, number: '' },
       Wine: { checked: false, number: '' },
       Liquor: { checked: false, number: '' },
     },
-    // Category headers without sub-items included for display only
-    Grocery: {},
-    Perishable: {},
-    'Frozen Foods': {},
-    Dairy: {},
-    'General Merchandise': {},
-    'Health & Beauty': {},
+    // Additional categories for future expansion
+    'Health & Beauty': {
+      HBA: { checked: false, number: '' },
+    },
   });
 
   // Custom department inputs
@@ -215,84 +237,43 @@ const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
 
           {showDepartments && (
             <View style={styles.departmentsContainer}>
-              {/* Category headers without inputs */}
-              {['Grocery','Perishable','Frozen Foods','Dairy','General Merchandise','Health & Beauty'].map((cat) => (
+              {/* Render all categories in order with checkbox rows */}
+              {['Grocery','General','Frozen Foods','Dairy','Cigarettes','Liquor','Health & Beauty'].map((cat) => (
                 <View key={cat} style={styles.departmentCategoryBlock}>
                   <Text style={styles.departmentHeader}>{cat.toUpperCase()}</Text>
+                  {Object.keys(departments[cat] || {}).map((item) => {
+                    const { checked, number } = departments[cat][item];
+                    return (
+                      <View key={item} style={styles.departmentItemRow}>
+                        <TouchableOpacity
+                          style={[styles.checkbox, checked && styles.checkboxChecked]}
+                          onPress={() => setDepartments({
+                            ...departments,
+                            [cat]: {
+                              ...departments[cat],
+                              [item]: { checked: !checked, number }
+                            }
+                          })}
+                        />
+                        <Text style={styles.departmentItemLabel}>{item}</Text>
+                        <TextInput
+                          style={styles.departmentNumberInput}
+                          placeholder="Dept #"
+                          keyboardType="default"
+                          value={number}
+                          onChangeText={(text) => setDepartments({
+                            ...departments,
+                            [cat]: {
+                              ...departments[cat],
+                              [item]: { checked, number: text }
+                            }
+                          })}
+                        />
+                      </View>
+                    );
+                  })}
                 </View>
               ))}
-
-              {/* Cigarettes */}
-              <View style={styles.departmentCategoryBlock}>
-                <Text style={styles.departmentHeader}>CIGARETTES</Text>
-                {Object.keys(departments.Cigarettes).map((item) => {
-                  const { checked, number } = departments.Cigarettes[item];
-                  return (
-                    <View key={item} style={styles.departmentItemRow}>
-                      <TouchableOpacity
-                        style={[styles.checkbox, checked && styles.checkboxChecked]}
-                        onPress={() => setDepartments({
-                          ...departments,
-                          Cigarettes: {
-                            ...departments.Cigarettes,
-                            [item]: { checked: !checked, number }
-                          }
-                        })}
-                      />
-                      <Text style={styles.departmentItemLabel}>{item}</Text>
-                      <TextInput
-                        style={styles.departmentNumberInput}
-                        placeholder="Dept #"
-                        keyboardType="default"
-                        value={number}
-                        onChangeText={(text) => setDepartments({
-                          ...departments,
-                          Cigarettes: {
-                            ...departments.Cigarettes,
-                            [item]: { checked, number: text }
-                          }
-                        })}
-                      />
-                    </View>
-                  );
-                })}
-              </View>
-
-              {/* Liquor */}
-              <View style={styles.departmentCategoryBlock}>
-                <Text style={styles.departmentHeader}>LIQUOR</Text>
-                {Object.keys(departments.Liquor).map((item) => {
-                  const { checked, number } = departments.Liquor[item];
-                  return (
-                    <View key={item} style={styles.departmentItemRow}>
-                      <TouchableOpacity
-                        style={[styles.checkbox, checked && styles.checkboxChecked]}
-                        onPress={() => setDepartments({
-                          ...departments,
-                          Liquor: {
-                            ...departments.Liquor,
-                            [item]: { checked: !checked, number }
-                          }
-                        })}
-                      />
-                      <Text style={styles.departmentItemLabel}>{item}</Text>
-                      <TextInput
-                        style={styles.departmentNumberInput}
-                        placeholder="Dept #"
-                        keyboardType="default"
-                        value={number}
-                        onChangeText={(text) => setDepartments({
-                          ...departments,
-                          Liquor: {
-                            ...departments.Liquor,
-                            [item]: { checked, number: text }
-                          }
-                        })}
-                      />
-                    </View>
-                  );
-                })}
-              </View>
 
               {/* Custom department entry */}
               <View style={styles.departmentCategoryBlock}>
