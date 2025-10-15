@@ -73,7 +73,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
 
   // Form data state
   const [formData, setFormData] = useState({
-    inventoryType: 'scan',
+    inventoryTypes: ['scan'],
     storeType: 'Convenience',
     PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
     startTime: '',
@@ -85,7 +85,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
   const [newClientData, setNewClientData] = useState({
     name: '',
     email: '',
-    inventoryType: 'scan',
+    inventoryTypes: ['scan'],
     storeType: 'Convenience',
     PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
     startTime: '',
@@ -332,7 +332,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
       const clientToEdit = clients.find(client => client.id === selectedClientId);
       if (clientToEdit) {
         setFormData({
-          inventoryType: clientToEdit.inventoryType || 'scan',
+          inventoryTypes: Array.isArray(clientToEdit.inventoryTypes) ? clientToEdit.inventoryTypes : (clientToEdit.inventoryType ? [clientToEdit.inventoryType] : ['scan']),
           storeType: clientToEdit.storeType || 'Convenience',
           PIC: clientToEdit.PIC || 'Stores to be contacted via phone prior to counts to confirm inventory.',
           startTime: clientToEdit.startTime || '',
@@ -361,7 +361,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
         await setDoc(clientRef, {
           name: newClientData.name,
           email: newClientData.email,
-          inventoryType: newClientData.inventoryType,
+          inventoryTypes: Array.isArray(newClientData.inventoryTypes) ? newClientData.inventoryTypes : [],
           storeType: newClientData.storeType,
           accountType: newClientData.storeType,
           PIC: newClientData.PIC,
@@ -394,7 +394,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
           id: sanitizedName,
           name: newClientData.name,
           email: newClientData.email,
-          inventoryType: newClientData.inventoryType,
+          inventoryTypes: Array.isArray(newClientData.inventoryTypes) ? newClientData.inventoryTypes : [],
           storeType: newClientData.storeType,
           accountType: newClientData.storeType,
           PIC: newClientData.PIC,
@@ -410,7 +410,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
         setNewClientData({
           name: '',
           email: '',
-          inventoryType: 'scan',
+          inventoryTypes: ['scan'],
           storeType: 'Convenience',
           PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
           startTime: '',
@@ -438,7 +438,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
         
         await setDoc(clientRef, {
           ...selectedClient,
-          inventoryType: formData.inventoryType,
+          inventoryTypes: Array.isArray(formData.inventoryTypes) ? formData.inventoryTypes : [],
           storeType: formData.storeType,
           PIC: formData.PIC,
           startTime: formData.startTime,
@@ -454,7 +454,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
             { text: 'OK', onPress: () => {
               setFormData({
                 preInventory: '',
-                inventoryType: 'scan',
+                inventoryTypes: ['scan'],
                 storeType: 'Convenience',
                 PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
                 startTime: '',
@@ -599,22 +599,34 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
                 </Picker>
               </View>
 
-              <Text style={styles.label}>Inventory Type</Text>
+              <Text style={styles.label}>Inventory Type (Select all that apply)</Text>
               <View style={styles.inventoryTypeContainer}>
-                {['scan', 'financial', 'hand written', 'price verification'].map((type) => (
-                  <TouchableOpacity
-                    key={type}
-                    style={[styles.inventoryTypeOption, (clientAction === 'new' ? newClientData.inventoryType : formData.inventoryType) === type && styles.inventoryTypeOptionSelected]}
-                    onPress={() => clientAction === 'new' ? handleNewClientInputChange('inventoryType', type) : handleInputChange('inventoryType', type)}
-                  >
-                    <View style={[styles.inventoryTypeRadio, (clientAction === 'new' ? newClientData.inventoryType : formData.inventoryType) === type && styles.inventoryTypeRadioSelected]}>
-                      {(clientAction === 'new' ? newClientData.inventoryType : formData.inventoryType) === type && <View style={styles.inventoryTypeRadioInner} />}
-                    </View>
-                    <Text style={[styles.inventoryTypeText, (clientAction === 'new' ? newClientData.inventoryType : formData.inventoryType) === type && styles.inventoryTypeTextSelected]}>
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {['scan', 'financial', 'hand written', 'price verification'].map((type) => {
+                  const current = clientAction === 'new' ? (Array.isArray(newClientData.inventoryTypes) ? newClientData.inventoryTypes : []) : (Array.isArray(formData.inventoryTypes) ? formData.inventoryTypes : []);
+                  const isSelected = current.includes(type);
+                  const toggle = () => {
+                    const next = isSelected ? current.filter(t => t !== type) : [...current, type];
+                    if (clientAction === 'new') {
+                      handleNewClientInputChange('inventoryTypes', next);
+                    } else {
+                      handleInputChange('inventoryTypes', next);
+                    }
+                  };
+                  return (
+                    <TouchableOpacity
+                      key={type}
+                      style={[styles.inventoryTypeOption, isSelected && styles.inventoryTypeOptionSelected]}
+                      onPress={toggle}
+                    >
+                      <View style={[styles.inventoryTypeRadio, isSelected && styles.inventoryTypeRadioSelected]}>
+                        {isSelected && <View style={styles.inventoryTypeRadioInner} />}
+                      </View>
+                      <Text style={[styles.inventoryTypeText, isSelected && styles.inventoryTypeTextSelected]}>
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
 
 

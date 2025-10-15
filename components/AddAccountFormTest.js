@@ -50,7 +50,7 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
 
   // Form data state
   const [formData, setFormData] = useState({
-    inventoryType: 'scan',
+    inventoryTypes: ['scan'],
     PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
     startTime: '',
     verification: 'Audit trails will be provided, as requested, during the count, within reason (do not provide audit trails on the entire store.)',
@@ -61,7 +61,7 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
   const [newClientData, setNewClientData] = useState({
     name: '',
     email: '',
-    inventoryType: 'scan',
+    inventoryTypes: ['scan'],
     PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
     startTime: '',
     verification: 'Audit trails will be provided, as requested, during the count, within reason (do not provide audit trails on the entire store.)',
@@ -72,7 +72,7 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
   const [persistentFormData, setPersistentFormData] = useState({
     name: '',
     email: '',
-    inventoryType: 'scan',
+    inventoryTypes: ['scan'],
     PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
     startTime: '',
     verification: 'Audit trails will be provided, as requested, during the count, within reason (do not provide audit trails on the entire store.)',
@@ -139,7 +139,7 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
       const clientToEdit = clients.find(client => client.id === selectedClientId);
       if (clientToEdit) {
         setFormData({
-          inventoryType: clientToEdit.inventoryType || 'scan',
+          inventoryTypes: Array.isArray(clientToEdit.inventoryTypes) ? clientToEdit.inventoryTypes : (clientToEdit.inventoryType ? [clientToEdit.inventoryType] : ['scan']),
           PIC: clientToEdit.PIC || 'Stores to be contacted via phone prior to counts to confirm inventory.',
           startTime: clientToEdit.startTime || '',
           verification: clientToEdit.verification || 'Audit trails will be provided, as requested, during the count, within reason (do not provide audit trails on the entire store.)',
@@ -174,7 +174,7 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
     const defaultData = {
       name: '',
       email: '',
-      inventoryType: 'scan',
+      inventoryTypes: ['scan'],
       PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
       startTime: '',
       verification: 'Audit trails will be provided, as requested, during the count, within reason (do not provide audit trails on the entire store.)',
@@ -205,7 +205,7 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
         await setDoc(clientRef, {
           name: newClientData.name,
           email: newClientData.email,
-          inventoryType: newClientData.inventoryType,
+          inventoryTypes: Array.isArray(newClientData.inventoryTypes) ? newClientData.inventoryTypes : [],
           PIC: newClientData.PIC,
           startTime: newClientData.startTime,
           verification: newClientData.verification,
@@ -235,7 +235,7 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
           id: sanitizedName,
           name: newClientData.name,
           email: newClientData.email,
-          inventoryType: newClientData.inventoryType,
+          inventoryTypes: Array.isArray(newClientData.inventoryTypes) ? newClientData.inventoryTypes : [],
           PIC: newClientData.PIC,
           startTime: newClientData.startTime,
           verification: newClientData.verification,
@@ -248,7 +248,7 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
         setNewClientData({
           name: '',
           email: '',
-          inventoryType: 'scan',
+          inventoryTypes: ['scan'],
           PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
           startTime: '',
           verification: 'Audit trails will be provided, as requested, during the count, within reason (do not provide audit trails on the entire store.)',
@@ -434,22 +434,30 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
                 onSubmitEditing={() => picRef.current?.focus()}
               />
 
-              <Text style={styles.label}>Inventory Type</Text>
+              <Text style={styles.label}>Inventory Type (Select all that apply)</Text>
               <View style={styles.inventoryTypeContainer}>
-                {['scan', 'financial', 'hand written', 'price verification'].map((type) => (
-                  <TouchableOpacity
-                    key={type}
-                    style={[styles.inventoryTypeOption, newClientData.inventoryType === type && styles.inventoryTypeOptionSelected]}
-                    onPress={() => handleNewClientInputChange('inventoryType', type)}
-                  >
-                    <View style={[styles.inventoryTypeRadio, newClientData.inventoryType === type && styles.inventoryTypeRadioSelected]}>
-                      {newClientData.inventoryType === type && <View style={styles.inventoryTypeRadioInner} />}
-                    </View>
-                    <Text style={[styles.inventoryTypeText, newClientData.inventoryType === type && styles.inventoryTypeTextSelected]}>
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {['scan', 'financial', 'hand written', 'price verification'].map((type) => {
+                  const current = Array.isArray(newClientData.inventoryTypes) ? newClientData.inventoryTypes : [];
+                  const isSelected = current.includes(type);
+                  const toggle = () => {
+                    const next = isSelected ? current.filter(t => t !== type) : [...current, type];
+                    handleNewClientInputChange('inventoryTypes', next);
+                  };
+                  return (
+                    <TouchableOpacity
+                      key={type}
+                      style={[styles.inventoryTypeOption, isSelected && styles.inventoryTypeOptionSelected]}
+                      onPress={toggle}
+                    >
+                      <View style={[styles.inventoryTypeRadio, isSelected && styles.inventoryTypeRadioSelected]}>
+                        {isSelected && <View style={styles.inventoryTypeRadioInner} />}
+                      </View>
+                      <Text style={[styles.inventoryTypeText, isSelected && styles.inventoryTypeTextSelected]}>
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
 
               <Text style={styles.label}>PIC (Pre Inventory Call)</Text>

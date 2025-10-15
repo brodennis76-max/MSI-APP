@@ -72,7 +72,7 @@ const EditAccountFlow = ({ onBack }) => {
     try {
       const clientRef = doc(db, 'clients', activeClient.id);
       await updateDoc(clientRef, {
-        inventoryType: activeClient.inventoryType,
+        inventoryTypes: Array.isArray(activeClient.inventoryTypes) ? activeClient.inventoryTypes : (activeClient.inventoryType ? [activeClient.inventoryType] : []),
         PIC: activeClient.PIC,
         startTime: activeClient.startTime,
         verification: activeClient.verification,
@@ -181,22 +181,31 @@ const EditAccountFlow = ({ onBack }) => {
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Inventory Type</Text>
+              <Text style={styles.label}>Inventory Type (Select all that apply)</Text>
               <View style={styles.inventoryTypeContainer}>
-                {['scan', 'financial', 'hand written', 'price verification'].map((type) => (
-                  <TouchableOpacity
-                    key={type}
-                    style={[styles.inventoryTypeOption, activeClient.inventoryType === type && styles.inventoryTypeOptionSelected]}
-                    onPress={() => setActiveClient({...activeClient, inventoryType: type})}
-                  >
-                    <View style={[styles.inventoryTypeRadio, activeClient.inventoryType === type && styles.inventoryTypeRadioSelected]}>
-                      {activeClient.inventoryType === type && <View style={styles.inventoryTypeRadioInner} />}
-                    </View>
-                    <Text style={[styles.inventoryTypeText, activeClient.inventoryType === type && styles.inventoryTypeTextSelected]}>
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {['scan', 'financial', 'hand written', 'price verification'].map((type) => {
+                  const selectedList = Array.isArray(activeClient.inventoryTypes) ? activeClient.inventoryTypes : (activeClient.inventoryType ? [activeClient.inventoryType] : []);
+                  const isSelected = selectedList.includes(type);
+                  const toggleType = () => {
+                    const current = Array.isArray(activeClient.inventoryTypes) ? activeClient.inventoryTypes : (activeClient.inventoryType ? [activeClient.inventoryType] : []);
+                    const next = isSelected ? current.filter(t => t !== type) : [...current, type];
+                    setActiveClient({ ...activeClient, inventoryTypes: next });
+                  };
+                  return (
+                    <TouchableOpacity
+                      key={type}
+                      style={[styles.inventoryTypeOption, isSelected && styles.inventoryTypeOptionSelected]}
+                      onPress={toggleType}
+                    >
+                      <View style={[styles.inventoryTypeRadio, isSelected && styles.inventoryTypeRadioSelected]}>
+                        {isSelected && <View style={styles.inventoryTypeRadioInner} />}
+                      </View>
+                      <Text style={[styles.inventoryTypeText, isSelected && styles.inventoryTypeTextSelected]}>
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
 
