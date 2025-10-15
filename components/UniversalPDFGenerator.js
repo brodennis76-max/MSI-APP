@@ -218,9 +218,12 @@ export async function generateAccountInstructionsPDF(options) {
         parseAndWriteFormattedText(text, MARGIN_PT, width, lineH);
       } else {
         // Plain text - use original simple approach
+        console.log('🔍 Plain text wrapping - width:', width, 'text length:', text.length);
         const lines = pdf.splitTextToSize(text, width);
-        lines.forEach((ln) => {
+        console.log('🔍 Split into lines:', lines.length, 'lines');
+        lines.forEach((ln, index) => {
           checkPageBreak(lineH);
+          console.log(`🔍 Line ${index}: "${ln}" (length: ${ln.length})`);
           pdf.text(ln, MARGIN_PT, y);
           y += lineH;
         });
