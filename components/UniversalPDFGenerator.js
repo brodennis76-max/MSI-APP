@@ -50,7 +50,8 @@ export async function generateAccountInstructionsPDF(options) {
         .replace(/<\s*h[1-6][^>]*>/gi, '')
         .replace(/<\s*\/h[1-6]\s*>/gi, '\n');
       
-      // Strip disallowed tags, keep b/strong/i/em/u/br
+      // Strip all HTML tags except basic formatting, but remove all attributes
+      text = text.replace(/<(\/?)(b|strong|i|em|u|br)(?:\s[^>]*)?>/gi, '<$1$2>');
       text = text.replace(/<(?!\/?(b|strong|i|em|u|br)\b)[^>]*>/gi, '');
       
       // Decode common HTML entities
@@ -64,6 +65,11 @@ export async function generateAccountInstructionsPDF(options) {
       
       // Collapse excessive whitespace but keep intentional line breaks
       text = text.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n');
+      
+      // Fix any malformed bullet points that might have been created
+      text = text.replace(/\s+•\s+/g, '\n• ');
+      text = text.replace(/•\s*•/g, '•');
+      
       return text.trim();
     };
 
@@ -93,8 +99,11 @@ export async function generateAccountInstructionsPDF(options) {
     };
 
     const writeWrapped = (text, width, lineH) => {
-      // Check if text contains bullet points or numbered lists
-      if (text.includes('• ') || /^\s*\d+\.\s/.test(text)) {
+      // Check if text contains bullet points or numbered lists (only at start of lines)
+      const hasBulletPoints = text.split('\n').some(line => line.trim().startsWith('• '));
+      const hasNumberedLists = text.split('\n').some(line => /^\d+\.\s/.test(line.trim()));
+      
+      if (hasBulletPoints || hasNumberedLists) {
         // Handle bullet points and numbered lists with hanging indents
         const lines = text.split('\n');
         lines.forEach((line) => {
@@ -855,7 +864,8 @@ function sanitizeBasicHtml(html) {
     .replace(/<\s*\/div\s*>/gi, '\n') // Convert div closing to newline
     .replace(/<\s*br\s*\/?>/gi, '<br>'); // Keep br tags
   
-  // Strip disallowed tags, keep b/strong/i/em/u/br
+  // Strip all HTML tags except basic formatting, but remove all attributes
+  s = s.replace(/<(\/?)(b|strong|i|em|u|br)(?:\s[^>]*)?>/gi, '<$1$2>');
   s = s.replace(/<(?!\/?(b|strong|i|em|u|br)\b)[^>]*>/gi, '');
   
   // Decode entities commonly inserted by editors
