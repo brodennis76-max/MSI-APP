@@ -36,13 +36,13 @@ export async function generateAccountInstructionsPDF(options) {
       if (!html) return '';
       let text = String(html);
       
-      // Convert lists to plain text with proper formatting
+      // Convert lists to plain text with proper formatting and indentation
       text = text
         .replace(/<\s*ul[^>]*>/gi, '')  // Remove ul opening tags
         .replace(/<\s*\/ul\s*>/gi, '')  // Remove ul closing tags
         .replace(/<\s*ol[^>]*>/gi, '')  // Remove ol opening tags
         .replace(/<\s*\/ol\s*>/gi, '')  // Remove ol closing tags
-        .replace(/<\s*li\s*>/gi, '• ')  // Convert li opening to bullet
+        .replace(/<\s*li\s*>/gi, '    • ')  // Convert li opening to indented bullet
         .replace(/<\s*\/li\s*>/gi, '\n') // Convert li closing to newline
         .replace(/<\s*br\s*\/?>/gi, '\n')
         .replace(/<\s*\/p\s*>/gi, '\n')
@@ -97,6 +97,16 @@ export async function generateAccountInstructionsPDF(options) {
       lines.forEach((ln) => {
         checkPageBreak(lineH);
         pdf.text(ln, MARGIN_PT, y);
+        y += lineH;
+      });
+    };
+
+    const writeWrappedWithIndent = (text, width, lineH, indentPt = 0) => {
+      const lines = pdf.splitTextToSize(text, width - indentPt);
+      lines.forEach((ln, index) => {
+        checkPageBreak(lineH);
+        const xPos = MARGIN_PT + indentPt;
+        pdf.text(ln, xPos, y);
         y += lineH;
       });
     };
@@ -663,13 +673,13 @@ function sanitizeBasicHtml(html) {
   if (!html) return '';
   let s = String(html);
   
-  // Convert lists to plain text with proper formatting
+  // Convert lists to plain text with proper formatting and indentation
   s = s
     .replace(/<\s*ul[^>]*>/gi, '')  // Remove ul opening tags
     .replace(/<\s*\/ul\s*>/gi, '')  // Remove ul closing tags
     .replace(/<\s*ol[^>]*>/gi, '')  // Remove ol opening tags
     .replace(/<\s*\/ol\s*>/gi, '')  // Remove ol closing tags
-    .replace(/<\s*li\s*>/gi, '• ')  // Convert li opening to bullet
+    .replace(/<\s*li\s*>/gi, '    • ')  // Convert li opening to indented bullet
     .replace(/<\s*\/li\s*>/gi, '\n') // Convert li closing to newline
     .replace(/<\s*\/p\s*>/gi, '\n')  // Convert p closing to newline
     .replace(/<\s*\/div\s*>/gi, '\n') // Convert div closing to newline
