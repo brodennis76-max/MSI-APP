@@ -96,8 +96,7 @@ export async function generateAccountInstructionsPDF(options) {
       // Check if text contains HTML tags
       if (text.includes('<') && text.includes('>')) {
         // Parse HTML formatting and apply to PDF
-        const parseAndWriteFormattedText = (htmlText, x, y, width, lineHeight) => {
-          let currentY = y;
+        const parseAndWriteFormattedText = (htmlText, x, width, lineHeight) => {
           let currentX = x;
           
           // Track active formatting
@@ -149,12 +148,9 @@ export async function generateAccountInstructionsPDF(options) {
               });
             }
           }
-          
-          return currentY;
         };
         
-        const finalY = parseAndWriteFormattedText(text, MARGIN_PT, y, width, lineH);
-        y = finalY;
+        parseAndWriteFormattedText(text, MARGIN_PT, width, lineH);
       } else {
         // Plain text - use original simple approach
         const lines = pdf.splitTextToSize(text, width);
@@ -170,10 +166,7 @@ export async function generateAccountInstructionsPDF(options) {
       // Check if text contains HTML tags
       if (text.includes('<') && text.includes('>')) {
         // Parse HTML formatting and apply to PDF with indentation
-        const parseAndWriteFormattedText = (htmlText, x, y, width, lineHeight, indent) => {
-          let currentY = y;
-          let currentX = x;
-          
+        const parseAndWriteFormattedText = (htmlText, x, width, lineHeight, indent) => {
           // Track active formatting
           let isBold = false;
           let isItalic = false;
@@ -223,12 +216,9 @@ export async function generateAccountInstructionsPDF(options) {
               });
             }
           }
-          
-          return currentY;
         };
         
-        const finalY = parseAndWriteFormattedText(text, MARGIN_PT + indentPt, y, width, lineH, indentPt);
-        y = finalY;
+        parseAndWriteFormattedText(text, MARGIN_PT + indentPt, width, lineH, indentPt);
       } else {
         // Plain text - use original simple approach
         const lines = pdf.splitTextToSize(text, width - indentPt);
