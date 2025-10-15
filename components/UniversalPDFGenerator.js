@@ -4,8 +4,8 @@ import * as Print from 'expo-print';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase-config';
 
-// 0.5 inch margins on letter size (in points: 72pt/in)
-const MARGIN_PT = 36; // 0.5"
+// 1 inch margins on letter size (in points: 72pt/in)
+const MARGIN_PT = 72; // 1"
 const PAGE_WIDTH_PT = 612; // 8.5" * 72
 const PAGE_HEIGHT_PT = 792; // 11" * 72
 
