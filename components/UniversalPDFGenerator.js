@@ -231,40 +231,40 @@ export async function generateAccountInstructionsPDF(options) {
     // Double space before next section
     y += 20;
 
-    // DEPARTMENTS section (formatted as "DeptNo CATEGORY")
+    // DEPARTMENTS section (only when items present; format "DeptNo LABEL" sorted by DeptNo)
     const rawDepartments = String(client.Departments ?? '').trim();
     if (rawDepartments) {
-      const formatDepartmentsLines = (text) => {
+      const parseDepartmentItems = (text) => {
+        const items = [];
         const lines = String(text).split('\n');
-        return lines.map((ln) => {
+        for (const ln of lines) {
           const t = ln.trim();
-          if (t.startsWith('_')) {
-            // pattern: _ Label [DeptNo]
-            // take trailing number tokens as dept number; rest as label
-            const parts = t.replace(/^_\s*/, '').split(/\s+/);
-            if (parts.length === 0) return '';
-            const maybeNum = parts[parts.length - 1];
-            const hasNum = /^\d+(-\d+)?$/.test(maybeNum);
-            const label = (hasNum ? parts.slice(0, -1) : parts).join(' ').toUpperCase();
-            const dept = hasNum ? maybeNum : '';
-            return dept ? `${dept} ${label}` : label;
-          }
-          // Category headers - force uppercase
-          return t.toUpperCase();
-        }).join('\n');
+          if (!t.startsWith('_')) continue; // only item lines
+          const parts = t.replace(/^_\s*/, '').split(/\s+/);
+          if (parts.length === 0) continue;
+          const last = parts[parts.length - 1];
+          if (!/^\d+(?:-\d+)?$/.test(last)) continue; // require dept number
+          const deptNum = parseInt(last.split('-')[0], 10);
+          const label = parts.slice(0, -1).join(' ').trim().toUpperCase();
+          if (!label) continue;
+          items.push({ dept: deptNum, label });
+        }
+        return items.sort((a, b) => a.dept - b.dept);
       };
 
-      const formattedDepartments = formatDepartmentsLines(rawDepartments);
-
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(16);
-      checkPageBreakWithContent(18, 50);
-      writeWrapped('Departments', contentWidth, 18);
-      y += 2;
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(12);
-      writeWrapped(formattedDepartments, contentWidth, lineHeight);
-      y += 12;
+      const items = parseDepartmentItems(rawDepartments);
+      if (items.length > 0) {
+        const formatted = items.map(i => `${i.dept} ${i.label}`).join('\n');
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(16);
+        checkPageBreakWithContent(18, 50);
+        writeWrapped('Departments', contentWidth, 18);
+        y += 2;
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(12);
+        writeWrapped(formatted, contentWidth, lineHeight);
+        y += 12;
+      }
     }
 
     // PRE-INVENTORY CREW INSTRUCTIONS section (from Team-Instr)
@@ -503,19 +503,22 @@ function buildHtml(client) {
         ${(() => {
           const raw = String(client.Departments ?? '').trim();
           if (!raw) return '';
-          const formatted = raw.split('\n').map(ln => {
+          const items = raw.split('\n').reduce((acc, ln) => {
             const t = ln.trim();
-            if (t.startsWith('_')) {
-              const parts = t.replace(/^_\s*/, '').split(/\s+/);
-              if (parts.length === 0) return '';
-              const maybeNum = parts[parts.length - 1];
-              const hasNum = /^\d+(-\d+)?$/.test(maybeNum);
-              const label = (hasNum ? parts.slice(0, -1) : parts).join(' ').toUpperCase();
-              const dept = hasNum ? maybeNum : '';
-              return dept ? `${dept} ${label}` : label;
-            }
-            return t.toUpperCase();
-          }).join('\n');
+            if (!t.startsWith('_')) return acc;
+            const parts = t.replace(/^_\s*/, '').split(/\s+/);
+            if (parts.length === 0) return acc;
+            const maybeNum = parts[parts.length - 1];
+            if (!/^\d+(?:-\d+)?$/.test(maybeNum)) return acc; // require a number
+            const deptNum = parseInt(maybeNum.split('-')[0], 10);
+            const label = parts.slice(0, -1).join(' ').trim().toUpperCase();
+            if (!label) return acc;
+            acc.push({ dept: deptNum, label });
+            return acc;
+          }, []);
+          if (!items.length) return '';
+          items.sort((a, b) => a.dept - b.dept);
+          const formatted = items.map(i => `${i.dept} ${i.label}`).join('\n');
           return `
             <div class="section">
               <div class="section-title">Departments</div>
