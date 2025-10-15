@@ -25,7 +25,7 @@ Audit trails will be provided as requested based on posting sheet results, withi
   const [inventoryFlowText, setInventoryFlowText] = useState(clientData.Inv_Flow || '');
   const [showTeamInstructions, setShowTeamInstructions] = useState(false);
   const [hasSpecialNotes, setHasSpecialNotes] = useState(false);
-  const [specialNotes, setSpecialNotes] = useState('');
+  const [specialNotes, setSpecialNotes] = useState(clientData.Special_Notes || '');
 
   // Refs for keyboard navigation
   const auditsRef = React.useRef(null);

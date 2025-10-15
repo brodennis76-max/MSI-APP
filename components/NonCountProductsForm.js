@@ -17,7 +17,7 @@ import RichTextEditor from './RichTextEditor';
 
 const NonCountProductsForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
-  const [nonCountText, setNonCountText] = useState('');
+  const [nonCountText, setNonCountText] = useState(clientData.noncount || '');
 
   // Ref for keyboard navigation
   const nonCountRef = React.useRef(null);

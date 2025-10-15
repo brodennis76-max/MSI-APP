@@ -93,29 +93,45 @@ export async function generateAccountInstructionsPDF(options) {
     };
 
     const writeWrapped = (text, width, lineH) => {
-      // Check if text contains bullet points
-      if (text.includes('• ')) {
-        // Handle bullet points with hanging indents
+      // Check if text contains bullet points or numbered lists
+      if (text.includes('• ') || /^\s*\d+\.\s/.test(text)) {
+        // Handle bullet points and numbered lists with hanging indents
         const lines = text.split('\n');
         lines.forEach((line) => {
-          if (line.trim().startsWith('• ')) {
-            // This is a bullet point line
-            const bulletText = line.trim().substring(2); // Remove "• " prefix
-            const bulletWidth = 20; // Width for "• " (approximately 20 points)
-            const indentWidth = 30; // Additional indent for wrapped lines
+          const trimmedLine = line.trim();
+          if (trimmedLine.startsWith('• ') || /^\d+\.\s/.test(trimmedLine)) {
+            // This is a bullet point or numbered list line
+            let prefix = '';
+            let contentText = '';
             
-            // Split the text after the bullet
-            const textLines = pdf.splitTextToSize(bulletText, width - bulletWidth - indentWidth);
+            if (trimmedLine.startsWith('• ')) {
+              prefix = '• ';
+              contentText = trimmedLine.substring(2);
+            } else {
+              // Numbered list - extract number and content
+              const match = trimmedLine.match(/^(\d+\.\s)(.*)/);
+              if (match) {
+                prefix = match[1];
+                contentText = match[2];
+              }
+            }
+            
+            // Calculate proper indentation
+            const prefixWidth = pdf.getTextWidth(prefix);
+            const hangingIndent = prefixWidth + 10; // 10pt space after prefix
+            
+            // Split the content text
+            const textLines = pdf.splitTextToSize(contentText, width - hangingIndent);
             
             textLines.forEach((textLine, lineIndex) => {
               checkPageBreak(lineH);
               if (lineIndex === 0) {
-                // First line: show bullet + text
-                pdf.text('• ', MARGIN_PT, y);
-                pdf.text(textLine, MARGIN_PT + bulletWidth, y);
+                // First line: show prefix + text
+                pdf.text(prefix, MARGIN_PT, y);
+                pdf.text(textLine, MARGIN_PT + prefixWidth, y);
               } else {
-                // Wrapped lines: indent to align with text
-                pdf.text(textLine, MARGIN_PT + bulletWidth + indentWidth, y);
+                // Wrapped lines: indent to align with content
+                pdf.text(textLine, MARGIN_PT + hangingIndent, y);
               }
               y += lineH;
             });
@@ -431,6 +447,7 @@ export async function generateAccountInstructionsPDF(options) {
 
     // DEPARTMENTS section (only when items present; format "DeptNo LABEL" sorted by DeptNo)
     const rawDepartments = String(client.Departments ?? '').trim();
+    console.log('🔍 Raw Departments data:', rawDepartments);
     if (rawDepartments) {
       const parseDepartmentItems = (text) => {
         const items = [];
@@ -484,6 +501,7 @@ export async function generateAccountInstructionsPDF(options) {
 
     // NON-COUNT PRODUCTS section (from noncount)
     const noncount = htmlToPlain(String(client.noncount ?? '').trim());
+    console.log('🔍 Raw NonCount data:', client.noncount);
     if (noncount) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);

@@ -17,7 +17,7 @@ import RichTextEditor from './RichTextEditor';
 
 const FinalReportsForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
-  const [finRepText, setFinRepText] = useState('');
+  const [finRepText, setFinRepText] = useState(clientData.Fin_Rep || '');
 
   // Ref for keyboard navigation
   const finRepRef = React.useRef(null);
