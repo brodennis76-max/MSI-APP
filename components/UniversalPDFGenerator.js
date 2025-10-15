@@ -54,6 +54,14 @@ export async function generateAccountInstructionsPDF(options) {
       text = text.replace(/<(\/?)(b|strong|i|em|u|br)(?:\s[^>]*)?>/gi, '<$1$2>');
       text = text.replace(/<(?!\/?(b|strong|i|em|u|br)\b)[^>]*>/gi, '');
       
+      // Fix malformed nested tags like <b><b></b><i>text</i></b>
+      text = text.replace(/<b>\s*<b>\s*<\/b>\s*<i>/gi, '<i><b>');
+      text = text.replace(/<\/i>\s*<\/b>/gi, '</b></i>');
+      text = text.replace(/<b>\s*<b>/gi, '<b>');
+      text = text.replace(/<\/b>\s*<\/b>/gi, '</b>');
+      text = text.replace(/<i>\s*<i>/gi, '<i>');
+      text = text.replace(/<\/i>\s*<\/i>/gi, '</i>');
+      
       // Decode common HTML entities
       text = text
         .replace(/&nbsp;/g, ' ')
@@ -867,6 +875,14 @@ function sanitizeBasicHtml(html) {
   // Strip all HTML tags except basic formatting, but remove all attributes
   s = s.replace(/<(\/?)(b|strong|i|em|u|br)(?:\s[^>]*)?>/gi, '<$1$2>');
   s = s.replace(/<(?!\/?(b|strong|i|em|u|br)\b)[^>]*>/gi, '');
+  
+  // Fix malformed nested tags like <b><b></b><i>text</i></b>
+  s = s.replace(/<b>\s*<b>\s*<\/b>\s*<i>/gi, '<i><b>');
+  s = s.replace(/<\/i>\s*<\/b>/gi, '</b></i>');
+  s = s.replace(/<b>\s*<b>/gi, '<b>');
+  s = s.replace(/<\/b>\s*<\/b>/gi, '</b>');
+  s = s.replace(/<i>\s*<i>/gi, '<i>');
+  s = s.replace(/<\/i>\s*<\/i>/gi, '</i>');
   
   // Decode entities commonly inserted by editors
   s = s
