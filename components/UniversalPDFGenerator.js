@@ -42,7 +42,7 @@ export async function generateAccountInstructionsPDF(options) {
         .replace(/<\s*\/ul\s*>/gi, '')  // Remove ul closing tags
         .replace(/<\s*ol[^>]*>/gi, '')  // Remove ol opening tags
         .replace(/<\s*\/ol\s*>/gi, '')  // Remove ol closing tags
-        .replace(/<\s*li\s*>/gi, '    • ')  // Convert li opening to indented bullet
+        .replace(/<\s*li\s*>/gi, '• ')  // Convert li opening to bullet (no extra spaces)
         .replace(/<\s*\/li\s*>/gi, '\n') // Convert li closing to newline
         .replace(/<\s*br\s*\/?>/gi, '\n')
         .replace(/<\s*\/p\s*>/gi, '\n')
@@ -93,8 +93,40 @@ export async function generateAccountInstructionsPDF(options) {
     };
 
     const writeWrapped = (text, width, lineH) => {
-      // Check if text contains HTML tags
-      if (text.includes('<') && text.includes('>')) {
+      // Check if text contains bullet points
+      if (text.includes('• ')) {
+        // Handle bullet points with hanging indents
+        const lines = text.split('\n');
+        lines.forEach((line) => {
+          if (line.trim().startsWith('• ')) {
+            // This is a bullet point line
+            const bulletText = line.trim().substring(2); // Remove "• " prefix
+            const bulletWidth = 20; // Width for "• " (approximately 20 points)
+            const indentWidth = 30; // Additional indent for wrapped lines
+            
+            // Split the text after the bullet
+            const textLines = pdf.splitTextToSize(bulletText, width - bulletWidth - indentWidth);
+            
+            textLines.forEach((textLine, lineIndex) => {
+              checkPageBreak(lineH);
+              if (lineIndex === 0) {
+                // First line: show bullet + text
+                pdf.text('• ', MARGIN_PT, y);
+                pdf.text(textLine, MARGIN_PT + bulletWidth, y);
+              } else {
+                // Wrapped lines: indent to align with text
+                pdf.text(textLine, MARGIN_PT + bulletWidth + indentWidth, y);
+              }
+              y += lineH;
+            });
+          } else if (line.trim()) {
+            // Regular line
+            checkPageBreak(lineH);
+            pdf.text(line, MARGIN_PT, y);
+            y += lineH;
+          }
+        });
+      } else if (text.includes('<') && text.includes('>')) {
         // Parse HTML formatting and apply to PDF
         const parseAndWriteFormattedText = (htmlText, x, width, lineHeight) => {
           let currentX = x;
@@ -799,7 +831,7 @@ function sanitizeBasicHtml(html) {
     .replace(/<\s*\/ul\s*>/gi, '')  // Remove ul closing tags
     .replace(/<\s*ol[^>]*>/gi, '')  // Remove ol opening tags
     .replace(/<\s*\/ol\s*>/gi, '')  // Remove ol closing tags
-    .replace(/<\s*li\s*>/gi, '    • ')  // Convert li opening to indented bullet
+    .replace(/<\s*li\s*>/gi, '• ')  // Convert li opening to bullet (no extra spaces)
     .replace(/<\s*\/li\s*>/gi, '\n') // Convert li closing to newline
     .replace(/<\s*\/p\s*>/gi, '\n')  // Convert p closing to newline
     .replace(/<\s*\/div\s*>/gi, '\n') // Convert div closing to newline
