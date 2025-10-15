@@ -31,6 +31,37 @@ export async function generateAccountInstructionsPDF(options) {
     const { default: jsPDF } = await import('jspdf');
     const pdf = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
 
+    // Convert rich HTML (from editors) to plain text for PDF
+    const htmlToPlain = (html) => {
+      if (!html) return '';
+      let text = String(html);
+      // Normalize line breaks for block boundaries
+      text = text
+        .replace(/<\s*br\s*\/?>/gi, '\n')
+        .replace(/<\s*\/p\s*>/gi, '\n')
+        .replace(/<\s*\/div\s*>/gi, '\n')
+        .replace(/<\s*\/li\s*>/gi, '\n')
+        .replace(/<\s*h[1-6][^>]*>/gi, '')
+        .replace(/<\s*\/h[1-6]\s*>/gi, '\n')
+        .replace(/<\s*ul[^>]*>/gi, '')
+        .replace(/<\s*\/ul\s*>/gi, '\n')
+        .replace(/<\s*ol[^>]*>/gi, '')
+        .replace(/<\s*\/ol\s*>/gi, '\n');
+      // Strip remaining tags
+      text = text.replace(/<[^>]+>/g, '');
+      // Decode common HTML entities
+      text = text
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#039;/g, "'");
+      // Collapse excessive whitespace but keep intentional line breaks
+      text = text.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n');
+      return text.trim();
+    };
+
     // Compute centered header lines
     const headerLines = [
       'MSI Inventory',
@@ -104,10 +135,10 @@ export async function generateAccountInstructionsPDF(options) {
       .concat((Array.isArray(client.inventoryTypes) && client.inventoryTypes.includes('financial') && client.financialPrice) ? [client.financialPrice] : [])
       .join(', ');
     const infoLines = [
-      `Inventory Type: ${inventoryTypeString}`,
+      `Inventory Type: ${htmlToPlain(inventoryTypeString)}`,
       `Updated: ${updatedAt}`,
-      `PIC: ${client.PIC ?? ''}`,
-      `Verification: ${client.verification ?? ''}`,
+      `PIC: ${htmlToPlain(client.PIC ?? '')}`,
+      `Verification: ${htmlToPlain(client.verification ?? '')}`,
     ];
     const lineHeight = 14;
     infoLines.forEach((line) => {
@@ -148,14 +179,14 @@ export async function generateAccountInstructionsPDF(options) {
     pdf.setFontSize(12);
     const { generalText, areaMappingRaw, storePrepRaw } = extractPreInventoryBundle(client.sections);
     const alrIntro = client.ALR ? `• ALR disk is ${client.ALR}.` : '';
-    const combinedPre = [alrIntro, String(generalText || client.preInventory || '').trim()].filter(Boolean).join('\n');
+    const combinedPre = htmlToPlain([alrIntro, String(generalText || client.preInventory || '').trim()].filter(Boolean).join('\n'));
     if (combinedPre) {
       writeWrapped(combinedPre, contentWidth, lineHeight);
       y += 8;
     }
 
     // Area Mapping (wrapped subheading)
-    const areaMapping = String(areaMappingRaw).trim();
+    const areaMapping = htmlToPlain(String(areaMappingRaw).trim());
     if (areaMapping) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
@@ -168,7 +199,7 @@ export async function generateAccountInstructionsPDF(options) {
     }
 
     // Store Prep/Instructions (wrapped subheading)
-    const storePrep = String(storePrepRaw).trim();
+    const storePrep = htmlToPlain(String(storePrepRaw).trim());
     if (storePrep) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
@@ -184,7 +215,7 @@ export async function generateAccountInstructionsPDF(options) {
     y += 20;
 
     // INVENTORY PROCEDURES section (from Inv_Proc)
-    const invProc = String(client.Inv_Proc ?? '').trim();
+    const invProc = htmlToPlain(String(client.Inv_Proc ?? '').trim());
     if (invProc) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
@@ -201,7 +232,7 @@ export async function generateAccountInstructionsPDF(options) {
     y += 20;
 
     // AUDITS section (from Audits)
-    const audits = String(client.Audits ?? '').trim();
+    const audits = htmlToPlain(String(client.Audits ?? '').trim());
     if (audits) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
@@ -215,7 +246,7 @@ export async function generateAccountInstructionsPDF(options) {
     }
 
     // INVENTORY FLOW section (from Inv_Flow)
-    const invFlow = String(client.Inv_Flow ?? '').trim();
+    const invFlow = htmlToPlain(String(client.Inv_Flow ?? '').trim());
     if (invFlow) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
@@ -268,7 +299,7 @@ export async function generateAccountInstructionsPDF(options) {
     }
 
     // PRE-INVENTORY CREW INSTRUCTIONS section (from Team-Instr)
-    const teamInstr = String(client['Team-Instr'] ?? '').trim();
+    const teamInstr = htmlToPlain(String(client['Team-Instr'] ?? '').trim());
     if (teamInstr) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
@@ -285,7 +316,7 @@ export async function generateAccountInstructionsPDF(options) {
     y += 20;
 
     // NON-COUNT PRODUCTS section (from noncount)
-    const noncount = String(client.noncount ?? '').trim();
+    const noncount = htmlToPlain(String(client.noncount ?? '').trim());
     if (noncount) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
@@ -302,10 +333,10 @@ export async function generateAccountInstructionsPDF(options) {
     y += 20;
 
     // REPORTS section
-    const progRep = String(client.Prog_Rep ?? '').trim();
-    const finalize = String(client.Finalize ?? '').trim();
-    const finRep = String(client.Fin_Rep ?? '').trim();
-    const processing = String(client.Processing ?? '').trim();
+    const progRep = htmlToPlain(String(client.Prog_Rep ?? '').trim());
+    const finalize = htmlToPlain(String(client.Finalize ?? '').trim());
+    const finRep = htmlToPlain(String(client.Fin_Rep ?? '').trim());
+    const processing = htmlToPlain(String(client.Processing ?? '').trim());
     
     if (progRep || finalize || finRep || processing) {
       pdf.setFont('helvetica', 'bold');
