@@ -11,13 +11,18 @@ import { RichEditor, RichToolbar, actions } from 'react-native-pell-rich-editor'
 const RichTextEditor = ({ value, onChange }) => {
   const [content, setContent] = useState(value || ''); // Store editor content as HTML
   const editorRef = useRef(null); // Reference to editor
+  const isInternalUpdateRef = useRef(false); // Track updates originating from this editor
 
   // Update content state when value prop changes (source of truth from parent)
   React.useEffect(() => {
     setContent(value || '');
     if (Platform.OS === 'web' && editorRef.current) {
-      // Only set innerHTML when prop changes to avoid resetting cursor on keystrokes
-      editorRef.current.innerHTML = value || '';
+      // If the change came from this editor, don't reset innerHTML to preserve cursor
+      if (isInternalUpdateRef.current) {
+        isInternalUpdateRef.current = false;
+      } else {
+        editorRef.current.innerHTML = value || '';
+      }
     }
   }, [value]);
 
@@ -200,6 +205,8 @@ const RichTextEditor = ({ value, onChange }) => {
               const newContent = e.target.innerHTML;
               if (newContent !== content) {
                 setContent(newContent);
+                // Mark as internal before notifying parent to avoid effect resetting innerHTML
+                isInternalUpdateRef.current = true;
                 onChange && onChange(newContent);
               }
             }}
