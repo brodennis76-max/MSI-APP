@@ -60,6 +60,7 @@ const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
       HBA: { checked: false, number: '' },
     },
   });
+  const [customEntries, setCustomEntries] = useState([]); // [{category,label,number}]
 
   // Custom department inputs
   const [customCategory, setCustomCategory] = useState('');
@@ -83,10 +84,65 @@ const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
       };
       return next;
     });
+    setCustomEntries((prev) => [...prev, { category, label, number }]);
     setCustomCategory('');
     setCustomLabel('');
     setCustomNumber('');
   };
+
+  // Parse saved Departments string into state on mount/edit load
+  React.useEffect(() => {
+    try {
+      const raw = String(clientData?.Departments ?? '').trim();
+      if (!raw) return; // nothing saved
+      const lines = raw.split('\n');
+      let currentCategory = '';
+      const defaults = {
+        Grocery: new Set(['Grocery','Soda','Candy','Snacks','Meat Pick 5','Meat']),
+        General: new Set(['General Merchandise','Novelty','Lottery']),
+        'Frozen Foods': new Set(['Ice Cream','Frozen Food']),
+        Dairy: new Set(['Dairy']),
+        Cigarettes: new Set(['Cigarettes','Other Tobacco (OTP)']),
+        Liquor: new Set(['Beer','Wine','Liquor']),
+        'Health & Beauty': new Set(['HBA'])
+      };
+
+      const next = { ...departments };
+      const parsedCustom = [];
+      for (const ln of lines) {
+        const t = ln.trim();
+        if (!t) continue;
+        if (!t.startsWith('_')) {
+          currentCategory = t.toUpperCase();
+          continue;
+        }
+        // Item line
+        const cleaned = t.replace(/^_\s*/, '');
+        const parts = cleaned.split(/\s+/);
+        if (parts.length < 2) continue;
+        const maybeNum = parts[parts.length - 1];
+        if (!/^\d+(?:-\d+)?$/.test(maybeNum)) continue;
+        const number = maybeNum;
+        const label = parts.slice(0, -1).join(' ').trim();
+        // Ensure category exists (fallback to 'General' if header missing)
+        let cat = currentCategory;
+        if (!cat) cat = 'General';
+        // Normalize cat to match keys in state
+        const matchCat = Object.keys(next).find(k => k.toUpperCase() === cat);
+        cat = matchCat || cat;
+        if (!next[cat]) next[cat] = {};
+        const existsInDefaults = defaults[cat] ? defaults[cat].has(label) : false;
+        next[cat][label] = { checked: true, number };
+        if (!existsInDefaults) parsedCustom.push({ category: cat, label, number });
+      }
+      setDepartments(next);
+      if (parsedCustom.length) setCustomEntries(parsedCustom);
+      setShowDepartments(true);
+    } catch (e) {
+      console.warn('Failed to parse Departments from clientData:', e);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientData?.Departments]);
 
   // Ref for keyboard navigation
   const additionalProceduresRef = React.useRef(null);
@@ -237,6 +293,16 @@ const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
 
           {showDepartments && (
             <View style={styles.departmentsContainer}>
+              {customEntries.length > 0 && (
+                <View style={styles.departmentCategoryBlock}>
+                  <Text style={styles.departmentHeader}>ADDED DEPARTMENTS</Text>
+                  {customEntries.map((entry, idx) => (
+                    <Text key={`${entry.category}-${entry.label}-${idx}`} style={styles.customEntryText}>
+                      {`${entry.number} ${entry.label} (${entry.category})`}
+                    </Text>
+                  ))}
+                </View>
+              )}
               {/* Render all categories in order with checkbox rows */}
               {['Grocery','General','Frozen Foods','Dairy','Cigarettes','Liquor','Health & Beauty'].map((cat) => (
                 <View key={cat} style={styles.departmentCategoryBlock}>
@@ -512,6 +578,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     backgroundColor: '#fff',
+  },
+  customRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  customEntryText: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 4,
   },
   bottomButtonContainer: {
     flexDirection: 'row',
