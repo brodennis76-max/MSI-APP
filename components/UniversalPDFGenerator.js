@@ -93,129 +93,152 @@ export async function generateAccountInstructionsPDF(options) {
     };
 
     const writeWrapped = (text, width, lineH) => {
-      // Parse HTML formatting and apply to PDF
-      const parseAndWriteFormattedText = (htmlText, x, y, width, lineHeight) => {
-        let currentY = y;
-        let currentX = x;
-        
-        // Track active formatting
-        let isBold = false;
-        let isItalic = false;
-        let isUnderline = false;
-        
-        // Simple HTML parser for basic formatting
-        const parts = htmlText.split(/(<[^>]+>)/);
-        
-        for (let i = 0; i < parts.length; i++) {
-          const part = parts[i];
+      // Check if text contains HTML tags
+      if (text.includes('<') && text.includes('>')) {
+        // Parse HTML formatting and apply to PDF
+        const parseAndWriteFormattedText = (htmlText, x, y, width, lineHeight) => {
+          let currentY = y;
+          let currentX = x;
           
-          if (part.startsWith('<')) {
-            // Handle HTML tags
-            if (part.includes('<b>') || part.includes('<strong>')) {
-              isBold = true;
-            } else if (part.includes('</b>') || part.includes('</strong>')) {
-              isBold = false;
-            } else if (part.includes('<i>') || part.includes('<em>')) {
-              isItalic = true;
-            } else if (part.includes('</i>') || part.includes('</em>')) {
-              isItalic = false;
-            } else if (part.includes('<u>')) {
-              isUnderline = true;
-            } else if (part.includes('</u>')) {
-              isUnderline = false;
-            }
-          } else if (part.trim()) {
-            // Determine font style based on active formatting
-            let fontStyle = 'normal';
-            if (isBold && isItalic) {
-              fontStyle = 'bolditalic';
-            } else if (isBold) {
-              fontStyle = 'bold';
-            } else if (isItalic) {
-              fontStyle = 'italic';
-            }
+          // Track active formatting
+          let isBold = false;
+          let isItalic = false;
+          let isUnderline = false;
+          
+          // Simple HTML parser for basic formatting
+          const parts = htmlText.split(/(<[^>]+>)/);
+          
+          for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
             
-            // Render text with current formatting
-            pdf.setFont('helvetica', fontStyle);
-            const lines = pdf.splitTextToSize(part, width - (currentX - MARGIN_PT));
-            
-            lines.forEach((line, lineIndex) => {
-              checkPageBreak(lineHeight);
-              pdf.text(line, currentX, currentY);
-              currentY += lineHeight;
-              if (lineIndex === 0) currentX = MARGIN_PT; // Subsequent lines start at margin
-            });
+            if (part.startsWith('<')) {
+              // Handle HTML tags
+              if (part.includes('<b>') || part.includes('<strong>')) {
+                isBold = true;
+              } else if (part.includes('</b>') || part.includes('</strong>')) {
+                isBold = false;
+              } else if (part.includes('<i>') || part.includes('<em>')) {
+                isItalic = true;
+              } else if (part.includes('</i>') || part.includes('</em>')) {
+                isItalic = false;
+              } else if (part.includes('<u>')) {
+                isUnderline = true;
+              } else if (part.includes('</u>')) {
+                isUnderline = false;
+              }
+            } else if (part.trim()) {
+              // Determine font style based on active formatting
+              let fontStyle = 'normal';
+              if (isBold && isItalic) {
+                fontStyle = 'bolditalic';
+              } else if (isBold) {
+                fontStyle = 'bold';
+              } else if (isItalic) {
+                fontStyle = 'italic';
+              }
+              
+              // Render text with current formatting
+              pdf.setFont('helvetica', fontStyle);
+              const lines = pdf.splitTextToSize(part, width - (currentX - MARGIN_PT));
+              
+              lines.forEach((line, lineIndex) => {
+                checkPageBreak(lineHeight);
+                pdf.text(line, currentX, currentY);
+                currentY += lineHeight;
+                if (lineIndex === 0) currentX = MARGIN_PT; // Subsequent lines start at margin
+              });
+            }
           }
-        }
+          
+          return currentY;
+        };
         
-        return currentY;
-      };
-      
-      const finalY = parseAndWriteFormattedText(text, MARGIN_PT, y, width, lineH);
-      y = finalY;
+        const finalY = parseAndWriteFormattedText(text, MARGIN_PT, y, width, lineH);
+        y = finalY;
+      } else {
+        // Plain text - use original simple approach
+        const lines = pdf.splitTextToSize(text, width);
+        lines.forEach((ln) => {
+          checkPageBreak(lineH);
+          pdf.text(ln, MARGIN_PT, y);
+          y += lineH;
+        });
+      }
     };
 
     const writeWrappedWithIndent = (text, width, lineH, indentPt = 0) => {
-      // Parse HTML formatting and apply to PDF with indentation
-      const parseAndWriteFormattedText = (htmlText, x, y, width, lineHeight, indent) => {
-        let currentY = y;
-        let currentX = x;
-        
-        // Track active formatting
-        let isBold = false;
-        let isItalic = false;
-        let isUnderline = false;
-        
-        // Simple HTML parser for basic formatting
-        const parts = htmlText.split(/(<[^>]+>)/);
-        
-        for (let i = 0; i < parts.length; i++) {
-          const part = parts[i];
+      // Check if text contains HTML tags
+      if (text.includes('<') && text.includes('>')) {
+        // Parse HTML formatting and apply to PDF with indentation
+        const parseAndWriteFormattedText = (htmlText, x, y, width, lineHeight, indent) => {
+          let currentY = y;
+          let currentX = x;
           
-          if (part.startsWith('<')) {
-            // Handle HTML tags
-            if (part.includes('<b>') || part.includes('<strong>')) {
-              isBold = true;
-            } else if (part.includes('</b>') || part.includes('</strong>')) {
-              isBold = false;
-            } else if (part.includes('<i>') || part.includes('<em>')) {
-              isItalic = true;
-            } else if (part.includes('</i>') || part.includes('</em>')) {
-              isItalic = false;
-            } else if (part.includes('<u>')) {
-              isUnderline = true;
-            } else if (part.includes('</u>')) {
-              isUnderline = false;
-            }
-          } else if (part.trim()) {
-            // Determine font style based on active formatting
-            let fontStyle = 'normal';
-            if (isBold && isItalic) {
-              fontStyle = 'bolditalic';
-            } else if (isBold) {
-              fontStyle = 'bold';
-            } else if (isItalic) {
-              fontStyle = 'italic';
-            }
+          // Track active formatting
+          let isBold = false;
+          let isItalic = false;
+          let isUnderline = false;
+          
+          // Simple HTML parser for basic formatting
+          const parts = htmlText.split(/(<[^>]+>)/);
+          
+          for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
             
-            // Render text with current formatting
-            pdf.setFont('helvetica', fontStyle);
-            const lines = pdf.splitTextToSize(part, width - indent);
-            
-            lines.forEach((line, lineIndex) => {
-              checkPageBreak(lineHeight);
-              const xPos = MARGIN_PT + indent;
-              pdf.text(line, xPos, currentY);
-              currentY += lineHeight;
-            });
+            if (part.startsWith('<')) {
+              // Handle HTML tags
+              if (part.includes('<b>') || part.includes('<strong>')) {
+                isBold = true;
+              } else if (part.includes('</b>') || part.includes('</strong>')) {
+                isBold = false;
+              } else if (part.includes('<i>') || part.includes('<em>')) {
+                isItalic = true;
+              } else if (part.includes('</i>') || part.includes('</em>')) {
+                isItalic = false;
+              } else if (part.includes('<u>')) {
+                isUnderline = true;
+              } else if (part.includes('</u>')) {
+                isUnderline = false;
+              }
+            } else if (part.trim()) {
+              // Determine font style based on active formatting
+              let fontStyle = 'normal';
+              if (isBold && isItalic) {
+                fontStyle = 'bolditalic';
+              } else if (isBold) {
+                fontStyle = 'bold';
+              } else if (isItalic) {
+                fontStyle = 'italic';
+              }
+              
+              // Render text with current formatting
+              pdf.setFont('helvetica', fontStyle);
+              const lines = pdf.splitTextToSize(part, width - indent);
+              
+              lines.forEach((line, lineIndex) => {
+                checkPageBreak(lineHeight);
+                const xPos = MARGIN_PT + indent;
+                pdf.text(line, xPos, currentY);
+                currentY += lineHeight;
+              });
+            }
           }
-        }
+          
+          return currentY;
+        };
         
-        return currentY;
-      };
-      
-      const finalY = parseAndWriteFormattedText(text, MARGIN_PT + indentPt, y, width, lineH, indentPt);
-      y = finalY;
+        const finalY = parseAndWriteFormattedText(text, MARGIN_PT + indentPt, y, width, lineH, indentPt);
+        y = finalY;
+      } else {
+        // Plain text - use original simple approach
+        const lines = pdf.splitTextToSize(text, width - indentPt);
+        lines.forEach((ln, index) => {
+          checkPageBreak(lineH);
+          const xPos = MARGIN_PT + indentPt;
+          pdf.text(ln, xPos, y);
+          y += lineH;
+        });
+      }
     };
 
     headerLines.forEach((text, i) => {
