@@ -254,7 +254,30 @@ export async function generateAccountInstructionsPDF(options) {
 
       const items = parseDepartmentItems(rawDepartments);
       if (items.length > 0) {
-        const formatted = items.map(i => `${i.dept} ${i.label}`).join('\n');
+        // Include category label after em dash if discoverable from original text
+        // Heuristic: scan back for nearest uppercase header preceding the line in raw text
+        const addCategoryIfAvailable = (itemsList) => {
+          // Build a map of item label -> category by walking the raw lines
+          const categoryMap = {};
+          let currentCategory = '';
+          const lines = rawDepartments.split('\n');
+          for (const ln of lines) {
+            const t = ln.trim();
+            if (!t) continue;
+            if (!t.startsWith('_')) {
+              currentCategory = t.toUpperCase();
+            } else {
+              const label = t.replace(/^_\s*/, '').replace(/\s+\d+(?:-\d+)?$/, '').trim().toUpperCase();
+              if (label) categoryMap[label] = currentCategory;
+            }
+          }
+          return itemsList.map(i => {
+            const cat = categoryMap[i.label];
+            return cat ? `${i.dept} ${i.label} — ${cat}` : `${i.dept} ${i.label}`;
+          });
+        };
+
+        const formatted = addCategoryIfAvailable(items).join('\n');
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(16);
         checkPageBreakWithContent(18, 50);
@@ -518,7 +541,23 @@ function buildHtml(client) {
           }, []);
           if (!items.length) return '';
           items.sort((a, b) => a.dept - b.dept);
-          const formatted = items.map(i => `${i.dept} ${i.label}`).join('\n');
+          // Map label -> category by scanning raw text
+          const categoryMap = (() => {
+            const map = {};
+            let current = '';
+            raw.split('\n').forEach(ln => {
+              const t = ln.trim();
+              if (!t) return;
+              if (!t.startsWith('_')) {
+                current = t.toUpperCase();
+              } else {
+                const label = t.replace(/^_\s*/, '').replace(/\s+\d+(?:-\d+)?$/, '').trim().toUpperCase();
+                if (label) map[label] = current;
+              }
+            });
+            return map;
+          })();
+          const formatted = items.map(i => categoryMap[i.label] ? `${i.dept} ${i.label} — ${categoryMap[i.label]}` : `${i.dept} ${i.label}`).join('\n');
           return `
             <div class="section">
               <div class="section-title">Departments</div>

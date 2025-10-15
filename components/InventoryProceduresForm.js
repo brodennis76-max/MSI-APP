@@ -39,6 +39,33 @@ const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
     'Health & Beauty': {},
   });
 
+  // Custom department inputs
+  const [customCategory, setCustomCategory] = useState('');
+  const [customLabel, setCustomLabel] = useState('');
+  const [customNumber, setCustomNumber] = useState('');
+
+  const handleAddCustomDepartment = () => {
+    const category = (customCategory || '').trim();
+    const label = (customLabel || '').trim();
+    const number = (customNumber || '').trim();
+    if (!category || !label || !number) {
+      Alert.alert('Missing info', 'Please enter Category, Department and Number.');
+      return;
+    }
+    setDepartments((prev) => {
+      const next = { ...prev };
+      if (!next[category]) next[category] = {};
+      next[category] = {
+        ...next[category],
+        [label]: { checked: true, number }
+      };
+      return next;
+    });
+    setCustomCategory('');
+    setCustomLabel('');
+    setCustomNumber('');
+  };
+
   // Ref for keyboard navigation
   const additionalProceduresRef = React.useRef(null);
 
@@ -96,28 +123,20 @@ const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
       // Build Departments string if any selection present
       const buildDepartmentsString = () => {
         const lines = [];
-        // Ordering per spec
-        const order = ['Grocery','Perishable','Frozen Foods','Dairy','General Merchandise','Health & Beauty','Cigarettes','Liquor'];
-        for (const category of order) {
+        // Include only categories with at least one checked item
+        const categories = Object.keys(departments);
+        for (const category of categories) {
           const items = departments[category];
-          if (!items) continue;
-          const itemKeys = Object.keys(items);
-          // If category has no sub-items, just show header (display only) if toggled on
-          if (itemKeys.length === 0) {
-            lines.push(`${category.toUpperCase()}`);
-            continue;
-          }
-          // Category with sub-items - only include if any checked
-          const anyChecked = itemKeys.some(k => items[k].checked);
+          if (!items || Object.keys(items).length === 0) continue;
+          const anyChecked = Object.keys(items).some(k => items[k].checked);
           if (!anyChecked) continue;
           lines.push(`${category.toUpperCase()}`);
-          for (const key of itemKeys) {
+          for (const key of Object.keys(items)) {
             const { checked, number } = items[key];
             if (!checked) continue;
-            // Use underscore prefix as a checkbox line and space for number entry
             lines.push(`_ ${key} ${number ?? ''}`.trim());
           }
-          lines.push(''); // spacing line between categories
+          lines.push('');
         }
         return lines.join('\n').trim();
       };
@@ -273,6 +292,37 @@ const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
                     </View>
                   );
                 })}
+              </View>
+
+              {/* Custom department entry */}
+              <View style={styles.departmentCategoryBlock}>
+                <Text style={styles.departmentHeader}>ADD OTHER DEPARTMENT</Text>
+                <View style={styles.customRow}>
+                  <TextInput
+                    style={[styles.departmentNumberInput, { flex: 1 }]}
+                    placeholder="Category (e.g., Cigarettes)"
+                    value={customCategory}
+                    onChangeText={setCustomCategory}
+                  />
+                </View>
+                <View style={styles.customRow}>
+                  <TextInput
+                    style={[styles.departmentNumberInput, { flex: 1 }]}
+                    placeholder="Department (e.g., Beer)"
+                    value={customLabel}
+                    onChangeText={setCustomLabel}
+                  />
+                  <TextInput
+                    style={[styles.departmentNumberInput, { width: 120, marginLeft: 8 }]}
+                    placeholder="Number"
+                    keyboardType="number-pad"
+                    value={customNumber}
+                    onChangeText={setCustomNumber}
+                  />
+                </View>
+                <TouchableOpacity style={[styles.toggleButton, styles.toggleOn]} onPress={handleAddCustomDepartment}>
+                  <Text style={styles.toggleButtonText}>Add Department</Text>
+                </TouchableOpacity>
               </View>
             </View>
           )}
