@@ -71,6 +71,20 @@ export async function generateAccountInstructionsPDF(options) {
         .replace(/&quot;/g, '"')
         .replace(/&#039;/g, "'");
       
+      // Clean up problematic characters that can prevent wrapping
+      text = text
+        .replace(/\u00A0/g, ' ')  // Non-breaking spaces
+        .replace(/\u200B/g, '')   // Zero-width spaces
+        .replace(/\u200C/g, '')   // Zero-width non-joiner
+        .replace(/\u200D/g, '')   // Zero-width joiner
+        .replace(/\uFEFF/g, '')   // Zero-width no-break space
+        .replace(/[\u2000-\u200F]/g, ' ')  // Various space characters
+        .replace(/[\u2028-\u202F]/g, ' ')  // Line/paragraph separators
+        .replace(/[\u2060-\u206F]/g, '')   // Word joiner and other invisible chars
+        .replace(/\s+/g, ' ')              // Multiple spaces to single space
+        .replace(/\n\s+/g, '\n')           // Remove leading spaces from lines
+        .replace(/\s+\n/g, '\n');          // Remove trailing spaces from lines
+      
       // Collapse excessive whitespace but keep intentional line breaks
       text = text.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n');
       
@@ -219,7 +233,17 @@ export async function generateAccountInstructionsPDF(options) {
       } else {
         // Plain text - use original simple approach
         console.log('🔍 Plain text wrapping - width:', width, 'text length:', text.length);
-        const lines = pdf.splitTextToSize(text, width);
+        console.log('🔍 Text sample:', text.substring(0, 100) + '...');
+        
+        // Clean the text before splitting
+        const cleanText = text
+          .replace(/\u00A0/g, ' ')  // Non-breaking spaces
+          .replace(/\u200B/g, '')   // Zero-width spaces
+          .replace(/\s+/g, ' ')     // Multiple spaces to single
+          .trim();
+        
+        console.log('🔍 Clean text length:', cleanText.length);
+        const lines = pdf.splitTextToSize(cleanText, width);
         console.log('🔍 Split into lines:', lines.length, 'lines');
         lines.forEach((ln, index) => {
           checkPageBreak(lineH);
@@ -895,6 +919,20 @@ function sanitizeBasicHtml(html) {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#039;/g, "'");
+  
+  // Clean up problematic characters that can prevent wrapping
+  s = s
+    .replace(/\u00A0/g, ' ')  // Non-breaking spaces
+    .replace(/\u200B/g, '')   // Zero-width spaces
+    .replace(/\u200C/g, '')   // Zero-width non-joiner
+    .replace(/\u200D/g, '')   // Zero-width joiner
+    .replace(/\uFEFF/g, '')   // Zero-width no-break space
+    .replace(/[\u2000-\u200F]/g, ' ')  // Various space characters
+    .replace(/[\u2028-\u202F]/g, ' ')  // Line/paragraph separators
+    .replace(/[\u2060-\u206F]/g, '')   // Word joiner and other invisible chars
+    .replace(/\s+/g, ' ')              // Multiple spaces to single space
+    .replace(/\n\s+/g, '\n')           // Remove leading spaces from lines
+    .replace(/\s+\n/g, '\n');          // Remove trailing spaces from lines
   
   // Collapse extra blank lines
   s = s.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n');
