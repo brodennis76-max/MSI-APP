@@ -450,12 +450,12 @@ function buildHtml(client) {
         <div class="section">
           <div class="section-title">Client Information</div>
           <div class="info">
-            <p><strong>Inventory Type:</strong> ${escapeHtml(((Array.isArray(client.inventoryTypes) ? client.inventoryTypes : (client.inventoryType ? [client.inventoryType] : []))
+            <p><strong>Inventory Type:</strong> ${sanitizeBasicHtml(((Array.isArray(client.inventoryTypes) ? client.inventoryTypes : (client.inventoryType ? [client.inventoryType] : []))
               .concat((Array.isArray(client.inventoryTypes) && client.inventoryTypes.includes('financial') && client.financialPrice) ? [client.financialPrice] : [])
             ).join(', '))}</p>
             <p><strong>Updated:</strong> ${escapeHtml(updatedAt)}</p>
-            <p><strong>PIC:</strong> ${escapeHtml(client.PIC ?? '')}</p>
-            <p><strong>Verification:</strong> ${escapeHtml(client.verification ?? '')}</p>
+            <p><strong>PIC:</strong> ${sanitizeBasicHtml(client.PIC ?? '')}</p>
+            <p><strong>Verification:</strong> ${sanitizeBasicHtml(client.verification ?? '')}</p>
           </div>
           <div class="notice">"If you are going to be more than 5 minutes late to a store you must contact the store BEFORE you are late. NO EXCEPTIONS!!!"</div>
         </div>
@@ -463,18 +463,18 @@ function buildHtml(client) {
         <div class="section">
           <div class="section-title">Pre-Inventory</div>
           <div class="info" style="margin-top:8px;">
-            <p style="white-space:pre-wrap;">${escapeHtml(preInv)}</p>
+            <p style="white-space:pre-wrap;">${sanitizeBasicHtml(preInv)}</p>
           </div>
           ${areaMapping ? `
               <div class="subsection" style="margin-top:8px;">
                 <div class="section-title" style="font-size:14px;">Area Mapping</div>
-                <div class="info"><p style="white-space:pre-wrap;">${escapeHtml(areaMapping)}</p></div>
+                <div class="info"><p style="white-space:pre-wrap;">${sanitizeBasicHtml(areaMapping)}</p></div>
               </div>
             ` : ''}
           ${storePrep ? `
               <div class="subsection" style="margin-top:8px;">
                 <div class="section-title" style="font-size:14px;">Store Prep/Instructions</div>
-                <div class="info"><p style="white-space:pre-wrap;">${escapeHtml(storePrep)}</p></div>
+                <div class="info"><p style="white-space:pre-wrap;">${sanitizeBasicHtml(storePrep)}</p></div>
               </div>
             ` : ''}
         </div>
@@ -486,7 +486,7 @@ function buildHtml(client) {
             <div class="section">
               <div class="section-title">INVENTORY PROCEDURES</div>
               <div class="info" style="margin-top:8px;">
-                <p style="white-space:pre-wrap;">${escapeHtml(invProc)}</p>
+                <p style="white-space:pre-wrap;">${sanitizeBasicHtml(invProc)}</p>
               </div>
             </div>
           `;
@@ -499,7 +499,7 @@ function buildHtml(client) {
             <div class="section">
               <div class="section-title">Audits</div>
               <div class="info" style="margin-top:8px;">
-                <p style="white-space:pre-wrap;">${escapeHtml(audits)}</p>
+                <p style="white-space:pre-wrap;">${sanitizeBasicHtml(audits)}</p>
               </div>
             </div>
           `;
@@ -512,7 +512,7 @@ function buildHtml(client) {
             <div class="section">
               <div class="section-title">Inventory Flow</div>
               <div class="info" style="margin-top:8px;">
-                <p style="white-space:pre-wrap;">${escapeHtml(invFlow)}</p>
+                <p style="white-space:pre-wrap;">${sanitizeBasicHtml(invFlow)}</p>
               </div>
             </div>
           `;
@@ -567,7 +567,7 @@ function buildHtml(client) {
             <div class="section">
               <div class="section-title">Pre-Inventory Crew Instructions</div>
               <div class="info" style="margin-top:8px;">
-                <p style="white-space:pre-wrap;">${escapeHtml(teamInstr)}</p>
+                <p style="white-space:pre-wrap;">${sanitizeBasicHtml(teamInstr)}</p>
               </div>
             </div>
           `;
@@ -580,7 +580,7 @@ function buildHtml(client) {
             <div class="section">
               <div class="section-title">Non-Count Products</div>
               <div class="info" style="margin-top:8px;">
-                <p style="white-space:pre-wrap;">${escapeHtml(noncount)}</p>
+                <p style="white-space:pre-wrap;">${sanitizeBasicHtml(noncount)}</p>
               </div>
             </div>
           `;
@@ -601,25 +601,25 @@ function buildHtml(client) {
                 ${progRep ? `
                   <div class="subsection" style="margin-top:8px;">
                     <div class="section-title" style="font-size:14px;">Progressives:</div>
-                    <div class="info"><p style="white-space:pre-wrap;">${escapeHtml(progRep)}</p></div>
+                    <div class="info"><p style="white-space:pre-wrap;">${sanitizeBasicHtml(progRep)}</p></div>
                   </div>
                 ` : ''}
                 ${finalize ? `
                   <div class="subsection" style="margin-top:8px;">
                     <div class="section-title" style="font-size:14px;">Finalizing the Count:</div>
-                    <div class="info"><p style="white-space:pre-wrap;">${escapeHtml(finalize)}</p></div>
+                    <div class="info"><p style="white-space:pre-wrap;">${sanitizeBasicHtml(finalize)}</p></div>
                   </div>
                 ` : ''}
                 ${finRep ? `
                   <div class="subsection" style="margin-top:8px;">
                     <div class="section-title" style="font-size:14px;">Final Reports:</div>
-                    <div class="info"><p style="white-space:pre-wrap;">${escapeHtml(finRep)}</p></div>
+                    <div class="info"><p style="white-space:pre-wrap;">${sanitizeBasicHtml(finRep)}</p></div>
                   </div>
                 ` : ''}
                 ${processing ? `
                   <div class="subsection" style="margin-top:8px;">
                     <div class="section-title" style="font-size:14px;">Final Processing:</div>
-                    <div class="info"><p style="white-space:pre-wrap;">${escapeHtml(processing)}</p></div>
+                    <div class="info"><p style="white-space:pre-wrap;">${sanitizeBasicHtml(processing)}</p></div>
                   </div>
                 ` : ''}
               </div>
@@ -634,7 +634,7 @@ function buildHtml(client) {
             <div class="section">
               <div class="section-title">Additional Notes</div>
               <div class="info" style="margin-top:8px;">
-                <p style="white-space:pre-wrap;">${escapeHtml(additionalNotes)}</p>
+                <p style="white-space:pre-wrap;">${sanitizeBasicHtml(additionalNotes)}</p>
               </div>
             </div>
           `;
@@ -651,6 +651,32 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+// Allow only very basic inline formatting (b, strong, i, em, u, br) and convert block elements to line breaks
+function sanitizeBasicHtml(html) {
+  if (!html) return '';
+  let s = String(html);
+  // Replace block closers with line breaks
+  s = s
+    .replace(/<\s*\/p\s*>/gi, '\n')
+    .replace(/<\s*\/div\s*>/gi, '\n')
+    .replace(/<\s*li\s*>/gi, '')
+    .replace(/<\s*\/li\s*>/gi, '\n')
+    .replace(/<\s*br\s*\/?>/gi, '<br>');
+  // Strip disallowed tags, keep b/strong/i/em/u/br
+  s = s.replace(/<(?!\/?(b|strong|i|em|u|br)\b)[^>]*>/gi, '');
+  // Decode entities commonly inserted by editors
+  s = s
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'");
+  // Collapse extra blank lines
+  s = s.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n');
+  return s.trim();
 }
 
 export default function UniversalPDFGenerator() {
