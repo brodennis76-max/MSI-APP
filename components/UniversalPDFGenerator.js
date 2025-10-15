@@ -143,8 +143,8 @@ export async function generateAccountInstructionsPDF(options) {
               
               lines.forEach((line, lineIndex) => {
                 checkPageBreak(lineHeight);
-                pdf.text(line, currentX, currentY);
-                currentY += lineHeight;
+                pdf.text(line, currentX, y);
+                y += lineHeight;
                 if (lineIndex === 0) currentX = MARGIN_PT; // Subsequent lines start at margin
               });
             }
@@ -218,8 +218,8 @@ export async function generateAccountInstructionsPDF(options) {
               lines.forEach((line, lineIndex) => {
                 checkPageBreak(lineHeight);
                 const xPos = MARGIN_PT + indent;
-                pdf.text(line, xPos, currentY);
-                currentY += lineHeight;
+                pdf.text(line, xPos, y);
+                y += lineHeight;
               });
             }
           }
