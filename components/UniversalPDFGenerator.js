@@ -71,19 +71,6 @@ export async function generateAccountInstructionsPDF(options) {
         .replace(/&quot;/g, '"')
         .replace(/&#039;/g, "'");
       
-      // Clean up problematic characters that can prevent wrapping
-      text = text
-        .replace(/\u00A0/g, ' ')  // Non-breaking spaces
-        .replace(/\u200B/g, '')   // Zero-width spaces
-        .replace(/\u200C/g, '')   // Zero-width non-joiner
-        .replace(/\u200D/g, '')   // Zero-width joiner
-        .replace(/\uFEFF/g, '')   // Zero-width no-break space
-        .replace(/[\u2000-\u200F]/g, ' ')  // Various space characters
-        .replace(/[\u2028-\u202F]/g, ' ')  // Line/paragraph separators
-        .replace(/[\u2060-\u206F]/g, '')   // Word joiner and other invisible chars
-        .replace(/\s+/g, ' ')              // Multiple spaces to single space
-        .replace(/\n\s+/g, '\n')           // Remove leading spaces from lines
-        .replace(/\s+\n/g, '\n');          // Remove trailing spaces from lines
       
       // Collapse excessive whitespace but keep intentional line breaks
       text = text.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n');
@@ -235,15 +222,10 @@ export async function generateAccountInstructionsPDF(options) {
         console.log('🔍 Plain text wrapping - width:', width, 'text length:', text.length);
         console.log('🔍 Text sample:', text.substring(0, 100) + '...');
         
-        // Clean the text before splitting
-        const cleanText = text
-          .replace(/\u00A0/g, ' ')  // Non-breaking spaces
-          .replace(/\u200B/g, '')   // Zero-width spaces
-          .replace(/\s+/g, ' ')     // Multiple spaces to single
-          .trim();
-        
-        console.log('🔍 Clean text length:', cleanText.length);
-        const lines = pdf.splitTextToSize(cleanText, width);
+        // Try a more conservative width to ensure wrapping works
+        const safeWidth = Math.min(width, 400); // Cap at 400 points to ensure wrapping
+        console.log('🔍 Using safe width:', safeWidth, 'instead of', width);
+        const lines = pdf.splitTextToSize(text, safeWidth);
         console.log('🔍 Split into lines:', lines.length, 'lines');
         lines.forEach((ln, index) => {
           checkPageBreak(lineH);
@@ -348,6 +330,7 @@ export async function generateAccountInstructionsPDF(options) {
 
     // Client Information section
     const contentWidth = PAGE_WIDTH_PT - (2 * MARGIN_PT);
+    console.log('🔍 Content width calculation:', PAGE_WIDTH_PT, '- (2 *', MARGIN_PT, ') =', contentWidth);
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(16);
     checkPageBreakWithContent(20, 100); // Ensure header stays with content
@@ -920,19 +903,6 @@ function sanitizeBasicHtml(html) {
     .replace(/&quot;/g, '"')
     .replace(/&#039;/g, "'");
   
-  // Clean up problematic characters that can prevent wrapping
-  s = s
-    .replace(/\u00A0/g, ' ')  // Non-breaking spaces
-    .replace(/\u200B/g, '')   // Zero-width spaces
-    .replace(/\u200C/g, '')   // Zero-width non-joiner
-    .replace(/\u200D/g, '')   // Zero-width joiner
-    .replace(/\uFEFF/g, '')   // Zero-width no-break space
-    .replace(/[\u2000-\u200F]/g, ' ')  // Various space characters
-    .replace(/[\u2028-\u202F]/g, ' ')  // Line/paragraph separators
-    .replace(/[\u2060-\u206F]/g, '')   // Word joiner and other invisible chars
-    .replace(/\s+/g, ' ')              // Multiple spaces to single space
-    .replace(/\n\s+/g, '\n')           // Remove leading spaces from lines
-    .replace(/\s+\n/g, '\n');          // Remove trailing spaces from lines
   
   // Collapse extra blank lines
   s = s.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n');
