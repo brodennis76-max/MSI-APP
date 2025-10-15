@@ -50,8 +50,8 @@ export async function generateAccountInstructionsPDF(options) {
         .replace(/<\s*h[1-6][^>]*>/gi, '')
         .replace(/<\s*\/h[1-6]\s*>/gi, '\n');
       
-      // Strip remaining tags
-      text = text.replace(/<[^>]+>/g, '');
+      // Strip disallowed tags, keep b/strong/i/em/u/br
+      text = text.replace(/<(?!\/?(b|strong|i|em|u|br)\b)[^>]*>/gi, '');
       
       // Decode common HTML entities
       text = text
