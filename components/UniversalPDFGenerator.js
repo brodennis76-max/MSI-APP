@@ -360,18 +360,6 @@ export async function generateAccountInstructionsPDF(options) {
         y += 12;
       }
       
-      // Finalizing the Count subsection
-      if (finalize) {
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(14);
-        writeWrapped('Finalizing the Count:', contentWidth, 16);
-        y += 0;
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(12);
-        writeWrapped(finalize, contentWidth, lineHeight);
-        y += 12;
-      }
-      
       // Final Reports subsection
       if (finRep) {
         pdf.setFont('helvetica', 'bold');
@@ -381,6 +369,18 @@ export async function generateAccountInstructionsPDF(options) {
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(12);
         writeWrapped(finRep, contentWidth, lineHeight);
+        y += 12;
+      }
+      
+      // Finalizing the Count subsection (moved after Final Reports)
+      if (finalize) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(14);
+        writeWrapped('Finalizing the Count:', contentWidth, 16);
+        y += 0;
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(12);
+        writeWrapped(finalize, contentWidth, lineHeight);
         y += 12;
       }
       
@@ -604,16 +604,16 @@ function buildHtml(client) {
                     <div class="info"><p style="white-space:pre-wrap;">${sanitizeBasicHtml(progRep)}</p></div>
                   </div>
                 ` : ''}
-                ${finalize ? `
-                  <div class="subsection" style="margin-top:8px;">
-                    <div class="section-title" style="font-size:14px;">Finalizing the Count:</div>
-                    <div class="info"><p style="white-space:pre-wrap;">${sanitizeBasicHtml(finalize)}</p></div>
-                  </div>
-                ` : ''}
                 ${finRep ? `
                   <div class="subsection" style="margin-top:8px;">
                     <div class="section-title" style="font-size:14px;">Final Reports:</div>
                     <div class="info"><p style="white-space:pre-wrap;">${sanitizeBasicHtml(finRep)}</p></div>
+                  </div>
+                ` : ''}
+                ${finalize ? `
+                  <div class="subsection" style="margin-top:8px;">
+                    <div class="section-title" style="font-size:14px;">Finalizing the Count:</div>
+                    <div class="info"><p style="white-space:pre-wrap;">${sanitizeBasicHtml(finalize)}</p></div>
                   </div>
                 ` : ''}
                 ${processing ? `
