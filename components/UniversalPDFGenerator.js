@@ -228,6 +228,45 @@ export async function generateAccountInstructionsPDF(options) {
       y += 12;
     }
 
+    // Double space before next section
+    y += 20;
+
+    // DEPARTMENTS section (formatted as "DeptNo CATEGORY")
+    const rawDepartments = String(client.Departments ?? '').trim();
+    if (rawDepartments) {
+      const formatDepartmentsLines = (text) => {
+        const lines = String(text).split('\n');
+        return lines.map((ln) => {
+          const t = ln.trim();
+          if (t.startsWith('_')) {
+            // pattern: _ Label [DeptNo]
+            // take trailing number tokens as dept number; rest as label
+            const parts = t.replace(/^_\s*/, '').split(/\s+/);
+            if (parts.length === 0) return '';
+            const maybeNum = parts[parts.length - 1];
+            const hasNum = /^\d+(-\d+)?$/.test(maybeNum);
+            const label = (hasNum ? parts.slice(0, -1) : parts).join(' ').toUpperCase();
+            const dept = hasNum ? maybeNum : '';
+            return dept ? `${dept} ${label}` : label;
+          }
+          // Category headers - force uppercase
+          return t.toUpperCase();
+        }).join('\n');
+      };
+
+      const formattedDepartments = formatDepartmentsLines(rawDepartments);
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(16);
+      checkPageBreakWithContent(18, 50);
+      writeWrapped('Departments', contentWidth, 18);
+      y += 2;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(12);
+      writeWrapped(formattedDepartments, contentWidth, lineHeight);
+      y += 12;
+    }
+
     // PRE-INVENTORY CREW INSTRUCTIONS section (from Team-Instr)
     const teamInstr = String(client['Team-Instr'] ?? '').trim();
     if (teamInstr) {
@@ -462,13 +501,26 @@ function buildHtml(client) {
         })()}
 
         ${(() => {
-          const departments = String(client.Departments ?? '').trim();
-          if (!departments) return '';
+          const raw = String(client.Departments ?? '').trim();
+          if (!raw) return '';
+          const formatted = raw.split('\n').map(ln => {
+            const t = ln.trim();
+            if (t.startsWith('_')) {
+              const parts = t.replace(/^_\s*/, '').split(/\s+/);
+              if (parts.length === 0) return '';
+              const maybeNum = parts[parts.length - 1];
+              const hasNum = /^\d+(-\d+)?$/.test(maybeNum);
+              const label = (hasNum ? parts.slice(0, -1) : parts).join(' ').toUpperCase();
+              const dept = hasNum ? maybeNum : '';
+              return dept ? `${dept} ${label}` : label;
+            }
+            return t.toUpperCase();
+          }).join('\n');
           return `
             <div class="section">
               <div class="section-title">Departments</div>
               <div class="info" style="margin-top:8px;">
-                <p style="white-space:pre-wrap;">${escapeHtml(departments)}</p>
+                <p style="white-space:pre-wrap;">${escapeHtml(formatted)}</p>
               </div>
             </div>
           `;

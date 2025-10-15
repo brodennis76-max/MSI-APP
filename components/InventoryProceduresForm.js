@@ -18,6 +18,26 @@ import RichTextEditor from './RichTextEditor';
 const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
   const [additionalProcedures, setAdditionalProcedures] = useState('');
+  const [showDepartments, setShowDepartments] = useState(false);
+  const [departments, setDepartments] = useState({
+    // Only Cigarettes and Liquor have sub-items for now per spec
+    Cigarettes: {
+      Cigarettes: { checked: false, number: '' },
+      'Other Tobacco (OTP)': { checked: false, number: '' },
+    },
+    Liquor: {
+      Beer: { checked: false, number: '' },
+      Wine: { checked: false, number: '' },
+      Liquor: { checked: false, number: '' },
+    },
+    // Category headers without sub-items included for display only
+    Grocery: {},
+    Perishable: {},
+    'Frozen Foods': {},
+    Dairy: {},
+    'General Merchandise': {},
+    'Health & Beauty': {},
+  });
 
   // Ref for keyboard navigation
   const additionalProceduresRef = React.useRef(null);
@@ -73,9 +93,40 @@ const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
         ...(additionalProcedures.trim() ? [additionalProcedures] : [])
       ].join('\n\n');
       
+      // Build Departments string if any selection present
+      const buildDepartmentsString = () => {
+        const lines = [];
+        // Ordering per spec
+        const order = ['Grocery','Perishable','Frozen Foods','Dairy','General Merchandise','Health & Beauty','Cigarettes','Liquor'];
+        for (const category of order) {
+          const items = departments[category];
+          if (!items) continue;
+          const itemKeys = Object.keys(items);
+          // If category has no sub-items, just show header (display only) if toggled on
+          if (itemKeys.length === 0) {
+            lines.push(`${category.toUpperCase()}`);
+            continue;
+          }
+          // Category with sub-items - only include if any checked
+          const anyChecked = itemKeys.some(k => items[k].checked);
+          if (!anyChecked) continue;
+          lines.push(`${category.toUpperCase()}`);
+          for (const key of itemKeys) {
+            const { checked, number } = items[key];
+            if (!checked) continue;
+            // Use underscore prefix as a checkbox line and space for number entry
+            lines.push(`_ ${key} ${number ?? ''}`.trim());
+          }
+          lines.push(''); // spacing line between categories
+        }
+        return lines.join('\n').trim();
+      };
+      const departmentsString = showDepartments ? buildDepartmentsString() : (clientData.Departments || '');
+
       // Update the client with inventory procedures
       await updateDoc(clientRef, {
         Inv_Proc: combinedProcedures,
+        Departments: departmentsString,
         updatedAt: new Date(),
       });
 
@@ -133,6 +184,98 @@ const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
               </Text>
             ))}
           </View>
+
+          <View style={{ marginTop: 10 }}>
+            <TouchableOpacity 
+              style={[styles.toggleButton, showDepartments ? styles.toggleOn : styles.toggleOff]}
+              onPress={() => setShowDepartments(!showDepartments)}
+            >
+              <Text style={styles.toggleButtonText}>{showDepartments ? 'Hide Departments' : 'Add Departments'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {showDepartments && (
+            <View style={styles.departmentsContainer}>
+              {/* Category headers without inputs */}
+              {['Grocery','Perishable','Frozen Foods','Dairy','General Merchandise','Health & Beauty'].map((cat) => (
+                <View key={cat} style={styles.departmentCategoryBlock}>
+                  <Text style={styles.departmentHeader}>{cat.toUpperCase()}</Text>
+                </View>
+              ))}
+
+              {/* Cigarettes */}
+              <View style={styles.departmentCategoryBlock}>
+                <Text style={styles.departmentHeader}>CIGARETTES</Text>
+                {Object.keys(departments.Cigarettes).map((item) => {
+                  const { checked, number } = departments.Cigarettes[item];
+                  return (
+                    <View key={item} style={styles.departmentItemRow}>
+                      <TouchableOpacity
+                        style={[styles.checkbox, checked && styles.checkboxChecked]}
+                        onPress={() => setDepartments({
+                          ...departments,
+                          Cigarettes: {
+                            ...departments.Cigarettes,
+                            [item]: { checked: !checked, number }
+                          }
+                        })}
+                      />
+                      <Text style={styles.departmentItemLabel}>{item}</Text>
+                      <TextInput
+                        style={styles.departmentNumberInput}
+                        placeholder="Dept #"
+                        keyboardType="default"
+                        value={number}
+                        onChangeText={(text) => setDepartments({
+                          ...departments,
+                          Cigarettes: {
+                            ...departments.Cigarettes,
+                            [item]: { checked, number: text }
+                          }
+                        })}
+                      />
+                    </View>
+                  );
+                })}
+              </View>
+
+              {/* Liquor */}
+              <View style={styles.departmentCategoryBlock}>
+                <Text style={styles.departmentHeader}>LIQUOR</Text>
+                {Object.keys(departments.Liquor).map((item) => {
+                  const { checked, number } = departments.Liquor[item];
+                  return (
+                    <View key={item} style={styles.departmentItemRow}>
+                      <TouchableOpacity
+                        style={[styles.checkbox, checked && styles.checkboxChecked]}
+                        onPress={() => setDepartments({
+                          ...departments,
+                          Liquor: {
+                            ...departments.Liquor,
+                            [item]: { checked: !checked, number }
+                          }
+                        })}
+                      />
+                      <Text style={styles.departmentItemLabel}>{item}</Text>
+                      <TextInput
+                        style={styles.departmentNumberInput}
+                        placeholder="Dept #"
+                        keyboardType="default"
+                        value={number}
+                        onChangeText={(text) => setDepartments({
+                          ...departments,
+                          Liquor: {
+                            ...departments.Liquor,
+                            [item]: { checked, number: text }
+                          }
+                        })}
+                      />
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )}
 
           <Text style={styles.label}>Additional Procedures (Optional)</Text>
           <Text style={styles.helperText}>Enter any additional procedures specific to this client. Each procedure on a new line - bullet points will be added automatically.</Text>
@@ -272,6 +415,72 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     textAlignVertical: 'top',
     minHeight: 120,
+  },
+  toggleButton: {
+    marginTop: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  toggleOn: {
+    backgroundColor: '#007AFF',
+  },
+  toggleOff: {
+    backgroundColor: '#6c757d',
+  },
+  toggleButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  departmentsContainer: {
+    marginTop: 16,
+    backgroundColor: '#f9fbff',
+    borderWidth: 1,
+    borderColor: '#e0e7ff',
+    borderRadius: 8,
+    padding: 12,
+  },
+  departmentCategoryBlock: {
+    marginBottom: 12,
+  },
+  departmentHeader: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  departmentItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 3,
+    borderWidth: 2,
+    borderColor: '#999',
+    marginRight: 8,
+  },
+  checkboxChecked: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  departmentItemLabel: {
+    flex: 1,
+    fontSize: 15,
+    color: '#333',
+  },
+  departmentNumberInput: {
+    width: 100,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
   },
   bottomButtonContainer: {
     flexDirection: 'row',
