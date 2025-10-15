@@ -71,8 +71,15 @@ const EditAccountFlow = ({ onBack }) => {
     setSaving(true);
     try {
       const clientRef = doc(db, 'clients', activeClient.id);
+      const inventoryTypesArr = Array.isArray(activeClient.inventoryTypes) ? activeClient.inventoryTypes : (activeClient.inventoryType ? [activeClient.inventoryType] : []);
+      const inventoryTypeStr = inventoryTypesArr.concat(
+        inventoryTypesArr.includes('financial') && activeClient.financialPrice ? [activeClient.financialPrice] : []
+      ).join(', ');
+
       await updateDoc(clientRef, {
         inventoryTypes: Array.isArray(activeClient.inventoryTypes) ? activeClient.inventoryTypes : (activeClient.inventoryType ? [activeClient.inventoryType] : []),
+        financialPrice: activeClient.financialPrice || '',
+        inventoryType: inventoryTypeStr,
         PIC: activeClient.PIC,
         startTime: activeClient.startTime,
         verification: activeClient.verification,
@@ -207,6 +214,27 @@ const EditAccountFlow = ({ onBack }) => {
                   );
                 })}
               </View>
+              {Array.isArray(activeClient.inventoryTypes) && activeClient.inventoryTypes.includes('financial') && (
+                <View style={{ marginTop: 10 }}>
+                  <Text style={styles.helperText}>Financial Count - select price to take</Text>
+                  <View style={styles.inventoryTypeContainer}>
+                    {['Retail Price', 'Sale Price', 'Cost'].map((price) => (
+                      <TouchableOpacity
+                        key={price}
+                        style={[styles.inventoryTypeOption, activeClient.financialPrice === price && styles.inventoryTypeOptionSelected]}
+                        onPress={() => setActiveClient({ ...activeClient, financialPrice: price })}
+                      >
+                        <View style={[styles.inventoryTypeRadio, activeClient.financialPrice === price && styles.inventoryTypeRadioSelected]}>
+                          {activeClient.financialPrice === price && <View style={styles.inventoryTypeRadioInner} />}
+                        </View>
+                        <Text style={[styles.inventoryTypeText, activeClient.financialPrice === price && styles.inventoryTypeTextSelected]}>
+                          {price}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
             </View>
 
             <View style={styles.fieldContainer}>

@@ -74,6 +74,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
   // Form data state
   const [formData, setFormData] = useState({
     inventoryTypes: ['scan'],
+    financialPrice: '',
     storeType: 'Convenience',
     PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
     startTime: '',
@@ -86,6 +87,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
     name: '',
     email: '',
     inventoryTypes: ['scan'],
+    financialPrice: '',
     storeType: 'Convenience',
     PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
     startTime: '',
@@ -333,6 +335,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
       if (clientToEdit) {
         setFormData({
           inventoryTypes: Array.isArray(clientToEdit.inventoryTypes) ? clientToEdit.inventoryTypes : (clientToEdit.inventoryType ? [clientToEdit.inventoryType] : ['scan']),
+          financialPrice: clientToEdit.financialPrice || '',
           storeType: clientToEdit.storeType || 'Convenience',
           PIC: clientToEdit.PIC || 'Stores to be contacted via phone prior to counts to confirm inventory.',
           startTime: clientToEdit.startTime || '',
@@ -362,6 +365,10 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
           name: newClientData.name,
           email: newClientData.email,
           inventoryTypes: Array.isArray(newClientData.inventoryTypes) ? newClientData.inventoryTypes : [],
+          financialPrice: newClientData.financialPrice || '',
+          inventoryType: (Array.isArray(newClientData.inventoryTypes) ? newClientData.inventoryTypes : [])
+            .concat((Array.isArray(newClientData.inventoryTypes) && newClientData.inventoryTypes.includes('financial') && newClientData.financialPrice) ? [newClientData.financialPrice] : [])
+            .join(', '),
           storeType: newClientData.storeType,
           accountType: newClientData.storeType,
           PIC: newClientData.PIC,
@@ -395,6 +402,10 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
           name: newClientData.name,
           email: newClientData.email,
           inventoryTypes: Array.isArray(newClientData.inventoryTypes) ? newClientData.inventoryTypes : [],
+          financialPrice: newClientData.financialPrice || '',
+          inventoryType: (Array.isArray(newClientData.inventoryTypes) ? newClientData.inventoryTypes : [])
+            .concat((Array.isArray(newClientData.inventoryTypes) && newClientData.inventoryTypes.includes('financial') && newClientData.financialPrice) ? [newClientData.financialPrice] : [])
+            .join(', '),
           storeType: newClientData.storeType,
           accountType: newClientData.storeType,
           PIC: newClientData.PIC,
@@ -411,6 +422,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
           name: '',
           email: '',
           inventoryTypes: ['scan'],
+          financialPrice: '',
           storeType: 'Convenience',
           PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
           startTime: '',
@@ -439,6 +451,10 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
         await setDoc(clientRef, {
           ...selectedClient,
           inventoryTypes: Array.isArray(formData.inventoryTypes) ? formData.inventoryTypes : [],
+          financialPrice: formData.financialPrice || '',
+          inventoryType: (Array.isArray(formData.inventoryTypes) ? formData.inventoryTypes : [])
+            .concat((Array.isArray(formData.inventoryTypes) && formData.inventoryTypes.includes('financial') && formData.financialPrice) ? [formData.financialPrice] : [])
+            .join(', '),
           storeType: formData.storeType,
           PIC: formData.PIC,
           startTime: formData.startTime,
@@ -455,6 +471,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
               setFormData({
                 preInventory: '',
                 inventoryTypes: ['scan'],
+                financialPrice: '',
                 storeType: 'Convenience',
                 PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
                 startTime: '',
@@ -628,7 +645,38 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
                   );
                 })}
               </View>
-
+              {(clientAction === 'new' ? (Array.isArray(newClientData.inventoryTypes) && newClientData.inventoryTypes.includes('financial')) : (Array.isArray(formData.inventoryTypes) && formData.inventoryTypes.includes('financial'))) && (
+                <View style={{ marginTop: 10 }}>
+                  <Text style={styles.helperText}>Financial Count - select price to take</Text>
+                  <View style={styles.inventoryTypeContainer}>
+                    {['Retail Price', 'Sale Price', 'Cost'].map((price) => {
+                      const currentPrice = clientAction === 'new' ? newClientData.financialPrice : formData.financialPrice;
+                      const isSelected = currentPrice === price;
+                      const setPrice = () => {
+                        if (clientAction === 'new') {
+                          handleNewClientInputChange('financialPrice', price);
+                        } else {
+                          handleInputChange('financialPrice', price);
+                        }
+                      };
+                      return (
+                        <TouchableOpacity
+                          key={price}
+                          style={[styles.inventoryTypeOption, isSelected && styles.inventoryTypeOptionSelected]}
+                          onPress={setPrice}
+                        >
+                          <View style={[styles.inventoryTypeRadio, isSelected && styles.inventoryTypeRadioSelected]}>
+                            {isSelected && <View style={styles.inventoryTypeRadioInner} />}
+                          </View>
+                          <Text style={[styles.inventoryTypeText, isSelected && styles.inventoryTypeTextSelected]}>
+                            {price}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
 
               <Text style={styles.label}>PIC (Pre Inventory Call)</Text>
               <TextInput

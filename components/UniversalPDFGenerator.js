@@ -100,8 +100,11 @@ export async function generateAccountInstructionsPDF(options) {
     pdf.setFontSize(12);
     const updatedAt = formatUpdatedAt(client.updatedAt);
     const inventoryTypes = Array.isArray(client.inventoryTypes) ? client.inventoryTypes : (client.inventoryType ? [client.inventoryType] : []);
+    const inventoryTypeString = inventoryTypes
+      .concat((Array.isArray(client.inventoryTypes) && client.inventoryTypes.includes('financial') && client.financialPrice) ? [client.financialPrice] : [])
+      .join(', ');
     const infoLines = [
-      `Inventory Type: ${inventoryTypes.join(', ')}`,
+      `Inventory Type: ${inventoryTypeString}`,
       `Updated: ${updatedAt}`,
       `PIC: ${client.PIC ?? ''}`,
       `Verification: ${client.verification ?? ''}`,
@@ -377,7 +380,9 @@ function buildHtml(client) {
         <div class="section">
           <div class="section-title">Client Information</div>
           <div class="info">
-            <p><strong>Inventory Type:</strong> ${escapeHtml((Array.isArray(client.inventoryTypes) ? client.inventoryTypes : (client.inventoryType ? [client.inventoryType] : [])).join(', '))}</p>
+            <p><strong>Inventory Type:</strong> ${escapeHtml(((Array.isArray(client.inventoryTypes) ? client.inventoryTypes : (client.inventoryType ? [client.inventoryType] : []))
+              .concat((Array.isArray(client.inventoryTypes) && client.inventoryTypes.includes('financial') && client.financialPrice) ? [client.financialPrice] : [])
+            ).join(', '))}</p>
             <p><strong>Updated:</strong> ${escapeHtml(updatedAt)}</p>
             <p><strong>PIC:</strong> ${escapeHtml(client.PIC ?? '')}</p>
             <p><strong>Verification:</strong> ${escapeHtml(client.verification ?? '')}</p>
