@@ -224,8 +224,9 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
 
         {/* PDF generation moved to CompletionScreen */}
 
-        <TouchableOpacity style={styles.completeButton} onPress={() => {
-          // Navigate back to dashboard
+        <TouchableOpacity style={styles.completeButton} onPress={async () => {
+          // Save data first, then navigate back to dashboard
+          await handleSaveData();
           onComplete();
         }}>
           <Text style={styles.completeButtonText}>Complete</Text>
