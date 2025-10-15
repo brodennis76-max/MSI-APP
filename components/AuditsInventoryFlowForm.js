@@ -113,9 +113,10 @@ Audit trails will be provided as requested based on posting sheet results, withi
     try {
       const clientRef = doc(db, 'clients', clientData.id);
       
-      // Add compliance statement to inventory flow if there's content
+      // Add compliance statement to inventory flow if there's content and it's not already present
       const complianceStatement = "Be flexible! If the store would like a different flow be compliant.";
-      const finalInventoryFlow = inventoryFlowText.trim() 
+      const hasComplianceStatement = inventoryFlowText.includes(complianceStatement);
+      const finalInventoryFlow = inventoryFlowText.trim() && !hasComplianceStatement
         ? `${inventoryFlowText}\n\n${complianceStatement}`
         : inventoryFlowText;
       
