@@ -78,8 +78,10 @@ export async function generateAccountInstructionsPDF(options) {
         .replace(/&#039;/g, "'");
       
       
-      // Collapse excessive whitespace but keep intentional line breaks
+      // Collapse excessive whitespace but keep intentional double line breaks
       text = text.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n');
+      // Collapse single newlines that are likely soft wraps (not bullets or numbered list starts)
+      text = text.replace(/([^\n])\n(?!\n)(?!•\s)(?!\d+\.\s)/g, '$1 ');
       
       // Fix any malformed bullet points that might have been created
       text = text.replace(/\s+•\s+/g, '\n• ');
@@ -114,6 +116,40 @@ export async function generateAccountInstructionsPDF(options) {
     };
 
     const writeWrapped = (text, width, lineH) => {
+      // Minimal inline HTML formatter for non-bullet lines
+      const renderInlineFormatted = (htmlText, x, maxWidth, lineHeight) => {
+        let currentX = x;
+        let isBold = false;
+        let isItalic = false;
+        let isUnderline = false;
+        const parts = htmlText.split(/(<[^>]+>)/);
+        for (let i = 0; i < parts.length; i++) {
+          const part = parts[i];
+          if (!part) continue;
+          if (part.startsWith('<')) {
+            if (/^<\s*(b|strong)\s*>/i.test(part)) isBold = true;
+            else if (/^<\s*\/(b|strong)\s*>/i.test(part)) isBold = false;
+            else if (/^<\s*(i|em)\s*>/i.test(part)) isItalic = true;
+            else if (/^<\s*\/(i|em)\s*>/i.test(part)) isItalic = false;
+            else if (/^<\s*u\s*>/i.test(part)) isUnderline = true;
+            else if (/^<\s*\/u\s*>/i.test(part)) isUnderline = false;
+          } else if (part.trim()) {
+            let fontStyle = 'normal';
+            if (isBold && isItalic) fontStyle = 'bolditalic';
+            else if (isBold) fontStyle = 'bold';
+            else if (isItalic) fontStyle = 'italic';
+            pdf.setFont('helvetica', fontStyle);
+            const lines = pdf.splitTextToSize(part, maxWidth - (currentX - MARGIN_PT));
+            lines.forEach((line, lineIndex) => {
+              checkPageBreak(lineHeight);
+              pdf.text(line, currentX, y);
+              y += lineHeight;
+              if (lineIndex === 0) currentX = MARGIN_PT; // subsequent lines back to margin
+            });
+          }
+        }
+      };
+
       // Check if text contains bullet points or numbered lists (only at start of lines)
       const hasBulletPoints = text.split('\n').some(line => line.trim().startsWith('• '));
       const hasNumberedLists = text.split('\n').some(line => /^\d+\.\s/.test(line.trim()));
@@ -160,13 +196,17 @@ export async function generateAccountInstructionsPDF(options) {
               y += lineH;
             });
           } else if (line.trim()) {
-            // Regular line: wrap to available width
-            const wrappedLines = pdf.splitTextToSize(line, width);
-            wrappedLines.forEach((wrappedLine) => {
-              checkPageBreak(lineH);
-              pdf.text(wrappedLine, MARGIN_PT, y);
-              y += lineH;
-            });
+            // Regular line: if it contains inline HTML, render with formatting; else wrap as plain
+            if (line.includes('<') && line.includes('>')) {
+              renderInlineFormatted(line, MARGIN_PT, width, lineH);
+            } else {
+              const wrappedLines = pdf.splitTextToSize(line, width);
+              wrappedLines.forEach((wrappedLine) => {
+                checkPageBreak(lineH);
+                pdf.text(wrappedLine, MARGIN_PT, y);
+                y += lineH;
+              });
+            }
           }
         });
       } else if (text.includes('<') && text.includes('>')) {
@@ -931,6 +971,8 @@ function sanitizeBasicHtml(html) {
   
   // Collapse extra blank lines
   s = s.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n');
+  // Collapse single newlines that are likely soft wraps (not bullets or numbered list starts)
+  s = s.replace(/([^\n])\n(?!\n)(?!•\s)(?!\d+\.\s)/g, '$1 ');
   return s.trim();
 }
 
