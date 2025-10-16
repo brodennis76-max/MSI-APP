@@ -154,10 +154,13 @@ export async function generateAccountInstructionsPDF(options) {
               y += lineH;
             });
           } else if (line.trim()) {
-            // Regular line
-            checkPageBreak(lineH);
-            pdf.text(line, MARGIN_PT, y);
-            y += lineH;
+            // Regular line: wrap to available width
+            const wrappedLines = pdf.splitTextToSize(line, width);
+            wrappedLines.forEach((wrappedLine) => {
+              checkPageBreak(lineH);
+              pdf.text(wrappedLine, MARGIN_PT, y);
+              y += lineH;
+            });
           }
         });
       } else if (text.includes('<') && text.includes('>')) {
@@ -221,11 +224,7 @@ export async function generateAccountInstructionsPDF(options) {
         // Plain text - use original simple approach
         console.log('🔍 Plain text wrapping - width:', width, 'text length:', text.length);
         console.log('🔍 Text sample:', text.substring(0, 100) + '...');
-        
-        // Try a more conservative width to ensure wrapping works
-        const safeWidth = Math.min(width, 400); // Cap at 400 points to ensure wrapping
-        console.log('🔍 Using safe width:', safeWidth, 'instead of', width);
-        const lines = pdf.splitTextToSize(text, safeWidth);
+        const lines = pdf.splitTextToSize(text, width);
         console.log('🔍 Split into lines:', lines.length, 'lines');
         lines.forEach((ln, index) => {
           checkPageBreak(lineH);
