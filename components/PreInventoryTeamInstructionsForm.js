@@ -77,6 +77,17 @@ const PreInventoryTeamInstructionsForm = ({ clientData, onBack, onComplete }) =>
     }
   };
 
+  // Prefill additional instructions when editing
+  React.useEffect(() => {
+    try {
+      const existing = String(clientData['Team-Instr-Additional'] || '').trim();
+      if (existing) {
+        setAdditionalText(existing);
+        setShowAdditional(true);
+      }
+    } catch {}
+  }, [clientData]);
+
   // Navigation is handled by parent component
 
   return (

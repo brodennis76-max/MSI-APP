@@ -73,11 +73,11 @@ export default function App() {
               <TouchableOpacity 
                 style={styles.menuItem} 
                 onPress={() => {
-                  setCurrentScreen('testPDF');
+                  setCurrentScreen('editAccount');
                   setMenuOpen(false);
                 }}
               >
-                <Text style={styles.menuText}>Test PDF Generator</Text>
+                <Text style={styles.menuText}>Edit Account</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -119,11 +119,11 @@ export default function App() {
               <TouchableOpacity 
                 style={styles.menuItem} 
                 onPress={() => {
-                  setCurrentScreen('testPDF');
+                  setCurrentScreen('editAccount');
                   setMenuOpen(false);
                 }}
               >
-                <Text style={styles.menuText}>Test PDF Generator</Text>
+                <Text style={styles.menuText}>Edit Account</Text>
               </TouchableOpacity>
             </View>
           )}
