@@ -520,7 +520,9 @@ export async function generateAccountInstructionsPDF(options) {
 
     // PRE-INVENTORY CREW INSTRUCTIONS section (from Team-Instr)
     const teamInstr = htmlToPlain(String(client['Team-Instr'] ?? '').trim());
-    if (teamInstr) {
+    const teamInstrAdditional = htmlToPlain(String(client['Team-Instr-Additional'] ?? '').trim());
+    const teamInstrCombined = [teamInstr, teamInstrAdditional].filter(Boolean).join('\n');
+    if (teamInstrCombined) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
       checkPageBreakWithContent(18, 50); // Ensure header stays with content
@@ -528,7 +530,7 @@ export async function generateAccountInstructionsPDF(options) {
       y += 2;
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
-      writeWrapped(teamInstr, contentWidth, lineHeight);
+      writeWrapped(teamInstrCombined, contentWidth, lineHeight);
       y += 12;
     }
 
@@ -783,12 +785,14 @@ function buildHtml(client) {
 
         ${(() => {
           const teamInstr = String(client['Team-Instr'] ?? '').trim();
-          if (!teamInstr) return '';
+          const teamInstrAdditional = String(client['Team-Instr-Additional'] ?? '').trim();
+          const combined = [teamInstr, teamInstrAdditional].filter(Boolean).join('\n');
+          if (!combined) return '';
           return `
             <div class="section">
               <div class="section-title">Pre-Inventory Crew Instructions</div>
               <div class="info" style="margin-top:8px;">
-                <p style="white-space:pre-wrap;">${sanitizeBasicHtml(teamInstr)}</p>
+                <p style="white-space:pre-wrap;">${sanitizeBasicHtml(combined)}</p>
               </div>
             </div>
           `;
