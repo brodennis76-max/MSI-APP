@@ -5,21 +5,21 @@
     "scheme": "msiexpo",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/AccInsLogo.jpg",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
     "description": "MSI Inventory Management Application for field teams",
     "splash": {
-      "image": "./assets/login-logo.jpg",
+      "image": "./assets/AccInsLogo.jpg",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.msi.msiexpo",
-      "icon": "./assets/icon.png",
+      "icon": "./assets/AccInsLogo.jpg",
       "splash": {
-        "image": "./assets/login-logo.jpg",
+        "image": "./assets/AccInsLogo.jpg",
         "resizeMode": "contain",
         "backgroundColor": "#ffffff"
       },
