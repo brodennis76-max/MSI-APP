@@ -61,6 +61,12 @@ export async function generateAccountInstructionsPDF(options) {
       text = text.replace(/<\/b>\s*<\/b>/gi, '</b>');
       text = text.replace(/<i>\s*<i>/gi, '<i>');
       text = text.replace(/<\/i>\s*<\/i>/gi, '</i>');
+      // Remove empty formatting tags
+      text = text.replace(/<(b|strong|i|em|u)>\s*<\/\1>/gi, '');
+      // Collapse immediate close-open boundaries (prevents mid-sentence splits like </b></i><i><b>)
+      text = text.replace(/<\/(b|strong|i|em|u)>\s*<\1>/gi, '');
+      // Run twice to handle cross-pairs like </b></i><i><b>
+      text = text.replace(/<\/(b|strong|i|em|u)>\s*<\1>/gi, '');
       
       // Decode common HTML entities
       text = text
@@ -906,6 +912,12 @@ function sanitizeBasicHtml(html) {
   s = s.replace(/<\/b>\s*<\/b>/gi, '</b>');
   s = s.replace(/<i>\s*<i>/gi, '<i>');
   s = s.replace(/<\/i>\s*<\/i>/gi, '</i>');
+  // Remove empty formatting tags
+  s = s.replace(/<(b|strong|i|em|u)>\s*<\/\1>/gi, '');
+  // Collapse immediate close-open boundaries (prevents mid-sentence splits like </b></i><i><b>)
+  s = s.replace(/<\/(b|strong|i|em|u)>\s*<\1>/gi, '');
+  // Run twice to handle cross-pairs like </b></i><i><b>
+  s = s.replace(/<\/(b|strong|i|em|u)>\s*<\1>/gi, '');
   
   // Decode entities commonly inserted by editors
   s = s
