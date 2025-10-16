@@ -343,18 +343,32 @@ export async function generateAccountInstructionsPDF(options) {
     const inventoryTypeString = inventoryTypes
       .concat((Array.isArray(client.inventoryTypes) && client.inventoryTypes.includes('financial') && client.financialPrice) ? [client.financialPrice] : [])
       .join(', ');
-    const infoLines = [
-      `Inventory Type: ${htmlToPlain(inventoryTypeString)}`,
-      `Updated: ${updatedAt}`,
-      `PIC: ${htmlToPlain(client.PIC ?? '')}`,
-      `Verification: ${htmlToPlain(client.verification ?? '')}`,
-    ];
     const lineHeight = 14;
-    infoLines.forEach((line) => {
+
+    // Helper to write key/value lines with hanging indent wrapping
+    const writeKeyValue = (keyLabel, valueText) => {
+      const label = `${keyLabel}: `;
+      const value = String(valueText || '').trim();
+      const labelWidth = pdf.getTextWidth(label);
+      const available = contentWidth - labelWidth;
+      const wrappedVals = pdf.splitTextToSize(value, Math.max(available, 10));
+      // First line: label + first wrapped value line
       checkPageBreak(lineHeight);
-      pdf.text(line, MARGIN_PT, y);
+      pdf.text(label, MARGIN_PT, y);
+      pdf.text(wrappedVals[0] || '', MARGIN_PT + labelWidth, y);
       y += lineHeight;
-    });
+      // Subsequent lines: indent to after the label
+      for (let i = 1; i < wrappedVals.length; i++) {
+        checkPageBreak(lineHeight);
+        pdf.text(wrappedVals[i], MARGIN_PT + labelWidth, y);
+        y += lineHeight;
+      }
+    };
+
+    writeKeyValue('Inventory Type', htmlToPlain(inventoryTypeString));
+    writeKeyValue('Updated', updatedAt);
+    writeKeyValue('PIC', htmlToPlain(client.PIC ?? ''));
+    writeKeyValue('Verification', htmlToPlain(client.verification ?? ''));
     y += 8;
 
     // Boxed notice
