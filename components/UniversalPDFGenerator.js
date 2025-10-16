@@ -115,40 +115,41 @@ export async function generateAccountInstructionsPDF(options) {
       }
     };
 
-    const writeWrapped = (text, width, lineH) => {
-      // Minimal inline HTML formatter for non-bullet lines
-      const renderInlineFormatted = (htmlText, x, maxWidth, lineHeight) => {
-        let currentX = x;
-        let isBold = false;
-        let isItalic = false;
-        let isUnderline = false;
-        const parts = htmlText.split(/(<[^>]+>)/);
-        for (let i = 0; i < parts.length; i++) {
-          const part = parts[i];
-          if (!part) continue;
-          if (part.startsWith('<')) {
-            if (/^<\s*(b|strong)\s*>/i.test(part)) isBold = true;
-            else if (/^<\s*\/(b|strong)\s*>/i.test(part)) isBold = false;
-            else if (/^<\s*(i|em)\s*>/i.test(part)) isItalic = true;
-            else if (/^<\s*\/(i|em)\s*>/i.test(part)) isItalic = false;
-            else if (/^<\s*u\s*>/i.test(part)) isUnderline = true;
-            else if (/^<\s*\/u\s*>/i.test(part)) isUnderline = false;
-          } else if (part.trim()) {
-            let fontStyle = 'normal';
-            if (isBold && isItalic) fontStyle = 'bolditalic';
-            else if (isBold) fontStyle = 'bold';
-            else if (isItalic) fontStyle = 'italic';
-            pdf.setFont('helvetica', fontStyle);
-            const lines = pdf.splitTextToSize(part, maxWidth - (currentX - MARGIN_PT));
-            lines.forEach((line, lineIndex) => {
-              checkPageBreak(lineHeight);
-              pdf.text(line, currentX, y);
-              y += lineHeight;
-              if (lineIndex === 0) currentX = MARGIN_PT; // subsequent lines back to margin
-            });
-          }
+    // Helper: render a string with inline <b>/<i>/<u> formatting and wrapping
+    const renderInlineFormatted = (htmlText, x, maxWidth, lineHeight, keepIndent = false) => {
+      let currentX = x;
+      let isBold = false;
+      let isItalic = false;
+      let isUnderline = false;
+      const parts = htmlText.split(/(<[^>]+>)/);
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        if (!part) continue;
+        if (part.startsWith('<')) {
+          if (/^<\s*(b|strong)\s*>/i.test(part)) isBold = true;
+          else if (/^<\s*\/(b|strong)\s*>/i.test(part)) isBold = false;
+          else if (/^<\s*(i|em)\s*>/i.test(part)) isItalic = true;
+          else if (/^<\s*\/(i|em)\s*>/i.test(part)) isItalic = false;
+          else if (/^<\s*u\s*>/i.test(part)) isUnderline = true;
+          else if (/^<\s*\/u\s*>/i.test(part)) isUnderline = false;
+        } else if (part.trim()) {
+          let fontStyle = 'normal';
+          if (isBold && isItalic) fontStyle = 'bolditalic';
+          else if (isBold) fontStyle = 'bold';
+          else if (isItalic) fontStyle = 'italic';
+          pdf.setFont('helvetica', fontStyle);
+          const lines = pdf.splitTextToSize(part, maxWidth - (currentX - MARGIN_PT));
+          lines.forEach((line, lineIndex) => {
+            checkPageBreak(lineHeight);
+            pdf.text(line, currentX, y);
+            y += lineHeight;
+            if (!keepIndent && lineIndex === 0) currentX = MARGIN_PT; // subsequent lines back to margin unless keeping indent
+          });
         }
-      };
+      }
+    };
+
+    const writeWrapped = (text, width, lineH) => {
 
       // Check if text contains bullet points or numbered lists (only at start of lines)
       const hasBulletPoints = text.split('\n').some(line => line.trim().startsWith('• '));
@@ -198,7 +199,7 @@ export async function generateAccountInstructionsPDF(options) {
           } else if (line.trim()) {
             // Regular line: if it contains inline HTML, render with formatting; else wrap as plain
             if (line.includes('<') && line.includes('>')) {
-              renderInlineFormatted(line, MARGIN_PT, width, lineH);
+              renderInlineFormatted(line, MARGIN_PT, width, lineH, false);
             } else {
               const wrappedLines = pdf.splitTextToSize(line, width);
               wrappedLines.forEach((wrappedLine) => {
@@ -284,60 +285,9 @@ export async function generateAccountInstructionsPDF(options) {
     const writeWrappedWithIndent = (text, width, lineH, indentPt = 0) => {
       // Check if text contains HTML tags
       if (text.includes('<') && text.includes('>')) {
-        // Parse HTML formatting and apply to PDF with indentation
-        const parseAndWriteFormattedText = (htmlText, x, width, lineHeight, indent) => {
-          // Track active formatting
-          let isBold = false;
-          let isItalic = false;
-          let isUnderline = false;
-          
-          // Simple HTML parser for basic formatting
-          const parts = htmlText.split(/(<[^>]+>)/);
-          
-          for (let i = 0; i < parts.length; i++) {
-            const part = parts[i];
-            
-            if (part.startsWith('<')) {
-              // Handle HTML tags
-              if (part.includes('<b>') || part.includes('<strong>')) {
-                isBold = true;
-              } else if (part.includes('</b>') || part.includes('</strong>')) {
-                isBold = false;
-              } else if (part.includes('<i>') || part.includes('<em>')) {
-                isItalic = true;
-              } else if (part.includes('</i>') || part.includes('</em>')) {
-                isItalic = false;
-              } else if (part.includes('<u>')) {
-                isUnderline = true;
-              } else if (part.includes('</u>')) {
-                isUnderline = false;
-              }
-            } else if (part.trim()) {
-              // Determine font style based on active formatting
-              let fontStyle = 'normal';
-              if (isBold && isItalic) {
-                fontStyle = 'bolditalic';
-              } else if (isBold) {
-                fontStyle = 'bold';
-              } else if (isItalic) {
-                fontStyle = 'italic';
-              }
-              
-              // Render text with current formatting
-              pdf.setFont('helvetica', fontStyle);
-              const lines = pdf.splitTextToSize(part, width - indent);
-              
-              lines.forEach((line, lineIndex) => {
-                checkPageBreak(lineHeight);
-                const xPos = MARGIN_PT + indent;
-                pdf.text(line, xPos, y);
-                y += lineHeight;
-              });
-            }
-          }
-        };
-        
-        parseAndWriteFormattedText(text, MARGIN_PT + indentPt, width, lineH, indentPt);
+        // Use shared inline formatter honoring the indent
+        const xPos = MARGIN_PT + indentPt;
+        renderInlineFormatted(text, xPos, width - indentPt, lineH, true);
       } else {
         // Plain text - use original simple approach
         const lines = pdf.splitTextToSize(text, width - indentPt);
