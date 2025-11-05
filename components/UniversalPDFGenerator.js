@@ -837,20 +837,53 @@ export async function generateAccountInstructionsPDF(options) {
       }
     }
 
-    // Add QR code at bottom of last page if scan type is selected and QR code data exists
+    // Add QR code at bottom of last page if scan type is selected and QR code exists
     const inventoryTypesArr = Array.isArray(client.inventoryTypes) ? client.inventoryTypes : (client.inventoryType ? [client.inventoryType] : []);
     const hasScanType = inventoryTypesArr.includes('scan');
+    const qrCodeImageUrl = String(client.scannerQRCodeImageUrl || '').trim();
     const qrCodeData = String(client.scannerQRCode || '').trim();
     
-    if (hasScanType && qrCodeData) {
+    if (hasScanType && (qrCodeImageUrl || qrCodeData)) {
       try {
-        // Dynamically import qrcode for web
-        const QRCode = await import('qrcode');
-        const qrCodeDataUrl = await QRCode.default.toDataURL(qrCodeData, {
-          width: 200,
-          margin: 1,
-          errorCorrectionLevel: 'M'
-        });
+        let qrCodeDataUrl;
+        
+        // Priority 1: Use uploaded PNG image if available
+        if (qrCodeImageUrl) {
+          try {
+            const res = await fetch(qrCodeImageUrl);
+            const blob = await res.blob();
+            const reader = new FileReader();
+            qrCodeDataUrl = await new Promise((resolve, reject) => {
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          } catch (error) {
+            console.error('Error loading QR code image from URL:', error);
+            // Fall back to generating from text if image load fails
+            if (qrCodeData) {
+              const QRCode = await import('qrcode');
+              qrCodeDataUrl = await QRCode.default.toDataURL(qrCodeData, {
+                width: 200,
+                margin: 1,
+                errorCorrectionLevel: 'M'
+              });
+            } else {
+              throw error;
+            }
+          }
+        } 
+        // Priority 2: Generate QR code from text data
+        else if (qrCodeData) {
+          const QRCode = await import('qrcode');
+          qrCodeDataUrl = await QRCode.default.toDataURL(qrCodeData, {
+            width: 200,
+            margin: 1,
+            errorCorrectionLevel: 'M'
+          });
+        } else {
+          return; // No QR code data available
+        }
         
         // Get total pages and ensure we're on the last page
         const totalPages = pdf.internal.getNumberOfPages();
@@ -871,7 +904,7 @@ export async function generateAccountInstructionsPDF(options) {
         const labelWidth = pdf.getTextWidth(labelText);
         pdf.text(labelText, (PAGE_WIDTH_PT - labelWidth) / 2, qrY + qrSize + 12);
       } catch (error) {
-        console.error('Error generating QR code:', error);
+        console.error('Error adding QR code:', error);
         // Continue without QR code if generation fails
       }
     }
@@ -905,23 +938,35 @@ async function buildHtml(client) {
   let qrCodeHtml = '';
   const inventoryTypesArr = Array.isArray(client.inventoryTypes) ? client.inventoryTypes : (client.inventoryType ? [client.inventoryType] : []);
   const hasScanType = inventoryTypesArr.includes('scan');
+  const qrCodeImageUrl = String(client.scannerQRCodeImageUrl ?? '').trim();
   const qrCodeData = String(client.scannerQRCode ?? '').trim();
   
-  if (hasScanType && qrCodeData) {
+  if (hasScanType && (qrCodeImageUrl || qrCodeData)) {
     try {
-      const QRCode = await import('qrcode');
-      const qrCodeDataUrl = await QRCode.default.toDataURL(qrCodeData, {
-        width: 200,
-        margin: 1,
-        errorCorrectionLevel: 'M'
-      });
+      let qrCodeSrc;
       
-      qrCodeHtml = `
-        <div class="section" style="text-align:center; margin-top:40px; page-break-inside:avoid;">
-          <img src="${qrCodeDataUrl}" style="width:144pt;height:144pt;margin:0 auto;display:block;" />
-          <div style="margin-top:8px;font-size:10px;color:#666;">Scanner Configuration</div>
-        </div>
-      `;
+      // Priority 1: Use uploaded PNG image if available
+      if (qrCodeImageUrl) {
+        qrCodeSrc = qrCodeImageUrl;
+      } 
+      // Priority 2: Generate QR code from text data
+      else if (qrCodeData) {
+        const QRCode = await import('qrcode');
+        qrCodeSrc = await QRCode.default.toDataURL(qrCodeData, {
+          width: 200,
+          margin: 1,
+          errorCorrectionLevel: 'M'
+        });
+      }
+      
+      if (qrCodeSrc) {
+        qrCodeHtml = `
+          <div class="section" style="text-align:center; margin-top:40px; page-break-inside:avoid;">
+            <img src="${qrCodeSrc}" style="width:144pt;height:144pt;margin:0 auto;display:block;" />
+            <div style="margin-top:8px;font-size:10px;color:#666;">Scanner Configuration</div>
+          </div>
+        `;
+      }
     } catch (error) {
       console.error('Error generating QR code for native:', error);
       // QR code will be empty if generation fails

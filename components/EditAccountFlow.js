@@ -85,6 +85,7 @@ const EditAccountFlow = ({ onBack }) => {
         verification: activeClient.verification,
         additionalNotes: activeClient.additionalNotes,
         scannerQRCode: activeClient.scannerQRCode || '',
+        scannerQRCodeImageUrl: activeClient.scannerQRCodeImageUrl || '',
         pdfImageUrls: activeClient.pdfImageUrls || '',
         updatedAt: new Date(),
       });
@@ -240,18 +241,33 @@ const EditAccountFlow = ({ onBack }) => {
             </View>
 
             {Array.isArray(activeClient.inventoryTypes) && activeClient.inventoryTypes.includes('scan') && (
-              <View style={styles.fieldContainer}>
-                <Text style={styles.label}>Scanner QR Code</Text>
-                <Text style={styles.helperText}>Enter the QR code data or URL to configure the scanners. This will appear at the bottom of the PDF for accounts with scan type.</Text>
-                <TextInput
-                  style={styles.input}
-                  value={activeClient.scannerQRCode || ''}
-                  placeholder="Enter QR code data or URL"
-                  onChangeText={(text) => setActiveClient({...activeClient, scannerQRCode: text})}
-                  multiline
-                  numberOfLines={3}
-                />
-              </View>
+              <>
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.label}>Scanner QR Code (Text)</Text>
+                  <Text style={styles.helperText}>Enter the QR code data to generate a QR code. This will be used if no image URL is provided below.</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={activeClient.scannerQRCode || ''}
+                    placeholder="Enter QR code data"
+                    onChangeText={(text) => setActiveClient({...activeClient, scannerQRCode: text})}
+                    multiline
+                    numberOfLines={3}
+                  />
+                </View>
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.label}>Scanner QR Code Image URL</Text>
+                  <Text style={styles.helperText}>Enter a direct image URL (e.g., GitHub raw URL). If provided, this PNG image will be used instead of generating from text above.</Text>
+                  <Text style={styles.helperText}>GitHub format: https://raw.githubusercontent.com/USERNAME/REPO/main/path/to/qr-code.png</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={activeClient.scannerQRCodeImageUrl || ''}
+                    placeholder="https://raw.githubusercontent.com/..."
+                    onChangeText={(text) => setActiveClient({...activeClient, scannerQRCodeImageUrl: text})}
+                    multiline
+                    numberOfLines={2}
+                  />
+                </View>
+              </>
             )}
 
             <View style={styles.fieldContainer}>
