@@ -89,6 +89,11 @@ export async function generateAccountInstructionsPDF(options) {
       // Match word followed by number then capital letter directly
       text = text.replace(/([A-Za-z]+)(\d+)([A-Z])/g, '$1\n$2 $3');
       
+      // Detect and split numbered list items that come after text
+      // Pattern: text ending with colon/punctuation followed by space and "1. " (numbered list)
+      // Example: "followed: 1. Shirts..." -> "followed:\n1. Shirts..."
+      text = text.replace(/([:\.,;])\s+(\d+\.\s)/g, '$1\n$2');
+      
       // Preserve newlines that are likely list items or intentional breaks
       // Only collapse newlines that are clearly soft wraps (mid-paragraph continuation)
       const lines = text.split('\n');
