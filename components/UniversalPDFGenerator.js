@@ -92,13 +92,13 @@ export async function generateAccountInstructionsPDF(options) {
         
         // Always preserve empty lines (double line breaks)
         if (trimmed.length === 0) {
-          preservedLines.push(line);
+          preservedLines.push('\n');
           continue;
         }
         
-        // Always preserve lines with bullets or numbers
+        // Always preserve lines with bullets or numbers - add newline after
         if (trimmed.startsWith('• ') || /^\d+\.\s/.test(trimmed)) {
-          preservedLines.push(line);
+          preservedLines.push(line + '\n');
           continue;
         }
         
@@ -115,7 +115,8 @@ export async function generateAccountInstructionsPDF(options) {
           // Collapse soft wrap: add space instead of newline
           preservedLines.push(line + ' ');
         } else {
-          preservedLines.push(line);
+          // Last line or no next line - preserve with newline
+          preservedLines.push(line + '\n');
         }
       }
       text = preservedLines.join('');
@@ -195,7 +196,7 @@ export async function generateAccountInstructionsPDF(options) {
       if (hasBulletPoints || hasNumberedLists) {
         // Handle bullet points and numbered lists with hanging indents
         const lines = text.split('\n');
-        lines.forEach((line) => {
+        lines.forEach((line, index) => {
           const trimmedLine = line.trim();
           if (trimmedLine.startsWith('• ') || /^\d+\.\s/.test(trimmedLine)) {
             // This is a bullet point or numbered list line
@@ -233,6 +234,12 @@ export async function generateAccountInstructionsPDF(options) {
               }
               y += lineH;
             });
+          } else if (trimmedLine.length === 0) {
+            // Empty line - add small spacing for visual separation
+            // Only add spacing if it's between content (not at start/end)
+            if (index > 0 && index < lines.length - 1) {
+              y += lineH * 0.3;
+            }
           } else if (line.trim()) {
             // Regular line: if it contains inline HTML, render with formatting; else wrap as plain
             if (line.includes('<') && line.includes('>')) {
