@@ -215,7 +215,6 @@ const EditAccountFlow = ({ onBack }) => {
         additionalNotes: activeClient.additionalNotes,
         scannerQRCodeImageUrl: activeClient.scannerQRCodeImageUrl || '',
         scannerQRCodeImageBase64: activeClient.scannerQRCodeImageBase64 || '',
-        pdfImageUrls: activeClient.pdfImageUrls || '',
         updatedAt: new Date(),
       });
       Alert.alert('Success', 'Client information updated successfully!');
@@ -504,19 +503,6 @@ const EditAccountFlow = ({ onBack }) => {
               <RichTextEditor
                 value={activeClient.additionalNotes || ''}
                 onChange={(text) => setActiveClient({...activeClient, additionalNotes: text})}
-              />
-            </View>
-
-            <View style={styles.fieldContainer}>
-              <Text style={styles.label}>PDF Images (one URL per line)</Text>
-              <Text style={styles.helperText}>Paste Firebase Storage download URLs (PNG/JPEG). Each URL on its own line. These will be embedded into the PDF.</Text>
-              <TextInput
-                style={styles.input}
-                value={activeClient.pdfImageUrls || ''}
-                placeholder="https://firebasestorage.googleapis.com/...\nhttps://..."
-                onChangeText={(text) => setActiveClient({...activeClient, pdfImageUrls: text})}
-                multiline
-                numberOfLines={4}
               />
             </View>
           </View>
