@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator, Image, TouchableOpacity, Tex
 import { Picker } from '@react-native-picker/picker';
 import { db } from '../firebase-config';
 import { collection, onSnapshot, doc, getDoc, updateDoc } from 'firebase/firestore';
+import * as ImagePicker from 'expo-image-picker';
 import RichTextEditor from './RichTextEditor';
 import PreInventoryForm from './PreInventoryForm';
 import InventoryProceduresForm from './InventoryProceduresForm';
@@ -65,6 +66,134 @@ const EditAccountFlow = ({ onBack }) => {
     }
   };
 
+  const pickQRCodeImage = async () => {
+    try {
+      if (Platform.OS === 'web') {
+        // For web, use HTML file input to select from computer
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.style.display = 'none';
+        document.body.appendChild(input);
+        
+        input.onchange = async (e) => {
+          const file = e.target.files[0];
+          if (!file) {
+            document.body.removeChild(input);
+            return;
+          }
+          
+          // Check file type
+          if (!file.type.startsWith('image/')) {
+            Alert.alert('Error', 'Please select an image file.');
+            document.body.removeChild(input);
+            return;
+          }
+          
+          // Convert to base64
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            setActiveClient({
+              ...activeClient,
+              scannerQRCodeImageBase64: reader.result,
+              scannerQRCodeImageUrl: '', // Clear URL if using uploaded image
+            });
+            Alert.alert('Success', 'QR code image uploaded successfully!');
+            document.body.removeChild(input);
+          };
+          reader.onerror = () => {
+            Alert.alert('Error', 'Failed to read image file.');
+            document.body.removeChild(input);
+          };
+          reader.readAsDataURL(file);
+        };
+        
+        input.click();
+      } else {
+        // For native, use ImagePicker
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission Required', 'Please grant permission to access your photo library.');
+          return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1], // Square aspect ratio for QR codes
+          quality: 0.9,
+        });
+
+        if (!result.canceled && result.assets && result.assets[0]) {
+          const asset = result.assets[0];
+          
+          // For native, use FileSystem
+          const { FileSystem } = await import('expo-file-system');
+          const base64 = await FileSystem.readAsStringAsync(asset.uri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          const base64DataUrl = `data:image/png;base64,${base64}`;
+          
+          setActiveClient({
+            ...activeClient,
+            scannerQRCodeImageBase64: base64DataUrl,
+            scannerQRCodeImageUrl: '', // Clear URL if using uploaded image
+          });
+          Alert.alert('Success', 'QR code image uploaded successfully!');
+        }
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to upload image. Please try again.');
+    }
+  };
+
+  const loadImageFromUrl = async () => {
+    const url = activeClient.scannerQRCodeImageUrl?.trim();
+    if (!url) {
+      Alert.alert('Error', 'Please enter an image URL.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      
+      // Fetch image from URL
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.statusText}`);
+      }
+      
+      const blob = await response.blob();
+      
+      // Check if it's an image
+      if (!blob.type.startsWith('image/')) {
+        Alert.alert('Error', 'The URL does not point to an image file.');
+        setSaving(false);
+        return;
+      }
+      
+      // Convert to base64
+      const reader = new FileReader();
+      const base64 = await new Promise((resolve, reject) => {
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      
+      setActiveClient({
+        ...activeClient,
+        scannerQRCodeImageBase64: base64,
+      });
+      Alert.alert('Success', 'QR code image loaded from URL successfully!');
+    } catch (error) {
+      console.error('Error loading image from URL:', error);
+      Alert.alert('Error', `Failed to load image from URL: ${error.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const saveClientInfo = async () => {
     if (!activeClient) return;
     
@@ -86,6 +215,7 @@ const EditAccountFlow = ({ onBack }) => {
         additionalNotes: activeClient.additionalNotes,
         scannerQRCode: activeClient.scannerQRCode || '',
         scannerQRCodeImageUrl: activeClient.scannerQRCodeImageUrl || '',
+        scannerQRCodeImageBase64: activeClient.scannerQRCodeImageBase64 || '',
         pdfImageUrls: activeClient.pdfImageUrls || '',
         updatedAt: new Date(),
       });
@@ -255,17 +385,71 @@ const EditAccountFlow = ({ onBack }) => {
                   />
                 </View>
                 <View style={styles.fieldContainer}>
-                  <Text style={styles.label}>Scanner QR Code Image URL</Text>
-                  <Text style={styles.helperText}>Enter a direct image URL (e.g., GitHub raw URL). If provided, this PNG image will be used instead of generating from text above.</Text>
-                  <Text style={styles.helperText}>GitHub format: https://raw.githubusercontent.com/USERNAME/REPO/main/path/to/qr-code.png</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={activeClient.scannerQRCodeImageUrl || ''}
-                    placeholder="https://raw.githubusercontent.com/..."
-                    onChangeText={(text) => setActiveClient({...activeClient, scannerQRCodeImageUrl: text})}
-                    multiline
-                    numberOfLines={2}
-                  />
+                  <Text style={styles.label}>Scanner QR Code Image</Text>
+                  <Text style={styles.helperText}>Upload a QR code PNG image from your computer or load from a URL on the internet.</Text>
+                  
+                  {/* Upload Button - From Computer */}
+                  <TouchableOpacity 
+                    style={styles.uploadButton} 
+                    onPress={pickQRCodeImage}
+                  >
+                    <Text style={styles.uploadButtonText}>📁 Select Image from Computer</Text>
+                  </TouchableOpacity>
+                  
+                  {/* Load from URL Section */}
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={[styles.helperText, { marginBottom: 8 }]}>Or load from internet URL:</Text>
+                    <View style={{ flexDirection: 'row' }}>
+                      <TextInput
+                        style={[styles.input, { flex: 1, marginRight: 8 }]}
+                        value={activeClient.scannerQRCodeImageUrl || ''}
+                        placeholder="https://example.com/qr-code.png"
+                        onChangeText={(text) => setActiveClient({
+                          ...activeClient,
+                          scannerQRCodeImageUrl: text,
+                        })}
+                        multiline={false}
+                      />
+                      <TouchableOpacity 
+                        style={[
+                          styles.uploadButton, 
+                          { paddingHorizontal: 16, minWidth: 100 },
+                          (saving || !activeClient.scannerQRCodeImageUrl?.trim()) && styles.uploadButtonDisabled
+                        ]} 
+                        onPress={loadImageFromUrl}
+                        disabled={saving || !activeClient.scannerQRCodeImageUrl?.trim()}
+                      >
+                        <Text style={styles.uploadButtonText}>
+                          {saving ? 'Loading...' : 'Load'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={[styles.helperText, { marginTop: 4, fontSize: 11 }]}>
+                      Supports any image URL (GitHub, Firebase, etc.)
+                    </Text>
+                  </View>
+                  
+                  {/* Preview uploaded image */}
+                  {activeClient.scannerQRCodeImageBase64 && (
+                    <View style={styles.imagePreview}>
+                      <Text style={styles.helperText}>Image Preview:</Text>
+                      <Image 
+                        source={{ uri: activeClient.scannerQRCodeImageBase64 }} 
+                        style={styles.previewImage}
+                        resizeMode="contain"
+                      />
+                      <TouchableOpacity 
+                        style={styles.removeButton}
+                        onPress={() => setActiveClient({
+                          ...activeClient,
+                          scannerQRCodeImageBase64: '',
+                          scannerQRCodeImageUrl: ''
+                        })}
+                      >
+                        <Text style={styles.removeButtonText}>Remove Image</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
               </>
             )}
@@ -626,6 +810,51 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: 'bold',
+  },
+  uploadButton: {
+    backgroundColor: '#007bff',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  uploadButtonDisabled: {
+    backgroundColor: '#6c757d',
+    opacity: 0.6,
+  },
+  uploadButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  imagePreview: {
+    marginTop: 12,
+    marginBottom: 12,
+    padding: 12,
+    backgroundColor: '#f8f8f8',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  previewImage: {
+    width: 150,
+    height: 150,
+    alignSelf: 'center',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  removeButton: {
+    backgroundColor: '#dc3545',
+    padding: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  removeButtonText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: 'bold',
   },
   loadingText: { 

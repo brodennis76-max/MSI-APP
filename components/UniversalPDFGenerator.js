@@ -688,6 +688,104 @@ export async function generateAccountInstructionsPDF(options) {
       pdf.setFontSize(12);
       writeWrapped(teamInstrCombined, contentWidth, lineHeight);
       y += 12;
+      
+      // Add QR code section right after Pre-Inventory Crew Instructions (after special instructions)
+      const inventoryTypesArr = Array.isArray(client.inventoryTypes) ? client.inventoryTypes : (client.inventoryType ? [client.inventoryType] : []);
+      const hasScanType = inventoryTypesArr.includes('scan');
+      // Default QR code image URL (GitHub raw URL)
+      const DEFAULT_QR_CODE_IMAGE = 'https://raw.githubusercontent.com/brodennis76-max/MSI-APP/main/msi-expo/qr-codes/1450%20Scanner%20Program.png';
+      const clientQRCodeImageBase64 = String(client.scannerQRCodeImageBase64 || '').trim();
+      const clientQRCodeImageUrl = String(client.scannerQRCodeImageUrl || '').trim();
+      const qrCodeData = String(client.scannerQRCode || '').trim();
+      
+      if (hasScanType) {
+        try {
+          let qrCodeDataUrl;
+          
+          // Priority 1: Use uploaded base64 image if available
+          if (clientQRCodeImageBase64) {
+            qrCodeDataUrl = clientQRCodeImageBase64;
+          }
+          // Priority 2: Use client-specific PNG image URL if provided
+          else if (clientQRCodeImageUrl) {
+            try {
+              const res = await fetch(clientQRCodeImageUrl);
+              const blob = await res.blob();
+              const reader = new FileReader();
+              qrCodeDataUrl = await new Promise((resolve, reject) => {
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              });
+            } catch (error) {
+              console.error('Error loading client QR code image from URL:', error);
+              // Fall back to generating from text if image load fails
+              if (qrCodeData) {
+                const QRCode = await import('qrcode');
+                qrCodeDataUrl = await QRCode.default.toDataURL(qrCodeData, {
+                  width: 200,
+                  margin: 1,
+                  errorCorrectionLevel: 'M'
+                });
+              } else {
+                // Fall back to default image if client image fails and no text data
+                throw error;
+              }
+            }
+          } 
+          // Priority 3: Generate QR code from text data (if provided)
+          else if (qrCodeData) {
+            const QRCode = await import('qrcode');
+            qrCodeDataUrl = await QRCode.default.toDataURL(qrCodeData, {
+              width: 200,
+              margin: 1,
+              errorCorrectionLevel: 'M'
+            });
+          }
+          // Priority 4: Use default PNG image
+          else {
+            try {
+              const res = await fetch(DEFAULT_QR_CODE_IMAGE);
+              const blob = await res.blob();
+              const reader = new FileReader();
+              qrCodeDataUrl = await new Promise((resolve, reject) => {
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              });
+            } catch (error) {
+              console.error('Error loading default QR code image:', error);
+              // Continue without QR code if default image fails
+              qrCodeDataUrl = null;
+            }
+          }
+          
+          if (qrCodeDataUrl) {
+            // Add spacing before QR code section
+            y += 20;
+            
+            // Add header
+            const headerText = '1450 SCANNER PROGRAM CODE:';
+            const headerFontSize = 14;
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(headerFontSize);
+            const headerWidth = pdf.getTextWidth(headerText);
+            checkPageBreak(headerFontSize + 20);
+            pdf.text(headerText, (PAGE_WIDTH_PT - headerWidth) / 2, y); // Centered
+            y += headerFontSize + 12;
+            
+            // Add QR code image (centered)
+            const qrSize = 108; // 1.5 inches (108pt)
+            const qrX = (PAGE_WIDTH_PT - qrSize) / 2; // Center horizontally
+            checkPageBreak(qrSize + 20);
+            pdf.addImage(qrCodeDataUrl, 'PNG', qrX, y, qrSize, qrSize);
+            y += qrSize + 12;
+          }
+        } catch (error) {
+          console.error('Error adding QR code:', error);
+          // Continue without QR code if generation fails
+        }
+      }
     }
 
     // Double space before next section
@@ -837,78 +935,6 @@ export async function generateAccountInstructionsPDF(options) {
       }
     }
 
-    // Add QR code at bottom of last page if scan type is selected and QR code exists
-    const inventoryTypesArr = Array.isArray(client.inventoryTypes) ? client.inventoryTypes : (client.inventoryType ? [client.inventoryType] : []);
-    const hasScanType = inventoryTypesArr.includes('scan');
-    const qrCodeImageUrl = String(client.scannerQRCodeImageUrl || '').trim();
-    const qrCodeData = String(client.scannerQRCode || '').trim();
-    
-    if (hasScanType && (qrCodeImageUrl || qrCodeData)) {
-      try {
-        let qrCodeDataUrl;
-        
-        // Priority 1: Use uploaded PNG image if available
-        if (qrCodeImageUrl) {
-          try {
-            const res = await fetch(qrCodeImageUrl);
-            const blob = await res.blob();
-            const reader = new FileReader();
-            qrCodeDataUrl = await new Promise((resolve, reject) => {
-              reader.onloadend = () => resolve(reader.result);
-              reader.onerror = reject;
-              reader.readAsDataURL(blob);
-            });
-          } catch (error) {
-            console.error('Error loading QR code image from URL:', error);
-            // Fall back to generating from text if image load fails
-            if (qrCodeData) {
-              const QRCode = await import('qrcode');
-              qrCodeDataUrl = await QRCode.default.toDataURL(qrCodeData, {
-                width: 200,
-                margin: 1,
-                errorCorrectionLevel: 'M'
-              });
-            } else {
-              throw error;
-            }
-          }
-        } 
-        // Priority 2: Generate QR code from text data
-        else if (qrCodeData) {
-          const QRCode = await import('qrcode');
-          qrCodeDataUrl = await QRCode.default.toDataURL(qrCodeData, {
-            width: 200,
-            margin: 1,
-            errorCorrectionLevel: 'M'
-          });
-        } else {
-          return; // No QR code data available
-        }
-        
-        // Get total pages and ensure we're on the last page
-        const totalPages = pdf.internal.getNumberOfPages();
-        pdf.setPage(totalPages);
-        
-        // Position QR code at bottom center of last page
-        const qrSize = 108; // 1.5 inches (108pt)
-        const qrX = (PAGE_WIDTH_PT - qrSize) / 2; // Center horizontally
-        const qrY = PAGE_HEIGHT_PT - MARGIN_PT - qrSize - 20; // Bottom with margin
-        
-        // Add QR code image
-        pdf.addImage(qrCodeDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
-        
-        // Add label below QR code
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(10);
-        const labelText = 'Scanner Configuration';
-        const labelWidth = pdf.getTextWidth(labelText);
-        pdf.text(labelText, (PAGE_WIDTH_PT - labelWidth) / 2, qrY + qrSize + 12);
-      } catch (error) {
-        console.error('Error adding QR code:', error);
-        // Continue without QR code if generation fails
-      }
-    }
-
     // Return data URI or save; for now, trigger download with filename
     const filename = `Account_Instructions_${(client.name || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
     pdf.save(filename);
@@ -938,18 +964,25 @@ async function buildHtml(client) {
   let qrCodeHtml = '';
   const inventoryTypesArr = Array.isArray(client.inventoryTypes) ? client.inventoryTypes : (client.inventoryType ? [client.inventoryType] : []);
   const hasScanType = inventoryTypesArr.includes('scan');
-  const qrCodeImageUrl = String(client.scannerQRCodeImageUrl ?? '').trim();
+  // Default QR code image URL (GitHub raw URL)
+  const DEFAULT_QR_CODE_IMAGE = 'https://raw.githubusercontent.com/brodennis76-max/MSI-APP/main/msi-expo/qr-codes/1450%20Scanner%20Program.png';
+  const clientQRCodeImageBase64 = String(client.scannerQRCodeImageBase64 ?? '').trim();
+  const clientQRCodeImageUrl = String(client.scannerQRCodeImageUrl ?? '').trim();
   const qrCodeData = String(client.scannerQRCode ?? '').trim();
   
-  if (hasScanType && (qrCodeImageUrl || qrCodeData)) {
+  if (hasScanType) {
     try {
       let qrCodeSrc;
       
-      // Priority 1: Use uploaded PNG image if available
-      if (qrCodeImageUrl) {
-        qrCodeSrc = qrCodeImageUrl;
+      // Priority 1: Use uploaded base64 image if available
+      if (clientQRCodeImageBase64) {
+        qrCodeSrc = clientQRCodeImageBase64;
+      }
+      // Priority 2: Use client-specific PNG image URL if provided
+      else if (clientQRCodeImageUrl) {
+        qrCodeSrc = clientQRCodeImageUrl;
       } 
-      // Priority 2: Generate QR code from text data
+      // Priority 3: Generate QR code from text data (if provided)
       else if (qrCodeData) {
         const QRCode = await import('qrcode');
         qrCodeSrc = await QRCode.default.toDataURL(qrCodeData, {
@@ -958,12 +991,16 @@ async function buildHtml(client) {
           errorCorrectionLevel: 'M'
         });
       }
+      // Priority 4: Use default PNG image
+      else {
+        qrCodeSrc = DEFAULT_QR_CODE_IMAGE;
+      }
       
       if (qrCodeSrc) {
         qrCodeHtml = `
-          <div class="section" style="text-align:center; margin-top:40px; page-break-inside:avoid;">
+          <div class="section" style="text-align:center; margin-top:20px; page-break-inside:avoid;">
+            <div style="font-size:14px;font-weight:bold;margin-bottom:12px;">1450 SCANNER PROGRAM CODE:</div>
             <img src="${qrCodeSrc}" style="width:144pt;height:144pt;margin:0 auto;display:block;" />
-            <div style="margin-top:8px;font-size:10px;color:#666;">Scanner Configuration</div>
           </div>
         `;
       }
@@ -1127,6 +1164,8 @@ async function buildHtml(client) {
           `;
         })()}
 
+        ${qrCodeHtml}
+
         ${(() => {
           const noncount = String(client.noncount ?? '').trim();
           if (!noncount) return '';
@@ -1215,8 +1254,6 @@ async function buildHtml(client) {
             </div>
           `;
         })()}
-
-        ${qrCodeHtml}
       </body>
     </html>
   `;
