@@ -11,7 +11,11 @@
   phone: "555-0123",
   email: "contact@49wine.com",
   storeType: "Convenience", // Grocery, Convenience, Clothing, Hardware, Other
-  inventoryType: "scan", // scan or count
+  inventoryType: "scan", // scan or count (legacy field, use inventoryTypes array)
+  inventoryTypes: ["scan", "financial"], // Array of inventory types (scan, financial, hand written, price verification)
+  financialPrice: "Retail Price", // Optional: selected when financial is in inventoryTypes
+  scannerQRCode: "", // Optional: QR code data/URL for scanner configuration (required when scan type is selected)
+  pdfImageUrls: "", // Optional: newline- or comma-separated Firebase Storage download URLs to embed in PDF
   PIC: "Stores to be contacted via phone prior to counts to confirm inventory.",
   startTime: "",
   verification: "Audit trails will be provided, as requested, during the count, within reason (do not provide audit trails on the entire store.)",

@@ -80,8 +80,45 @@ export async function generateAccountInstructionsPDF(options) {
       
       // Collapse excessive whitespace but keep intentional double line breaks
       text = text.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n');
-      // Collapse single newlines that are likely soft wraps (not bullets or numbered list starts)
-      text = text.replace(/([^\n])\n(?!\n)(?!•\s)(?!\d+\.\s)/g, '$1 ');
+      
+      // Preserve newlines that are likely list items or intentional breaks
+      // Only collapse newlines that are clearly soft wraps (mid-paragraph continuation)
+      const lines = text.split('\n');
+      const preservedLines = [];
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+        const nextLine = i < lines.length - 1 ? lines[i + 1].trim() : '';
+        
+        // Always preserve empty lines (double line breaks)
+        if (trimmed.length === 0) {
+          preservedLines.push(line);
+          continue;
+        }
+        
+        // Always preserve lines with bullets or numbers
+        if (trimmed.startsWith('• ') || /^\d+\.\s/.test(trimmed)) {
+          preservedLines.push(line);
+          continue;
+        }
+        
+        // Preserve newline if next line looks like a list item:
+        // - Starts with capital letter (likely list item)
+        // - Is short (likely list item - less than 60 chars)
+        // - Current line ends with punctuation (end of sentence/thought)
+        if (nextLine && (nextLine.length === 0 || 
+                        /^[A-Z]/.test(nextLine) || 
+                        (nextLine.length < 60 && nextLine.length > 0) ||
+                        /[.!?]$/.test(trimmed))) {
+          preservedLines.push(line + '\n');
+        } else if (i < lines.length - 1 && lines[i + 1].trim().length > 0) {
+          // Collapse soft wrap: add space instead of newline
+          preservedLines.push(line + ' ');
+        } else {
+          preservedLines.push(line);
+        }
+      }
+      text = preservedLines.join('');
       
       // Fix any malformed bullet points that might have been created
       text = text.replace(/\s+•\s+/g, '\n• ');
@@ -268,16 +305,21 @@ export async function generateAccountInstructionsPDF(options) {
         
         parseAndWriteFormattedText(text, MARGIN_PT, width, lineH);
       } else {
-        // Plain text - use original simple approach
-        console.log('🔍 Plain text wrapping - width:', width, 'text length:', text.length);
-        console.log('🔍 Text sample:', text.substring(0, 100) + '...');
-        const lines = pdf.splitTextToSize(text, width);
-        console.log('🔍 Split into lines:', lines.length, 'lines');
-        lines.forEach((ln, index) => {
-          checkPageBreak(lineH);
-          console.log(`🔍 Line ${index}: "${ln}" (length: ${ln.length})`);
-          pdf.text(ln, MARGIN_PT, y);
-          y += lineH;
+        // Plain text - preserve explicit newlines and wrap each line
+        const inputLines = text.split('\n');
+        inputLines.forEach((inputLine) => {
+          if (inputLine.trim().length === 0) {
+            // Empty line - add spacing
+            y += lineH * 0.5;
+            return;
+          }
+          // Wrap each line to fit width
+          const wrappedLines = pdf.splitTextToSize(inputLine, width);
+          wrappedLines.forEach((wrappedLine) => {
+            checkPageBreak(lineH);
+            pdf.text(wrappedLine, MARGIN_PT, y);
+            y += lineH;
+          });
         });
       }
     };
@@ -620,6 +662,106 @@ export async function generateAccountInstructionsPDF(options) {
       }
     }
 
+    // Additional Images section (from pdfImageUrls: string or array)
+    const parseImageUrls = (val) => {
+      if (!val) return [];
+      if (Array.isArray(val)) return val.filter(Boolean).map(String);
+      return String(val)
+        .split(/\r?\n|,/) // split by newline or comma
+        .map(s => s.trim())
+        .filter(Boolean);
+    };
+    const imageUrls = parseImageUrls(client.pdfImageUrls);
+    if (imageUrls.length) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(16);
+      checkPageBreakWithContent(18, 100);
+      writeWrapped('Images', contentWidth, 18);
+      y += 8;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(12);
+
+      const toDataUrl = async (url) => {
+        try {
+          const res = await fetch(url);
+          const blob = await res.blob();
+          const reader = new FileReader();
+          const p = new Promise((resolve, reject) => {
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+          });
+          reader.readAsDataURL(blob);
+          return await p; // returns data URL
+        } catch (e) {
+          console.error('Failed to fetch image for PDF:', url, e);
+          return null;
+        }
+      };
+
+      // Render each image centered, scaled to fit content width
+      for (const url of imageUrls) {
+        const dataUrl = await toDataUrl(url);
+        if (!dataUrl) continue;
+
+        // Estimate image dimensions from data URL is non-trivial; create temp Image
+        const img = new Image();
+        const dim = await new Promise((resolve) => {
+          img.onload = () => resolve({ w: img.width, h: img.height });
+          img.onerror = () => resolve(null);
+          img.src = dataUrl;
+        });
+        if (!dim) continue;
+        const maxW = contentWidth;
+        const scale = Math.min(1, maxW / dim.w);
+        const drawW = dim.w * scale;
+        const drawH = dim.h * scale;
+
+        checkPageBreak(drawH + 12);
+        const x = MARGIN_PT + (contentWidth - drawW) / 2;
+        pdf.addImage(dataUrl, 'PNG', x, y, drawW, drawH);
+        y += drawH + 12;
+      }
+    }
+
+    // Add QR code at bottom of last page if scan type is selected and QR code data exists
+    const inventoryTypesArr = Array.isArray(client.inventoryTypes) ? client.inventoryTypes : (client.inventoryType ? [client.inventoryType] : []);
+    const hasScanType = inventoryTypesArr.includes('scan');
+    const qrCodeData = String(client.scannerQRCode || '').trim();
+    
+    if (hasScanType && qrCodeData) {
+      try {
+        // Dynamically import qrcode for web
+        const QRCode = await import('qrcode');
+        const qrCodeDataUrl = await QRCode.default.toDataURL(qrCodeData, {
+          width: 200,
+          margin: 1,
+          errorCorrectionLevel: 'M'
+        });
+        
+        // Get total pages and ensure we're on the last page
+        const totalPages = pdf.internal.getNumberOfPages();
+        pdf.setPage(totalPages);
+        
+        // Position QR code at bottom center of last page
+        const qrSize = 108; // 1.5 inches (108pt)
+        const qrX = (PAGE_WIDTH_PT - qrSize) / 2; // Center horizontally
+        const qrY = PAGE_HEIGHT_PT - MARGIN_PT - qrSize - 20; // Bottom with margin
+        
+        // Add QR code image
+        pdf.addImage(qrCodeDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
+        
+        // Add label below QR code
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+        const labelText = 'Scanner Configuration';
+        const labelWidth = pdf.getTextWidth(labelText);
+        pdf.text(labelText, (PAGE_WIDTH_PT - labelWidth) / 2, qrY + qrSize + 12);
+      } catch (error) {
+        console.error('Error generating QR code:', error);
+        // Continue without QR code if generation fails
+      }
+    }
+
     // Return data URI or save; for now, trigger download with filename
     const filename = `Account_Instructions_${(client.name || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
     pdf.save(filename);
@@ -627,7 +769,7 @@ export async function generateAccountInstructionsPDF(options) {
   }
 
   // Native (iOS/Android via Expo): use HTML + expo-print
-  const html = buildHtml(client);
+  const html = await buildHtml(client);
   const result = await Print.printToFileAsync({
     html,
     base64: false,
@@ -637,13 +779,41 @@ export async function generateAccountInstructionsPDF(options) {
   return result.uri;
 }
 
-function buildHtml(client) {
+async function buildHtml(client) {
   const safeName = client.name || client.id || 'Unknown Client';
   const updatedAt = formatUpdatedAt(client.updatedAt);
   const extracted = extractPreInventoryBundle(client.sections);
   const preInv = String(extracted.generalText || client.preInventory || '').trim();
   const areaMapping = String(extracted.areaMappingRaw).trim();
   const storePrep = String(extracted.storePrepRaw).trim();
+  
+  // Generate QR code for native HTML if scan type is selected
+  let qrCodeHtml = '';
+  const inventoryTypesArr = Array.isArray(client.inventoryTypes) ? client.inventoryTypes : (client.inventoryType ? [client.inventoryType] : []);
+  const hasScanType = inventoryTypesArr.includes('scan');
+  const qrCodeData = String(client.scannerQRCode ?? '').trim();
+  
+  if (hasScanType && qrCodeData) {
+    try {
+      const QRCode = await import('qrcode');
+      const qrCodeDataUrl = await QRCode.default.toDataURL(qrCodeData, {
+        width: 200,
+        margin: 1,
+        errorCorrectionLevel: 'M'
+      });
+      
+      qrCodeHtml = `
+        <div class="section" style="text-align:center; margin-top:40px; page-break-inside:avoid;">
+          <img src="${qrCodeDataUrl}" style="width:144pt;height:144pt;margin:0 auto;display:block;" />
+          <div style="margin-top:8px;font-size:10px;color:#666;">Scanner Configuration</div>
+        </div>
+      `;
+    } catch (error) {
+      console.error('Error generating QR code for native:', error);
+      // QR code will be empty if generation fails
+    }
+  }
+  
   return `
     <!DOCTYPE html>
     <html>
@@ -864,6 +1034,30 @@ function buildHtml(client) {
             </div>
           `;
         })()}
+
+        ${(() => {
+          const parseImageUrls = (val) => {
+            if (!val) return [];
+            if (Array.isArray(val)) return val.filter(Boolean).map(String);
+            return String(val)
+              .split(/\r?\n|,/) // newline or comma
+              .map(s => s.trim())
+              .filter(Boolean);
+          };
+          const urls = parseImageUrls(client.pdfImageUrls);
+          if (!urls.length) return '';
+          const imgs = urls.map(u => `<img src="${escapeHtml(u)}" style="max-width:${PAGE_WIDTH_PT - (2 * MARGIN_PT)}pt; width:100%; height:auto; margin:8pt 0; display:block;" />`).join('');
+          return `
+            <div class="section" style="page-break-inside:avoid;">
+              <div class="section-title">Images</div>
+              <div class="info" style="margin-top:8px; text-align:center;">
+                ${imgs}
+              </div>
+            </div>
+          `;
+        })()}
+
+        ${qrCodeHtml}
       </body>
     </html>
   `;

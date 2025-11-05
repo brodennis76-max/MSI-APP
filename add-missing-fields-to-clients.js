@@ -78,6 +78,20 @@ async function addMissingFieldsToClients() {
         needsUpdate = true;
         console.log(`  - Adding updatedAt to ${client.name}`);
       }
+
+      // Ensure inventoryTypes array exists (non-destructive)
+      if (!Array.isArray(client.inventoryTypes)) {
+        updates.inventoryTypes = client.inventoryType ? [client.inventoryType] : [];
+        needsUpdate = true;
+        console.log(`  - Initializing inventoryTypes array for ${client.name}`);
+      }
+
+      // Add placeholder for scanner QR Code if missing
+      if (client.scannerQRCode === undefined) {
+        updates.scannerQRCode = '';
+        needsUpdate = true;
+        console.log(`  - Adding scannerQRCode placeholder to ${client.name}`);
+      }
       
       if (needsUpdate) {
         await updateDoc(doc(db, 'clients', client.id), updates);

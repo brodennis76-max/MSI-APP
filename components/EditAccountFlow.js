@@ -84,6 +84,8 @@ const EditAccountFlow = ({ onBack }) => {
         startTime: activeClient.startTime,
         verification: activeClient.verification,
         additionalNotes: activeClient.additionalNotes,
+        scannerQRCode: activeClient.scannerQRCode || '',
+        pdfImageUrls: activeClient.pdfImageUrls || '',
         updatedAt: new Date(),
       });
       Alert.alert('Success', 'Client information updated successfully!');
@@ -237,6 +239,21 @@ const EditAccountFlow = ({ onBack }) => {
               )}
             </View>
 
+            {Array.isArray(activeClient.inventoryTypes) && activeClient.inventoryTypes.includes('scan') && (
+              <View style={styles.fieldContainer}>
+                <Text style={styles.label}>Scanner QR Code</Text>
+                <Text style={styles.helperText}>Enter the QR code data or URL to configure the scanners. This will appear at the bottom of the PDF for accounts with scan type.</Text>
+                <TextInput
+                  style={styles.input}
+                  value={activeClient.scannerQRCode || ''}
+                  placeholder="Enter QR code data or URL"
+                  onChangeText={(text) => setActiveClient({...activeClient, scannerQRCode: text})}
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
+            )}
+
             <View style={styles.fieldContainer}>
               <Text style={styles.label}>PIC (Person in Charge)</Text>
               <Text style={styles.helperText}>Enter the name and contact information of the person in charge during the inventory count.</Text>
@@ -272,6 +289,19 @@ const EditAccountFlow = ({ onBack }) => {
               <RichTextEditor
                 value={activeClient.additionalNotes || ''}
                 onChange={(text) => setActiveClient({...activeClient, additionalNotes: text})}
+              />
+            </View>
+
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>PDF Images (one URL per line)</Text>
+              <Text style={styles.helperText}>Paste Firebase Storage download URLs (PNG/JPEG). Each URL on its own line. These will be embedded into the PDF.</Text>
+              <TextInput
+                style={styles.input}
+                value={activeClient.pdfImageUrls || ''}
+                placeholder="https://firebasestorage.googleapis.com/...\nhttps://..."
+                onChangeText={(text) => setActiveClient({...activeClient, pdfImageUrls: text})}
+                multiline
+                numberOfLines={4}
               />
             </View>
           </View>
