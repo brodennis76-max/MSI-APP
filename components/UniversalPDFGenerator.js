@@ -89,15 +89,6 @@ export async function generateAccountInstructionsPDF(options) {
       // Match word followed by number then capital letter directly
       text = text.replace(/([A-Za-z]+)(\d+)([A-Z])/g, '$1\n$2 $3');
       
-      // Detect and split patterns like "wall 4001" or "wall 4101" where a 4-digit number follows a word
-      // This handles cases like "Front wall 4001." -> "Front wall\n4001."
-      // Pattern: word(s) + space + 4-digit number (with period)
-      // Match word(s) + space + 4-digit number (4000-9999 range)
-      text = text.replace(/(\b\w+(?:\s+\w+)?\s+wall)\s+(\d{4}\.)/gi, '$1\n$2');
-      // More general: any word(s) + space + 4-digit number pattern (for cases like "Check stand 5001")
-      // This catches cases like "Left wall 4101." or "Display 6001" -> separate line for number
-      text = text.replace(/(\b\w+(?:\s+\w+)?)\s+(\d{4}\.)/g, '$1\n$2');
-      
       // Detect and split numbered list items that come after text
       // Pattern: text ending with colon/punctuation followed by space and "1. " (numbered list)
       // Example: "followed: 1. Shirts..." -> "followed:\n1. Shirts..."
@@ -702,7 +693,17 @@ export async function generateAccountInstructionsPDF(options) {
     // Add QR code section right after Pre-Inventory Crew Instructions (after special instructions)
     // This should appear even if there are no team instructions, as long as scan type is selected
     const inventoryTypesArr = Array.isArray(client.inventoryTypes) ? client.inventoryTypes : (client.inventoryType ? [client.inventoryType] : []);
-    const hasScanType = inventoryTypesArr.includes('scan');
+    // Check if scan type exists - handle both array and string formats
+    const hasScanType = inventoryTypesArr.some(type => 
+      String(type).toLowerCase().includes('scan')
+    ) || String(client.inventoryType || '').toLowerCase().includes('scan');
+    
+    console.log('🔍 QR Code Check:', {
+      hasScanType,
+      inventoryTypesArr,
+      scannerQRCodeImageBase64: client.scannerQRCodeImageBase64 ? 'exists' : 'missing',
+      scannerQRCodeImageUrl: client.scannerQRCodeImageUrl || 'missing'
+    });
     
     if (hasScanType) {
       try {
@@ -711,6 +712,12 @@ export async function generateAccountInstructionsPDF(options) {
         const clientQRCodeImageBase64 = String(client.scannerQRCodeImageBase64 || '').trim();
         const clientQRCodeImageUrl = String(client.scannerQRCodeImageUrl || '').trim();
         let qrCodeDataUrl;
+        
+        console.log('🔍 QR Code Sources:', {
+          hasBase64: !!clientQRCodeImageBase64,
+          hasUrl: !!clientQRCodeImageUrl,
+          defaultUrl: DEFAULT_QR_CODE_IMAGE
+        });
         
         // Priority 1: Use uploaded base64 image if available
         if (clientQRCodeImageBase64) {
@@ -764,6 +771,7 @@ export async function generateAccountInstructionsPDF(options) {
         }
         
         if (qrCodeDataUrl) {
+          console.log('✅ QR Code data URL obtained, adding to PDF at y:', y);
           // Add spacing before QR code section
           y += 20;
           
@@ -782,12 +790,17 @@ export async function generateAccountInstructionsPDF(options) {
           const qrX = (PAGE_WIDTH_PT - qrSize) / 2; // Center horizontally
           checkPageBreak(qrSize + 20);
           pdf.addImage(qrCodeDataUrl, 'PNG', qrX, y, qrSize, qrSize);
+          console.log('✅ QR Code image added to PDF at position:', qrX, y);
           y += qrSize + 12;
+        } else {
+          console.warn('⚠️ QR Code data URL is null or undefined');
         }
       } catch (error) {
-        console.error('Error adding QR code:', error);
+        console.error('❌ Error adding QR code:', error);
         // Continue without QR code if generation fails
       }
+    } else {
+      console.log('ℹ️ QR Code section skipped - scan type not found in inventory types');
     }
 
     // Double space before next section
