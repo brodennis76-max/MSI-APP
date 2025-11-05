@@ -692,23 +692,30 @@ export async function generateAccountInstructionsPDF(options) {
     
     // Add QR code section right after Pre-Inventory Crew Instructions (after special instructions)
     // This should appear even if there are no team instructions, as long as scan type is selected
+    console.log('🔍 Starting QR Code section check...');
     const inventoryTypesArr = Array.isArray(client.inventoryTypes) ? client.inventoryTypes : (client.inventoryType ? [client.inventoryType] : []);
     // Check if scan type exists - handle both array and string formats
-    const hasScanType = inventoryTypesArr.some(type => 
-      String(type).toLowerCase().includes('scan')
-    ) || String(client.inventoryType || '').toLowerCase().includes('scan');
+    // Check for various forms: 'scan', 'scanner', 'scanning', etc.
+    const hasScanType = inventoryTypesArr.some(type => {
+      const typeStr = String(type).toLowerCase();
+      return typeStr.includes('scan');
+    }) || String(client.inventoryType || '').toLowerCase().includes('scan');
     
     console.log('🔍 QR Code Check:', {
       hasScanType,
       inventoryTypesArr,
+      inventoryType: client.inventoryType,
       scannerQRCodeImageBase64: client.scannerQRCodeImageBase64 ? 'exists' : 'missing',
-      scannerQRCodeImageUrl: client.scannerQRCodeImageUrl || 'missing'
+      scannerQRCodeImageUrl: client.scannerQRCodeImageUrl || 'missing',
+      allClientKeys: Object.keys(client).filter(k => k.toLowerCase().includes('scan') || k.toLowerCase().includes('qr'))
     });
     
     if (hasScanType) {
+      console.log('✅ Scan type detected - proceeding with QR code section');
       try {
         // Default QR code image URL (GitHub raw URL)
         const DEFAULT_QR_CODE_IMAGE = 'https://raw.githubusercontent.com/brodennis76-max/MSI-APP/main/msi-expo/qr-codes/1450%20Scanner%20Program.png';
+        console.log('📋 QR Code section: Starting image loading process...');
         const clientQRCodeImageBase64 = String(client.scannerQRCodeImageBase64 || '').trim();
         const clientQRCodeImageUrl = String(client.scannerQRCodeImageUrl || '').trim();
         let qrCodeDataUrl;
