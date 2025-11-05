@@ -720,7 +720,7 @@ export async function generateAccountInstructionsPDF(options) {
         });
         
         // Priority 1: Use uploaded base64 image if available
-        if (clientQRCodeImageBase64) {
+        if (clientQRCodeImageBase64 && clientQRCodeImageBase64.length > 0) {
           // Ensure it's a proper data URL format
           if (clientQRCodeImageBase64.startsWith('data:')) {
             qrCodeDataUrl = clientQRCodeImageBase64;
@@ -731,7 +731,7 @@ export async function generateAccountInstructionsPDF(options) {
           console.log('✅ Using base64 QR code image (length:', qrCodeDataUrl.length, ')');
         }
         // Priority 2: Use client-specific PNG image URL if provided
-        else if (clientQRCodeImageUrl) {
+        else if (clientQRCodeImageUrl && clientQRCodeImageUrl.length > 0) {
           try {
             console.log('🔍 Fetching client QR code image from URL:', clientQRCodeImageUrl);
             const res = await fetch(clientQRCodeImageUrl);
@@ -781,8 +781,9 @@ export async function generateAccountInstructionsPDF(options) {
             }
           }
         }
-        // Priority 3: Use default PNG image
+        // Priority 3: Use default PNG image (when no custom image is provided)
         else {
+          console.log('ℹ️ No custom QR code image provided, using default image');
           try {
             console.log('🔍 Fetching default QR code image from URL:', DEFAULT_QR_CODE_IMAGE);
             const res = await fetch(DEFAULT_QR_CODE_IMAGE);
@@ -803,8 +804,10 @@ export async function generateAccountInstructionsPDF(options) {
               };
               reader.readAsDataURL(blob);
             });
+            console.log('✅ Successfully loaded default QR code image');
           } catch (error) {
             console.error('❌ Error loading default QR code image:', error);
+            console.error('❌ Error details:', error.message, error.stack);
             // Continue without QR code if default image fails
             qrCodeDataUrl = null;
           }
@@ -854,14 +857,18 @@ export async function generateAccountInstructionsPDF(options) {
             y += 12;
           }
         } else {
-          console.warn('⚠️ QR Code data URL is null or undefined');
+          console.warn('⚠️ QR Code data URL is null or undefined - image will not be added to PDF');
+          console.warn('⚠️ This means the default image failed to load, or there was an error');
         }
       } catch (error) {
         console.error('❌ Error adding QR code:', error);
+        console.error('❌ Error details:', error.message, error.stack);
         // Continue without QR code if generation fails
       }
     } else {
       console.log('ℹ️ QR Code section skipped - scan type not found in inventory types');
+      console.log('ℹ️ Inventory types:', inventoryTypesArr);
+      console.log('ℹ️ Inventory type (string):', client.inventoryType);
     }
 
     // Double space before next section
