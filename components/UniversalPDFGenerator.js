@@ -721,33 +721,62 @@ export async function generateAccountInstructionsPDF(options) {
         
         // Priority 1: Use uploaded base64 image if available
         if (clientQRCodeImageBase64) {
-          qrCodeDataUrl = clientQRCodeImageBase64;
+          // Ensure it's a proper data URL format
+          if (clientQRCodeImageBase64.startsWith('data:')) {
+            qrCodeDataUrl = clientQRCodeImageBase64;
+          } else {
+            // If it's just base64, add the data URL prefix
+            qrCodeDataUrl = `data:image/png;base64,${clientQRCodeImageBase64}`;
+          }
+          console.log('✅ Using base64 QR code image (length:', qrCodeDataUrl.length, ')');
         }
         // Priority 2: Use client-specific PNG image URL if provided
         else if (clientQRCodeImageUrl) {
           try {
+            console.log('🔍 Fetching client QR code image from URL:', clientQRCodeImageUrl);
             const res = await fetch(clientQRCodeImageUrl);
+            if (!res.ok) {
+              throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            }
             const blob = await res.blob();
+            console.log('✅ Client QR code image blob obtained, size:', blob.size, 'type:', blob.type);
             const reader = new FileReader();
             qrCodeDataUrl = await new Promise((resolve, reject) => {
-              reader.onloadend = () => resolve(reader.result);
-              reader.onerror = reject;
+              reader.onloadend = () => {
+                console.log('✅ Client QR code image converted to data URL');
+                resolve(reader.result);
+              };
+              reader.onerror = (err) => {
+                console.error('❌ FileReader error:', err);
+                reject(err);
+              };
               reader.readAsDataURL(blob);
             });
           } catch (error) {
-            console.error('Error loading client QR code image from URL:', error);
+            console.error('❌ Error loading client QR code image from URL:', error);
             // Fall back to default image if client image fails
             try {
+              console.log('🔍 Falling back to default QR code image');
               const res = await fetch(DEFAULT_QR_CODE_IMAGE);
+              if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+              }
               const blob = await res.blob();
+              console.log('✅ Default QR code image blob obtained, size:', blob.size, 'type:', blob.type);
               const reader = new FileReader();
               qrCodeDataUrl = await new Promise((resolve, reject) => {
-                reader.onloadend = () => resolve(reader.result);
-                reader.onerror = reject;
+                reader.onloadend = () => {
+                  console.log('✅ Default QR code image converted to data URL');
+                  resolve(reader.result);
+                };
+                reader.onerror = (err) => {
+                  console.error('❌ FileReader error:', err);
+                  reject(err);
+                };
                 reader.readAsDataURL(blob);
               });
             } catch (defaultError) {
-              console.error('Error loading default QR code image:', defaultError);
+              console.error('❌ Error loading default QR code image:', defaultError);
               qrCodeDataUrl = null;
             }
           }
@@ -755,16 +784,27 @@ export async function generateAccountInstructionsPDF(options) {
         // Priority 3: Use default PNG image
         else {
           try {
+            console.log('🔍 Fetching default QR code image from URL:', DEFAULT_QR_CODE_IMAGE);
             const res = await fetch(DEFAULT_QR_CODE_IMAGE);
+            if (!res.ok) {
+              throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            }
             const blob = await res.blob();
+            console.log('✅ Default QR code image blob obtained, size:', blob.size, 'type:', blob.type);
             const reader = new FileReader();
             qrCodeDataUrl = await new Promise((resolve, reject) => {
-              reader.onloadend = () => resolve(reader.result);
-              reader.onerror = reject;
+              reader.onloadend = () => {
+                console.log('✅ Default QR code image converted to data URL');
+                resolve(reader.result);
+              };
+              reader.onerror = (err) => {
+                console.error('❌ FileReader error:', err);
+                reject(err);
+              };
               reader.readAsDataURL(blob);
             });
           } catch (error) {
-            console.error('Error loading default QR code image:', error);
+            console.error('❌ Error loading default QR code image:', error);
             // Continue without QR code if default image fails
             qrCodeDataUrl = null;
           }
@@ -772,6 +812,8 @@ export async function generateAccountInstructionsPDF(options) {
         
         if (qrCodeDataUrl) {
           console.log('✅ QR Code data URL obtained, adding to PDF at y:', y);
+          console.log('🔍 QR Code data URL preview:', qrCodeDataUrl.substring(0, 50) + '...');
+          
           // Add spacing before QR code section
           y += 20;
           
@@ -782,16 +824,35 @@ export async function generateAccountInstructionsPDF(options) {
           pdf.setFontSize(headerFontSize);
           const headerWidth = pdf.getTextWidth(headerText);
           checkPageBreak(headerFontSize + 20);
-          pdf.text(headerText, (PAGE_WIDTH_PT - headerWidth) / 2, y); // Centered
+          const headerX = (PAGE_WIDTH_PT - headerWidth) / 2;
+          pdf.text(headerText, headerX, y); // Centered
+          console.log('✅ Header added at position:', headerX, y);
           y += headerFontSize + 12;
           
           // Add QR code image (centered)
           const qrSize = 108; // 1.5 inches (108pt)
           const qrX = (PAGE_WIDTH_PT - qrSize) / 2; // Center horizontally
           checkPageBreak(qrSize + 20);
-          pdf.addImage(qrCodeDataUrl, 'PNG', qrX, y, qrSize, qrSize);
-          console.log('✅ QR Code image added to PDF at position:', qrX, y);
-          y += qrSize + 12;
+          
+          try {
+            // Determine image format from data URL
+            let imageFormat = 'PNG';
+            if (qrCodeDataUrl.startsWith('data:image/jpeg') || qrCodeDataUrl.startsWith('data:image/jpg')) {
+              imageFormat = 'JPEG';
+            } else if (qrCodeDataUrl.startsWith('data:image/png')) {
+              imageFormat = 'PNG';
+            }
+            
+            console.log('🔍 Adding image with format:', imageFormat, 'at position:', qrX, y, 'size:', qrSize);
+            pdf.addImage(qrCodeDataUrl, imageFormat, qrX, y, qrSize, qrSize);
+            console.log('✅ QR Code image successfully added to PDF');
+            y += qrSize + 12;
+          } catch (imageError) {
+            console.error('❌ Error adding QR code image to PDF:', imageError);
+            console.error('❌ Image data URL length:', qrCodeDataUrl.length);
+            // Continue without image
+            y += 12;
+          }
         } else {
           console.warn('⚠️ QR Code data URL is null or undefined');
         }
