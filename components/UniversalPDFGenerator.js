@@ -15,16 +15,34 @@ export async function generateAccountInstructionsPDF(options) {
 
   let client = clientData;
   if (!client && clientId) {
+    console.log('📥 Fetching client data from Firestore for clientId:', clientId);
     const ref = doc(db, 'clients', clientId);
     const snap = await getDoc(ref);
     if (!snap.exists()) {
       throw new Error('Client not found');
     }
     client = { id: snap.id, ...snap.data() };
+    console.log('✅ Client data fetched from Firestore');
+  } else if (clientData) {
+    console.log('📥 Using provided clientData directly');
   }
   if (!client) {
     throw new Error('Missing client data');
   }
+  
+  // Log client data summary for debugging
+  console.log('📋 Client data summary:', {
+    id: client.id,
+    name: client.name,
+    inventoryTypes: client.inventoryTypes,
+    inventoryType: client.inventoryType,
+    hasQRCodeBase64: !!client.scannerQRCodeImageBase64,
+    hasQRCodeUrl: !!client.scannerQRCodeImageUrl,
+    hasTeamInstr: !!client['Team-Instr'],
+    hasTeamInstrAdditional: !!client['Team-Instr-Additional'],
+    hasAdditionalNotes: !!client.additionalNotes,
+    allKeys: Object.keys(client).sort()
+  });
 
   if (Platform.OS === 'web') {
     // Web: use jsPDF
@@ -845,22 +863,45 @@ export async function generateAccountInstructionsPDF(options) {
           checkPageBreak(qrSize + 20);
           
           try {
+            // Validate data URL format
+            if (!qrCodeDataUrl.startsWith('data:image/')) {
+              throw new Error(`Invalid data URL format. Expected data:image/..., got: ${qrCodeDataUrl.substring(0, 50)}...`);
+            }
+            
             // Determine image format from data URL
             let imageFormat = 'PNG';
             if (qrCodeDataUrl.startsWith('data:image/jpeg') || qrCodeDataUrl.startsWith('data:image/jpg')) {
               imageFormat = 'JPEG';
             } else if (qrCodeDataUrl.startsWith('data:image/png')) {
               imageFormat = 'PNG';
+            } else {
+              // Try to extract format from MIME type
+              const mimeMatch = qrCodeDataUrl.match(/data:image\/([^;]+)/);
+              if (mimeMatch) {
+                const mimeType = mimeMatch[1].toUpperCase();
+                if (mimeType === 'JPEG' || mimeType === 'JPG') {
+                  imageFormat = 'JPEG';
+                } else if (mimeType === 'PNG') {
+                  imageFormat = 'PNG';
+                }
+              }
             }
             
             console.log('🔍 Adding image with format:', imageFormat, 'at position:', qrX, y, 'size:', qrSize);
+            console.log('🔍 Data URL valid:', qrCodeDataUrl.substring(0, 100) + '...');
+            console.log('🔍 Data URL length:', qrCodeDataUrl.length);
+            
+            // Add image to PDF
             pdf.addImage(qrCodeDataUrl, imageFormat, qrX, y, qrSize, qrSize);
             console.log('✅ QR Code image successfully added to PDF');
             y += qrSize + 12;
           } catch (imageError) {
             console.error('❌ Error adding QR code image to PDF:', imageError);
-            console.error('❌ Image data URL length:', qrCodeDataUrl.length);
-            // Continue without image
+            console.error('❌ Error name:', imageError.name);
+            console.error('❌ Error message:', imageError.message);
+            console.error('❌ Image data URL length:', qrCodeDataUrl ? qrCodeDataUrl.length : 'null');
+            console.error('❌ Image data URL preview:', qrCodeDataUrl ? qrCodeDataUrl.substring(0, 100) : 'null');
+            // Continue without image but add some space
             y += 12;
           }
         } else {
@@ -964,6 +1005,26 @@ export async function generateAccountInstructionsPDF(options) {
       }
     }
 
+    // Double space before next section
+    y += 20;
+
+    // ADDITIONAL NOTES section (from additionalNotes)
+    const additionalNotes = htmlToPlain(String(client.additionalNotes ?? '').trim());
+    if (additionalNotes) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(16);
+      checkPageBreakWithContent(18, 50); // Ensure header stays with content
+      writeWrapped('Additional Notes', contentWidth, 18);
+      y += 2;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(12);
+      writeWrapped(additionalNotes, contentWidth, lineHeight);
+      y += 12;
+    }
+
+    // Double space before next section
+    y += 20;
+
     // Additional Images section (from pdfImageUrls: string or array)
     const parseImageUrls = (val) => {
       if (!val) return [];
@@ -1053,41 +1114,68 @@ async function buildHtml(client) {
   // Generate QR code for native HTML if scan type is selected
   let qrCodeHtml = '';
   const inventoryTypesArr = Array.isArray(client.inventoryTypes) ? client.inventoryTypes : (client.inventoryType ? [client.inventoryType] : []);
-  const hasScanType = inventoryTypesArr.includes('scan');
+  // Check if scan type exists - handle both array and string formats (same as web version)
+  const hasScanType = inventoryTypesArr.some(type => {
+    const typeStr = String(type).toLowerCase();
+    return typeStr.includes('scan');
+  }) || String(client.inventoryType || '').toLowerCase().includes('scan');
+  
   // Default QR code image URL (GitHub raw URL)
   const DEFAULT_QR_CODE_IMAGE = 'https://raw.githubusercontent.com/brodennis76-max/MSI-APP/main/msi-expo/qr-codes/1450%20Scanner%20Program.png';
   const clientQRCodeImageBase64 = String(client.scannerQRCodeImageBase64 ?? '').trim();
   const clientQRCodeImageUrl = String(client.scannerQRCodeImageUrl ?? '').trim();
+  
+  console.log('🔍 Native HTML QR Code Check:', {
+    hasScanType,
+    inventoryTypesArr,
+    inventoryType: client.inventoryType,
+    hasBase64: !!clientQRCodeImageBase64,
+    hasUrl: !!clientQRCodeImageUrl
+  });
   
   if (hasScanType) {
     try {
       let qrCodeSrc;
       
       // Priority 1: Use uploaded base64 image if available
-      if (clientQRCodeImageBase64) {
-        qrCodeSrc = clientQRCodeImageBase64;
+      if (clientQRCodeImageBase64 && clientQRCodeImageBase64.length > 0) {
+        // Ensure it's a proper data URL format
+        if (clientQRCodeImageBase64.startsWith('data:')) {
+          qrCodeSrc = clientQRCodeImageBase64;
+        } else {
+          // If it's just base64, add the data URL prefix
+          qrCodeSrc = `data:image/png;base64,${clientQRCodeImageBase64}`;
+        }
+        console.log('✅ Native: Using base64 QR code image');
       }
       // Priority 2: Use client-specific PNG image URL if provided
-      else if (clientQRCodeImageUrl) {
+      else if (clientQRCodeImageUrl && clientQRCodeImageUrl.length > 0) {
         qrCodeSrc = clientQRCodeImageUrl;
+        console.log('✅ Native: Using client QR code image URL');
       } 
       // Priority 3: Use default PNG image
       else {
         qrCodeSrc = DEFAULT_QR_CODE_IMAGE;
+        console.log('✅ Native: Using default QR code image');
       }
       
       if (qrCodeSrc) {
         qrCodeHtml = `
           <div class="section" style="text-align:center; margin-top:20px; page-break-inside:avoid;">
             <div style="font-size:14px;font-weight:bold;margin-bottom:12px;">1450 SCANNER PROGRAM CODE:</div>
-            <img src="${qrCodeSrc}" style="width:144pt;height:144pt;margin:0 auto;display:block;" />
+            <img src="${escapeHtml(qrCodeSrc)}" style="width:144pt;height:144pt;margin:0 auto;display:block;" alt="1450 Scanner Program Code" />
           </div>
         `;
+        console.log('✅ Native: QR code HTML generated');
+      } else {
+        console.warn('⚠️ Native: QR code source is null or undefined');
       }
     } catch (error) {
-      console.error('Error generating QR code for native:', error);
+      console.error('❌ Error generating QR code for native:', error);
       // QR code will be empty if generation fails
     }
+  } else {
+    console.log('ℹ️ Native: QR Code section skipped - scan type not found');
   }
   
   return `
