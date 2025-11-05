@@ -94,6 +94,15 @@ export async function generateAccountInstructionsPDF(options) {
       // Example: "followed: 1. Shirts..." -> "followed:\n1. Shirts..."
       text = text.replace(/([:\.,;])\s+(\d+\.\s)/g, '$1\n$2');
       
+      // Also handle cases where the pattern might be on a single line that needs splitting
+      // This catches any remaining instances where numbered lists follow text
+      text = text.replace(/([A-Za-z][:\.,;])\s+(\d+\.\s)/g, '$1\n$2');
+      
+      // More general: catch any text (word ending) followed by space and numbered list
+      // This ensures "followed 1. item" or "text 1. item" gets split
+      // Only apply if not already at start of line or after punctuation
+      text = text.replace(/([A-Za-z])\s+(\d+\.\s)/g, '$1\n$2');
+      
       // Preserve newlines that are likely list items or intentional breaks
       // Only collapse newlines that are clearly soft wraps (mid-paragraph continuation)
       const lines = text.split('\n');
@@ -109,6 +118,38 @@ export async function generateAccountInstructionsPDF(options) {
           continue;
         }
         
+        // Check if line contains text ending with punctuation followed by numbered list
+        // Example: "followed: 1. Shirts..." needs to be split
+        if (/([:\.,;])\s+(\d+\.\s)/.test(trimmed)) {
+          // Split the line at the punctuation + numbered list boundary
+          const parts = trimmed.split(/([:\.,;])\s+(\d+\.\s)/);
+          if (parts.length >= 3) {
+            // First part is text before punctuation, then punctuation, then numbered list and rest
+            const beforePunct = parts[0] + parts[1]; // text + punctuation
+            const numberedPart = parts.slice(2).join(''); // numbered list + rest of line
+            preservedLines.push(beforePunct + '\n');
+            preservedLines.push(numberedPart + '\n');
+            continue;
+          }
+        }
+        
+        // Check if line contains numbered list in the middle (not at start)
+        // Example: "text 1. item" needs to be split to "text\n1. item"
+        // This catches cases where numbered lists appear mid-line
+        if (/\s+(\d+\.\s)/.test(trimmed) && !/^\d+\.\s/.test(trimmed)) {
+          // Find the first numbered list pattern and split before it
+          const match = trimmed.match(/\s+(\d+\.\s)/);
+          if (match && match.index > 0) {
+            const beforeNumber = trimmed.substring(0, match.index).trim();
+            const numberedPart = trimmed.substring(match.index).trim();
+            if (beforeNumber && numberedPart) {
+              preservedLines.push(beforeNumber + '\n');
+              preservedLines.push(numberedPart + '\n');
+              continue;
+            }
+          }
+        }
+        
         // Always preserve lines with bullets or numbers - add newline after
         // Check for numbered lists (1. item) or number + text patterns (110 Category Report)
         if (trimmed.startsWith('• ') || /^\d+\.\s/.test(trimmed) || /^\d+\s+[A-Z]/.test(trimmed)) {
@@ -119,13 +160,15 @@ export async function generateAccountInstructionsPDF(options) {
         // Preserve newline if next line looks like a list item:
         // - Starts with capital letter (likely list item)
         // - Starts with a number followed by text (like "110 Category Report")
+        // - Starts with numbered list (like "1. item")
         // - Is short (likely list item - less than 60 chars)
-        // - Current line ends with punctuation (end of sentence/thought)
+        // - Current line ends with punctuation (end of sentence/thought, including colon)
         if (nextLine && (nextLine.length === 0 || 
                         /^[A-Z]/.test(nextLine) || 
                         /^\d+\s+[A-Z]/.test(nextLine) ||
+                        /^\d+\.\s/.test(nextLine) ||
                         (nextLine.length < 60 && nextLine.length > 0) ||
-                        /[.!?]$/.test(trimmed))) {
+                        /[.!?:]$/.test(trimmed))) {
           preservedLines.push(line + '\n');
         } else if (i < lines.length - 1 && lines[i + 1].trim().length > 0) {
           // Collapse soft wrap: add space instead of newline
