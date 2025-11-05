@@ -81,6 +81,14 @@ export async function generateAccountInstructionsPDF(options) {
       // Collapse excessive whitespace but keep intentional double line breaks
       text = text.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n');
       
+      // Detect and split concatenated number patterns BEFORE line processing
+      // This handles cases like "Report120 Area" -> "Report\n120 Area"
+      // Pattern: complete word followed by number then space and capital letter
+      text = text.replace(/([A-Za-z]+)(\d+\s+[A-Z])/g, '$1\n$2');
+      // Also handle cases with no space: "Report120Area" -> "Report\n120 Area"
+      // Match word followed by number then capital letter directly
+      text = text.replace(/([A-Za-z]+)(\d+)([A-Z])/g, '$1\n$2 $3');
+      
       // Preserve newlines that are likely list items or intentional breaks
       // Only collapse newlines that are clearly soft wraps (mid-paragraph continuation)
       const lines = text.split('\n');
@@ -135,9 +143,14 @@ export async function generateAccountInstructionsPDF(options) {
         // If text starts with bullet (after whitespace) but doesn't have a newline before it,
         // add a newline to ensure it starts on its own line
         text = '\n' + trimmed;
+      } else {
+        // Don't trim if we just added a newline - preserve leading whitespace/newlines
+        text = trimmed;
       }
       
-      return text.trim();
+      // Don't trim final result - preserve leading newlines for proper formatting
+      // Only trim trailing whitespace
+      return text.replace(/\s+$/, '');
     };
 
     // Compute centered header lines
@@ -594,12 +607,28 @@ export async function generateAccountInstructionsPDF(options) {
     // PRE-INVENTORY CREW INSTRUCTIONS section (from Team-Instr)
     const teamInstr = htmlToPlain(String(client['Team-Instr'] ?? '').trim());
     const teamInstrAdditional = htmlToPlain(String(client['Team-Instr-Additional'] ?? '').trim());
-    // Ensure proper spacing when joining sections - add newline if second section starts with bullet
+    // Ensure proper spacing when joining sections
     const parts = [teamInstr, teamInstrAdditional].filter(Boolean);
-    let teamInstrCombined = parts.join('\n');
-    // If second part starts with bullet and first part doesn't end with newline, ensure spacing
-    if (parts.length === 2 && parts[1].trim().startsWith('• ') && !parts[0].endsWith('\n')) {
-      teamInstrCombined = parts[0] + '\n' + parts[1];
+    let teamInstrCombined = '';
+    if (parts.length === 0) {
+      teamInstrCombined = '';
+    } else if (parts.length === 1) {
+      teamInstrCombined = parts[0];
+    } else {
+      // Join with newline, but ensure proper spacing
+      // If either part starts with bullet, ensure it's on its own line
+      const first = parts[0];
+      const second = parts[1];
+      if (second.trim().startsWith('• ') || second.trim().match(/^\d+\s+[A-Z]/)) {
+        // Second part starts with bullet or number pattern - ensure newline before it
+        teamInstrCombined = first + '\n' + second;
+      } else {
+        teamInstrCombined = first + '\n' + second;
+      }
+    }
+    // Ensure first bullet point is on its own line if text starts with bullet
+    if (teamInstrCombined.trim().startsWith('• ') && !teamInstrCombined.match(/^\s*\n/)) {
+      teamInstrCombined = '\n' + teamInstrCombined.trim();
     }
     if (teamInstrCombined) {
       pdf.setFont('helvetica', 'bold');
