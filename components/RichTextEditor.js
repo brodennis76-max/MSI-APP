@@ -39,6 +39,21 @@ const RichTextEditor = ({ value, onChange }) => {
         const selection = window.getSelection();
         const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
         
+        // If no selection, create a range at cursor position
+        if (!range || range.collapsed) {
+          // Try to create a range at the current cursor position
+          try {
+            if (selection.rangeCount === 0) {
+              const newRange = document.createRange();
+              newRange.selectNodeContents(editor);
+              newRange.collapse(false); // Collapse to end
+              selection.addRange(newRange);
+            }
+          } catch (e) {
+            console.log('Could not create range:', e);
+          }
+        }
+        
         if (format === 'header') {
           // For headers, wrap selected text or insert new header
           if (range && !range.collapsed) {
@@ -52,11 +67,90 @@ const RichTextEditor = ({ value, onChange }) => {
             document.execCommand('formatBlock', false, value === 1 ? 'h1' : value === 2 ? 'h2' : 'p');
           }
         } else if (format === 'list' && value === 'ordered') {
+          // Ensure editor is focused before applying list
+          editor.focus();
+          // Get current selection
+          const selection = window.getSelection();
+          let range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+          
+          // If no selection or collapsed selection, try to select the current line
+          if (!range || range.collapsed) {
+            // Find the current line/paragraph
+            const node = selection.anchorNode || editor;
+            const parent = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+            
+            // Create a range for the current paragraph or line
+            try {
+              const newRange = document.createRange();
+              if (parent.tagName === 'P' || parent.tagName === 'DIV' || parent.tagName === 'LI') {
+                newRange.selectNodeContents(parent);
+              } else {
+                // Find closest block element
+                let blockElement = parent;
+                while (blockElement && blockElement !== editor && 
+                       !['P', 'DIV', 'LI', 'H1', 'H2', 'H3'].includes(blockElement.tagName)) {
+                  blockElement = blockElement.parentElement;
+                }
+                if (blockElement) {
+                  newRange.selectNodeContents(blockElement);
+                } else {
+                  newRange.selectNodeContents(editor);
+                }
+              }
+              selection.removeAllRanges();
+              selection.addRange(newRange);
+              range = newRange;
+            } catch (e) {
+              console.log('Could not create range for list:', e);
+            }
+          }
+          
+          // Try to apply ordered list
           document.execCommand('insertOrderedList', false, null);
         } else if (format === 'list' && value === 'bullet') {
+          // Ensure editor is focused before applying list
+          editor.focus();
+          // Get current selection
+          const selection = window.getSelection();
+          let range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+          
+          // If no selection or collapsed selection, try to select the current line
+          if (!range || range.collapsed) {
+            // Find the current line/paragraph
+            const node = selection.anchorNode || editor;
+            const parent = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+            
+            // Create a range for the current paragraph or line
+            try {
+              const newRange = document.createRange();
+              if (parent.tagName === 'P' || parent.tagName === 'DIV' || parent.tagName === 'LI') {
+                newRange.selectNodeContents(parent);
+              } else {
+                // Find closest block element
+                let blockElement = parent;
+                while (blockElement && blockElement !== editor && 
+                       !['P', 'DIV', 'LI', 'H1', 'H2', 'H3'].includes(blockElement.tagName)) {
+                  blockElement = blockElement.parentElement;
+                }
+                if (blockElement) {
+                  newRange.selectNodeContents(blockElement);
+                } else {
+                  newRange.selectNodeContents(editor);
+                }
+              }
+              selection.removeAllRanges();
+              selection.addRange(newRange);
+              range = newRange;
+            } catch (e) {
+              console.log('Could not create range for list:', e);
+            }
+          }
+          
+          // Try to apply unordered list
           document.execCommand('insertUnorderedList', false, null);
         } else {
           // For bold, italic, underline
+          editor.focus();
           if (format === 'bold') {
             document.execCommand('bold', false, null);
           } else if (format === 'italic') {
@@ -67,9 +161,12 @@ const RichTextEditor = ({ value, onChange }) => {
         }
         
         // Update content and trigger change
-        const newContent = editor.innerHTML;
-        setContent(newContent);
-        onChange && onChange(newContent);
+        setTimeout(() => {
+          const newContent = editor.innerHTML;
+          setContent(newContent);
+          isInternalUpdateRef.current = true;
+          onChange && onChange(newContent);
+        }, 10);
       }
     } else {
       // React Native: Use react-native-pell-rich-editor actions
@@ -151,6 +248,81 @@ const RichTextEditor = ({ value, onChange }) => {
       </View>
     </View>
   );
+
+  // Set up keyboard shortcuts for web editor
+  React.useEffect(() => {
+    if (Platform.OS === 'web' && editorRef.current) {
+      const editor = editorRef.current;
+      
+      const handleKeyDown = (e) => {
+        // Ctrl+B or Cmd+B for Bold
+        if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+          e.preventDefault();
+          editor.focus();
+          document.execCommand('bold', false, null);
+          const newContent = editor.innerHTML;
+          setContent(newContent);
+          isInternalUpdateRef.current = true;
+          onChange && onChange(newContent);
+          return false;
+        }
+        
+        // Ctrl+I or Cmd+I for Italic
+        if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+          e.preventDefault();
+          editor.focus();
+          document.execCommand('italic', false, null);
+          const newContent = editor.innerHTML;
+          setContent(newContent);
+          isInternalUpdateRef.current = true;
+          onChange && onChange(newContent);
+          return false;
+        }
+        
+        // Ctrl+U or Cmd+U for Underline
+        if ((e.ctrlKey || e.metaKey) && e.key === 'u') {
+          e.preventDefault();
+          editor.focus();
+          document.execCommand('underline', false, null);
+          const newContent = editor.innerHTML;
+          setContent(newContent);
+          isInternalUpdateRef.current = true;
+          onChange && onChange(newContent);
+          return false;
+        }
+        
+        // Ctrl+Shift+7 or Cmd+Shift+7 for Ordered List
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === '7') {
+          e.preventDefault();
+          editor.focus();
+          document.execCommand('insertOrderedList', false, null);
+          const newContent = editor.innerHTML;
+          setContent(newContent);
+          isInternalUpdateRef.current = true;
+          onChange && onChange(newContent);
+          return false;
+        }
+        
+        // Ctrl+Shift+8 or Cmd+Shift+8 for Bullet List
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === '8') {
+          e.preventDefault();
+          editor.focus();
+          document.execCommand('insertUnorderedList', false, null);
+          const newContent = editor.innerHTML;
+          setContent(newContent);
+          isInternalUpdateRef.current = true;
+          onChange && onChange(newContent);
+          return false;
+        }
+      };
+      
+      editor.addEventListener('keydown', handleKeyDown);
+      
+      return () => {
+        editor.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+  }, [onChange]);
 
   // Render editor based on platform
   const renderEditor = () => {

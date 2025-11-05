@@ -213,7 +213,6 @@ const EditAccountFlow = ({ onBack }) => {
         startTime: activeClient.startTime,
         verification: activeClient.verification,
         additionalNotes: activeClient.additionalNotes,
-        scannerQRCode: activeClient.scannerQRCode || '',
         scannerQRCodeImageUrl: activeClient.scannerQRCodeImageUrl || '',
         scannerQRCodeImageBase64: activeClient.scannerQRCodeImageBase64 || '',
         pdfImageUrls: activeClient.pdfImageUrls || '',
@@ -371,22 +370,9 @@ const EditAccountFlow = ({ onBack }) => {
             </View>
 
             {Array.isArray(activeClient.inventoryTypes) && activeClient.inventoryTypes.includes('scan') && (
-              <>
-                <View style={styles.fieldContainer}>
-                  <Text style={styles.label}>Scanner QR Code (Text)</Text>
-                  <Text style={styles.helperText}>Enter the QR code data to generate a QR code. This will be used if no image URL is provided below.</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={activeClient.scannerQRCode || ''}
-                    placeholder="Enter QR code data"
-                    onChangeText={(text) => setActiveClient({...activeClient, scannerQRCode: text})}
-                    multiline
-                    numberOfLines={3}
-                  />
-                </View>
-                <View style={styles.fieldContainer}>
-                  <Text style={styles.label}>Scanner QR Code Image</Text>
-                  <Text style={styles.helperText}>Upload a QR code PNG image from your computer or load from a URL on the internet.</Text>
+              <View style={styles.fieldContainer}>
+                <Text style={styles.label}>Scanner QR Code Image</Text>
+                <Text style={styles.helperText}>Upload a QR code PNG image from your computer or load from a URL on the internet (e.g., GitHub raw URL).</Text>
                   
                   {/* Upload Button - From Computer */}
                   <TouchableOpacity 
@@ -438,20 +424,49 @@ const EditAccountFlow = ({ onBack }) => {
                         style={styles.previewImage}
                         resizeMode="contain"
                       />
-                      <TouchableOpacity 
-                        style={styles.removeButton}
-                        onPress={() => setActiveClient({
-                          ...activeClient,
-                          scannerQRCodeImageBase64: '',
-                          scannerQRCodeImageUrl: ''
-                        })}
-                      >
-                        <Text style={styles.removeButtonText}>Remove Image</Text>
-                      </TouchableOpacity>
+                      <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                        {Platform.OS === 'web' && (
+                          <TouchableOpacity 
+                            style={[styles.uploadButton, { flex: 1, backgroundColor: '#28a745', marginRight: 8 }]}
+                            onPress={() => {
+                              // Download image for GitHub upload
+                              const link = document.createElement('a');
+                              link.href = activeClient.scannerQRCodeImageBase64;
+                              link.download = `qr-code-${activeClient.name || 'client'}.png`;
+                              link.click();
+                              Alert.alert('Download Started', 'Download the image and upload it to GitHub at: https://github.com/brodennis76-max/MSI-APP/tree/main/msi-expo/qr-codes');
+                            }}
+                          >
+                            <Text style={styles.uploadButtonText}>📥 Download for GitHub Upload</Text>
+                          </TouchableOpacity>
+                        )}
+                        <TouchableOpacity 
+                          style={[styles.removeButton, { flex: Platform.OS === 'web' ? 1 : undefined }]}
+                          onPress={() => setActiveClient({
+                            ...activeClient,
+                            scannerQRCodeImageBase64: '',
+                            scannerQRCodeImageUrl: ''
+                          })}
+                        >
+                          <Text style={styles.removeButtonText}>Remove Image</Text>
+                        </TouchableOpacity>
+                      </View>
+                      {Platform.OS === 'web' && (
+                        <Text style={[styles.helperText, { marginTop: 8, fontSize: 11, color: '#666' }]}>
+                          To upload to GitHub: 1) Click "Download" above, 2) Go to{' '}
+                          <Text style={{ color: '#007bff', textDecorationLine: 'underline' }} onPress={() => {
+                            if (typeof window !== 'undefined') {
+                              window.open('https://github.com/brodennis76-max/MSI-APP/tree/main/msi-expo/qr-codes', '_blank');
+                            }
+                          }}>
+                            GitHub qr-codes folder
+                          </Text>
+                          {' '}, 3) Click "Add file" → "Upload files", 4) Drag the downloaded PNG, 5) Commit, 6) Copy the raw URL and paste it in the URL field above.
+                        </Text>
+                      )}
                     </View>
                   )}
-                </View>
-              </>
+              </View>
             )}
 
             <View style={styles.fieldContainer}>

@@ -696,7 +696,6 @@ export async function generateAccountInstructionsPDF(options) {
       const DEFAULT_QR_CODE_IMAGE = 'https://raw.githubusercontent.com/brodennis76-max/MSI-APP/main/msi-expo/qr-codes/1450%20Scanner%20Program.png';
       const clientQRCodeImageBase64 = String(client.scannerQRCodeImageBase64 || '').trim();
       const clientQRCodeImageUrl = String(client.scannerQRCodeImageUrl || '').trim();
-      const qrCodeData = String(client.scannerQRCode || '').trim();
       
       if (hasScanType) {
         try {
@@ -719,30 +718,23 @@ export async function generateAccountInstructionsPDF(options) {
               });
             } catch (error) {
               console.error('Error loading client QR code image from URL:', error);
-              // Fall back to generating from text if image load fails
-              if (qrCodeData) {
-                const QRCode = await import('qrcode');
-                qrCodeDataUrl = await QRCode.default.toDataURL(qrCodeData, {
-                  width: 200,
-                  margin: 1,
-                  errorCorrectionLevel: 'M'
+              // Fall back to default image if client image fails
+              try {
+                const res = await fetch(DEFAULT_QR_CODE_IMAGE);
+                const blob = await res.blob();
+                const reader = new FileReader();
+                qrCodeDataUrl = await new Promise((resolve, reject) => {
+                  reader.onloadend = () => resolve(reader.result);
+                  reader.onerror = reject;
+                  reader.readAsDataURL(blob);
                 });
-              } else {
-                // Fall back to default image if client image fails and no text data
-                throw error;
+              } catch (defaultError) {
+                console.error('Error loading default QR code image:', defaultError);
+                qrCodeDataUrl = null;
               }
             }
-          } 
-          // Priority 3: Generate QR code from text data (if provided)
-          else if (qrCodeData) {
-            const QRCode = await import('qrcode');
-            qrCodeDataUrl = await QRCode.default.toDataURL(qrCodeData, {
-              width: 200,
-              margin: 1,
-              errorCorrectionLevel: 'M'
-            });
           }
-          // Priority 4: Use default PNG image
+          // Priority 3: Use default PNG image
           else {
             try {
               const res = await fetch(DEFAULT_QR_CODE_IMAGE);
@@ -968,7 +960,6 @@ async function buildHtml(client) {
   const DEFAULT_QR_CODE_IMAGE = 'https://raw.githubusercontent.com/brodennis76-max/MSI-APP/main/msi-expo/qr-codes/1450%20Scanner%20Program.png';
   const clientQRCodeImageBase64 = String(client.scannerQRCodeImageBase64 ?? '').trim();
   const clientQRCodeImageUrl = String(client.scannerQRCodeImageUrl ?? '').trim();
-  const qrCodeData = String(client.scannerQRCode ?? '').trim();
   
   if (hasScanType) {
     try {
@@ -982,16 +973,7 @@ async function buildHtml(client) {
       else if (clientQRCodeImageUrl) {
         qrCodeSrc = clientQRCodeImageUrl;
       } 
-      // Priority 3: Generate QR code from text data (if provided)
-      else if (qrCodeData) {
-        const QRCode = await import('qrcode');
-        qrCodeSrc = await QRCode.default.toDataURL(qrCodeData, {
-          width: 200,
-          margin: 1,
-          errorCorrectionLevel: 'M'
-        });
-      }
-      // Priority 4: Use default PNG image
+      // Priority 3: Use default PNG image
       else {
         qrCodeSrc = DEFAULT_QR_CODE_IMAGE;
       }
