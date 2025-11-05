@@ -18,7 +18,7 @@ const PreInventoryTeamInstructionsForm = ({ clientData, onBack, onComplete }) =>
   const [additionalText, setAdditionalText] = useState('');
 
   const teamInstructions = [
-    "The Inventory Manager will brief the team on the proper counting procedures and their responsibilities to the customer and their customers. Below are the guidelines that must always be followed:",
+    "The Inventory Manager will brief the team on the proper counting procedures and their responsibilities to the customer and their customers. Below are the guidelines that must always be followed:\n",
     "1. Shirts are to be tucked in, pants pulled up, no hats or facial piercings.",
     "2. NO FOOD OR DRINK ON THE SALESFLOOR.",
     "3. Cell phones are to be turned OFF, except for supervisors running the inventory.",
