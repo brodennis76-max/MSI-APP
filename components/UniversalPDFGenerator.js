@@ -89,6 +89,15 @@ export async function generateAccountInstructionsPDF(options) {
       // Match word followed by number then capital letter directly
       text = text.replace(/([A-Za-z]+)(\d+)([A-Z])/g, '$1\n$2 $3');
       
+      // Detect and split patterns like "wall 4001" or "wall 4101" where a 4-digit number follows a word
+      // This handles cases like "Front wall 4001." -> "Front wall\n4001."
+      // Pattern: word(s) + space + 4-digit number (with period)
+      // Match word(s) + space + 4-digit number (4000-9999 range)
+      text = text.replace(/(\b\w+(?:\s+\w+)?\s+wall)\s+(\d{4}\.)/gi, '$1\n$2');
+      // More general: any word(s) + space + 4-digit number pattern (for cases like "Check stand 5001")
+      // This catches cases like "Left wall 4101." or "Display 6001" -> separate line for number
+      text = text.replace(/(\b\w+(?:\s+\w+)?)\s+(\d{4}\.)/g, '$1\n$2');
+      
       // Detect and split numbered list items that come after text
       // Pattern: text ending with colon/punctuation followed by space and "1. " (numbered list)
       // Example: "followed: 1. Shirts..." -> "followed:\n1. Shirts..."
@@ -688,54 +697,39 @@ export async function generateAccountInstructionsPDF(options) {
       pdf.setFontSize(12);
       writeWrapped(teamInstrCombined, contentWidth, lineHeight);
       y += 12;
-      
-      // Add QR code section right after Pre-Inventory Crew Instructions (after special instructions)
-      const inventoryTypesArr = Array.isArray(client.inventoryTypes) ? client.inventoryTypes : (client.inventoryType ? [client.inventoryType] : []);
-      const hasScanType = inventoryTypesArr.includes('scan');
-      // Default QR code image URL (GitHub raw URL)
-      const DEFAULT_QR_CODE_IMAGE = 'https://raw.githubusercontent.com/brodennis76-max/MSI-APP/main/msi-expo/qr-codes/1450%20Scanner%20Program.png';
-      const clientQRCodeImageBase64 = String(client.scannerQRCodeImageBase64 || '').trim();
-      const clientQRCodeImageUrl = String(client.scannerQRCodeImageUrl || '').trim();
-      
-      if (hasScanType) {
-        try {
-          let qrCodeDataUrl;
-          
-          // Priority 1: Use uploaded base64 image if available
-          if (clientQRCodeImageBase64) {
-            qrCodeDataUrl = clientQRCodeImageBase64;
-          }
-          // Priority 2: Use client-specific PNG image URL if provided
-          else if (clientQRCodeImageUrl) {
-            try {
-              const res = await fetch(clientQRCodeImageUrl);
-              const blob = await res.blob();
-              const reader = new FileReader();
-              qrCodeDataUrl = await new Promise((resolve, reject) => {
-                reader.onloadend = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-              });
-            } catch (error) {
-              console.error('Error loading client QR code image from URL:', error);
-              // Fall back to default image if client image fails
-              try {
-                const res = await fetch(DEFAULT_QR_CODE_IMAGE);
-                const blob = await res.blob();
-                const reader = new FileReader();
-                qrCodeDataUrl = await new Promise((resolve, reject) => {
-                  reader.onloadend = () => resolve(reader.result);
-                  reader.onerror = reject;
-                  reader.readAsDataURL(blob);
-                });
-              } catch (defaultError) {
-                console.error('Error loading default QR code image:', defaultError);
-                qrCodeDataUrl = null;
-              }
-            }
-          }
-          // Priority 3: Use default PNG image
-          else {
+    }
+    
+    // Add QR code section right after Pre-Inventory Crew Instructions (after special instructions)
+    // This should appear even if there are no team instructions, as long as scan type is selected
+    const inventoryTypesArr = Array.isArray(client.inventoryTypes) ? client.inventoryTypes : (client.inventoryType ? [client.inventoryType] : []);
+    const hasScanType = inventoryTypesArr.includes('scan');
+    
+    if (hasScanType) {
+      try {
+        // Default QR code image URL (GitHub raw URL)
+        const DEFAULT_QR_CODE_IMAGE = 'https://raw.githubusercontent.com/brodennis76-max/MSI-APP/main/msi-expo/qr-codes/1450%20Scanner%20Program.png';
+        const clientQRCodeImageBase64 = String(client.scannerQRCodeImageBase64 || '').trim();
+        const clientQRCodeImageUrl = String(client.scannerQRCodeImageUrl || '').trim();
+        let qrCodeDataUrl;
+        
+        // Priority 1: Use uploaded base64 image if available
+        if (clientQRCodeImageBase64) {
+          qrCodeDataUrl = clientQRCodeImageBase64;
+        }
+        // Priority 2: Use client-specific PNG image URL if provided
+        else if (clientQRCodeImageUrl) {
+          try {
+            const res = await fetch(clientQRCodeImageUrl);
+            const blob = await res.blob();
+            const reader = new FileReader();
+            qrCodeDataUrl = await new Promise((resolve, reject) => {
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          } catch (error) {
+            console.error('Error loading client QR code image from URL:', error);
+            // Fall back to default image if client image fails
             try {
               const res = await fetch(DEFAULT_QR_CODE_IMAGE);
               const blob = await res.blob();
@@ -745,38 +739,54 @@ export async function generateAccountInstructionsPDF(options) {
                 reader.onerror = reject;
                 reader.readAsDataURL(blob);
               });
-            } catch (error) {
-              console.error('Error loading default QR code image:', error);
-              // Continue without QR code if default image fails
+            } catch (defaultError) {
+              console.error('Error loading default QR code image:', defaultError);
               qrCodeDataUrl = null;
             }
           }
-          
-          if (qrCodeDataUrl) {
-            // Add spacing before QR code section
-            y += 20;
-            
-            // Add header
-            const headerText = '1450 SCANNER PROGRAM CODE:';
-            const headerFontSize = 14;
-            pdf.setFont('helvetica', 'bold');
-            pdf.setFontSize(headerFontSize);
-            const headerWidth = pdf.getTextWidth(headerText);
-            checkPageBreak(headerFontSize + 20);
-            pdf.text(headerText, (PAGE_WIDTH_PT - headerWidth) / 2, y); // Centered
-            y += headerFontSize + 12;
-            
-            // Add QR code image (centered)
-            const qrSize = 108; // 1.5 inches (108pt)
-            const qrX = (PAGE_WIDTH_PT - qrSize) / 2; // Center horizontally
-            checkPageBreak(qrSize + 20);
-            pdf.addImage(qrCodeDataUrl, 'PNG', qrX, y, qrSize, qrSize);
-            y += qrSize + 12;
-          }
-        } catch (error) {
-          console.error('Error adding QR code:', error);
-          // Continue without QR code if generation fails
         }
+        // Priority 3: Use default PNG image
+        else {
+          try {
+            const res = await fetch(DEFAULT_QR_CODE_IMAGE);
+            const blob = await res.blob();
+            const reader = new FileReader();
+            qrCodeDataUrl = await new Promise((resolve, reject) => {
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          } catch (error) {
+            console.error('Error loading default QR code image:', error);
+            // Continue without QR code if default image fails
+            qrCodeDataUrl = null;
+          }
+        }
+        
+        if (qrCodeDataUrl) {
+          // Add spacing before QR code section
+          y += 20;
+          
+          // Add header
+          const headerText = '1450 SCANNER PROGRAM CODE:';
+          const headerFontSize = 14;
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(headerFontSize);
+          const headerWidth = pdf.getTextWidth(headerText);
+          checkPageBreak(headerFontSize + 20);
+          pdf.text(headerText, (PAGE_WIDTH_PT - headerWidth) / 2, y); // Centered
+          y += headerFontSize + 12;
+          
+          // Add QR code image (centered)
+          const qrSize = 108; // 1.5 inches (108pt)
+          const qrX = (PAGE_WIDTH_PT - qrSize) / 2; // Center horizontally
+          checkPageBreak(qrSize + 20);
+          pdf.addImage(qrCodeDataUrl, 'PNG', qrX, y, qrSize, qrSize);
+          y += qrSize + 12;
+        }
+      } catch (error) {
+        console.error('Error adding QR code:', error);
+        // Continue without QR code if generation fails
       }
     }
 
