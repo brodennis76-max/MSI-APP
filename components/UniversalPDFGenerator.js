@@ -97,17 +97,20 @@ export async function generateAccountInstructionsPDF(options) {
         }
         
         // Always preserve lines with bullets or numbers - add newline after
-        if (trimmed.startsWith('• ') || /^\d+\.\s/.test(trimmed)) {
+        // Check for numbered lists (1. item) or number + text patterns (110 Category Report)
+        if (trimmed.startsWith('• ') || /^\d+\.\s/.test(trimmed) || /^\d+\s+[A-Z]/.test(trimmed)) {
           preservedLines.push(line + '\n');
           continue;
         }
         
         // Preserve newline if next line looks like a list item:
         // - Starts with capital letter (likely list item)
+        // - Starts with a number followed by text (like "110 Category Report")
         // - Is short (likely list item - less than 60 chars)
         // - Current line ends with punctuation (end of sentence/thought)
         if (nextLine && (nextLine.length === 0 || 
                         /^[A-Z]/.test(nextLine) || 
+                        /^\d+\s+[A-Z]/.test(nextLine) ||
                         (nextLine.length < 60 && nextLine.length > 0) ||
                         /[.!?]$/.test(trimmed))) {
           preservedLines.push(line + '\n');
@@ -124,6 +127,15 @@ export async function generateAccountInstructionsPDF(options) {
       // Fix any malformed bullet points that might have been created
       text = text.replace(/\s+•\s+/g, '\n• ');
       text = text.replace(/•\s*•/g, '•');
+      
+      // Ensure text starting with bullet point has proper newline before it
+      // This handles cases where text starts directly with a bullet without preceding content
+      const trimmed = text.trim();
+      if (trimmed.startsWith('• ') && !text.match(/^\s*\n/)) {
+        // If text starts with bullet (after whitespace) but doesn't have a newline before it,
+        // add a newline to ensure it starts on its own line
+        text = '\n' + trimmed;
+      }
       
       return text.trim();
     };
@@ -190,15 +202,17 @@ export async function generateAccountInstructionsPDF(options) {
     const writeWrapped = (text, width, lineH) => {
 
       // Check if text contains bullet points or numbered lists (only at start of lines)
+      // Also check for number + text patterns like "110 Category Report"
       const hasBulletPoints = text.split('\n').some(line => line.trim().startsWith('• '));
       const hasNumberedLists = text.split('\n').some(line => /^\d+\.\s/.test(line.trim()));
+      const hasNumberPatterns = text.split('\n').some(line => /^\d+\s+[A-Z]/.test(line.trim()));
       
-      if (hasBulletPoints || hasNumberedLists) {
+      if (hasBulletPoints || hasNumberedLists || hasNumberPatterns) {
         // Handle bullet points and numbered lists with hanging indents
         const lines = text.split('\n');
         lines.forEach((line, index) => {
           const trimmedLine = line.trim();
-          if (trimmedLine.startsWith('• ') || /^\d+\.\s/.test(trimmedLine)) {
+          if (trimmedLine.startsWith('• ') || /^\d+\.\s/.test(trimmedLine) || /^\d+\s+[A-Z]/.test(trimmedLine)) {
             // This is a bullet point or numbered list line
             let prefix = '';
             let contentText = '';
@@ -208,10 +222,20 @@ export async function generateAccountInstructionsPDF(options) {
               contentText = trimmedLine.substring(2);
             } else {
               // Numbered list - extract number and content
-              const match = trimmedLine.match(/^(\d+\.\s)(.*)/);
+              let match = trimmedLine.match(/^(\d+\.\s)(.*)/);
               if (match) {
                 prefix = match[1];
                 contentText = match[2];
+              } else {
+                // Number pattern like "110 Category Report" - extract number and space
+                match = trimmedLine.match(/^(\d+\s+)(.*)/);
+                if (match) {
+                  prefix = match[1];
+                  contentText = match[2];
+                } else {
+                  // Fallback: treat entire line as content
+                  contentText = trimmedLine;
+                }
               }
             }
             
@@ -570,7 +594,13 @@ export async function generateAccountInstructionsPDF(options) {
     // PRE-INVENTORY CREW INSTRUCTIONS section (from Team-Instr)
     const teamInstr = htmlToPlain(String(client['Team-Instr'] ?? '').trim());
     const teamInstrAdditional = htmlToPlain(String(client['Team-Instr-Additional'] ?? '').trim());
-    const teamInstrCombined = [teamInstr, teamInstrAdditional].filter(Boolean).join('\n');
+    // Ensure proper spacing when joining sections - add newline if second section starts with bullet
+    const parts = [teamInstr, teamInstrAdditional].filter(Boolean);
+    let teamInstrCombined = parts.join('\n');
+    // If second part starts with bullet and first part doesn't end with newline, ensure spacing
+    if (parts.length === 2 && parts[1].trim().startsWith('• ') && !parts[0].endsWith('\n')) {
+      teamInstrCombined = parts[0] + '\n' + parts[1];
+    }
     if (teamInstrCombined) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
