@@ -12,9 +12,12 @@ import {
   Platform
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+import * as ImagePicker from 'expo-image-picker';
 import { db } from '../firebase-config';
-import { collection, onSnapshot, doc, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, updateDoc } from 'firebase/firestore';
 import RichTextEditor from './RichTextEditor';
+import { uploadQrToGitHub, getAccountQrPath } from '../utils/uploadQrToGitHub';
+import { getGitHubToken } from '../config/github-config';
 import PreInventoryForm from './PreInventoryForm';
 import InventoryProceduresForm from './InventoryProceduresForm';
 import AuditsInventoryFlowForm from './AuditsInventoryFlowForm';
@@ -40,6 +43,8 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
   const [showReports, setShowReports] = useState(false);
   const [showCompletion, setShowCompletion] = useState(false);
   const [createdClient, setCreatedClient] = useState(null);
+  const [qrImageBase64, setQrImageBase64] = useState(null);
+  const [uploadingQr, setUploadingQr] = useState(false);
 
   // Firebase connection test function
   const testFirebaseConnection = async () => {
@@ -342,9 +347,71 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
           verification: clientToEdit.verification || 'Audit trails will be provided, as requested, during the count, within reason (do not provide audit trails on the entire store.)',
           additionalNotes: clientToEdit.additionalNotes || ''
         });
+        setQrImageBase64(null); // Reset QR image when switching clients
       }
     }
   }, [clientAction, selectedClientId, clients]);
+
+  const pickQrImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const base64 = `data:image/png;base64,${result.assets[0].base64}`;
+        setQrImageBase64(base64);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image.');
+    }
+  };
+
+  const removeQrImage = () => {
+    setQrImageBase64(null);
+  };
+
+  const uploadQrCode = async (clientId) => {
+    if (!qrImageBase64 || !clientId) return;
+    
+    setUploadingQr(true);
+    try {
+      // Get GitHub token from config
+      const githubToken = getGitHubToken();
+      
+      if (!githubToken) {
+        Alert.alert(
+          'GitHub Token Required',
+          'Please set your GitHub token in config/github-config.js to upload QR codes to GitHub.'
+        );
+        setUploadingQr(false);
+        return;
+      }
+
+      const qrUrl = await uploadQrToGitHub(qrImageBase64, clientId, githubToken);
+      const qrPath = getAccountQrPath(clientId);
+      
+      // Update client with QR code path
+      const clientRef = doc(db, 'clients', clientId);
+      await updateDoc(clientRef, {
+        qrPath: qrPath,
+        updatedAt: new Date(),
+      });
+      
+      setQrImageBase64(null);
+      Alert.alert('Success', 'QR code uploaded to GitHub successfully!');
+    } catch (error) {
+      console.error('Error uploading QR code:', error);
+      Alert.alert('Error', `Failed to upload QR code: ${error.message}`);
+    } finally {
+      setUploadingQr(false);
+    }
+  };
 
   const handleSave = async () => {
     if (clientAction === 'new') {
@@ -415,6 +482,17 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
         };
         
         setCreatedClient(newClient);
+        
+        // Upload QR code if one was selected
+        if (qrImageBase64) {
+          try {
+            await uploadQrCode(sanitizedName);
+          } catch (error) {
+            console.error('Error uploading QR code after client creation:', error);
+            // Don't block the flow if QR upload fails
+          }
+        }
+        
         setShowPreInventoryForm(true);
         
         // Reset form data
@@ -726,6 +804,53 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
                 numberOfLines={4}
                 returnKeyType="done"
               />
+
+              <Text style={styles.label}>Scanner QR Code</Text>
+              <Text style={styles.helperText}>
+                {clientAction === 'edit' && selectedClient?.qrPath 
+                  ? `Using account-specific QR code: ${selectedClient.qrPath}`
+                  : 'Using default QR code (qr-codes/1450 Scanner Program.png)'}
+              </Text>
+              
+              {qrImageBase64 && (
+                <View style={styles.qrPreviewContainer}>
+                  <Image source={{ uri: qrImageBase64 }} style={styles.qrPreview} />
+                  <TouchableOpacity style={styles.removeButton} onPress={removeQrImage}>
+                    <Text style={styles.removeButtonText}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              
+              <TouchableOpacity 
+                style={styles.uploadButton} 
+                onPress={pickQrImage}
+                disabled={uploadingQr}
+              >
+                <Text style={styles.uploadButtonText}>
+                  {qrImageBase64 ? 'Change QR Code Image' : 'Select QR Code Image'}
+                </Text>
+              </TouchableOpacity>
+              
+              {qrImageBase64 && (
+                <TouchableOpacity 
+                  style={[styles.uploadButton, styles.uploadToGitHubButton, uploadingQr && styles.disabled]} 
+                  onPress={() => {
+                    const clientId = clientAction === 'new' 
+                      ? newClientData.name.replace(/[^a-zA-Z0-9]/g, '_')
+                      : selectedClientId;
+                    if (clientId) {
+                      uploadQrCode(clientId);
+                    } else {
+                      Alert.alert('Error', 'Please save the client first before uploading QR code.');
+                    }
+                  }}
+                  disabled={uploadingQr}
+                >
+                  <Text style={styles.uploadButtonText}>
+                    {uploadingQr ? 'Uploading to GitHub...' : 'Upload to GitHub'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           </>
         )}
@@ -924,6 +1049,47 @@ const styles = StyleSheet.create({
   inventoryTypeTextSelected: {
     color: '#007AFF',
     fontWeight: '600',
+  },
+  qrPreviewContainer: {
+    marginVertical: 10,
+    alignItems: 'center',
+  },
+  qrPreview: {
+    width: 200,
+    height: 200,
+    resizeMode: 'contain',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  uploadButton: {
+    backgroundColor: '#007AFF',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  uploadToGitHubButton: {
+    backgroundColor: '#28a745',
+    marginTop: 10,
+  },
+  uploadButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  removeButton: {
+    backgroundColor: '#dc3545',
+    padding: 8,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  removeButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   searchContainer: {
     marginBottom: 15,

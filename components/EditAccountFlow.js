@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Image, TouchableOpacity, TextInput, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Image, TouchableOpacity, TextInput, Alert, Platform, ScrollView } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import { db } from '../firebase-config';
 import { collection, onSnapshot, doc, getDoc, updateDoc } from 'firebase/firestore';
 import RichTextEditor from './RichTextEditor';
 import { uploadQrToGitHub, getAccountQrPath } from '../utils/uploadQrToGitHub';
+import { getGitHubToken } from '../config/github-config';
 import PreInventoryForm from './PreInventoryForm';
 import InventoryProceduresForm from './InventoryProceduresForm';
 import AuditsInventoryFlowForm from './AuditsInventoryFlowForm';
@@ -98,15 +99,15 @@ const EditAccountFlow = ({ onBack }) => {
     
     setUploadingQr(true);
     try {
-      // Get GitHub token from environment or config
-      // For now, we'll need to add this to a config file or environment variable
-      const githubToken = process.env.GITHUB_TOKEN || '';
+      // Get GitHub token from config
+      const githubToken = getGitHubToken();
       
       if (!githubToken) {
         Alert.alert(
           'GitHub Token Required',
-          'Please set GITHUB_TOKEN in your environment variables or config file to upload QR codes to GitHub.'
+          'Please set your GitHub token in config/github-config.js to upload QR codes to GitHub.'
         );
+        setUploadingQr(false);
         return;
       }
 
@@ -233,7 +234,7 @@ const EditAccountFlow = ({ onBack }) => {
             <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
         </View>
-        <View style={styles.content}>
+        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
           <View style={styles.clientInfoContainer}>
             <Text style={styles.sectionTitle}>Client Information</Text>
             
@@ -351,7 +352,7 @@ const EditAccountFlow = ({ onBack }) => {
               {saving ? 'Saving...' : 'Save & Continue to Forms'}
             </Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </View>
     );
   }
@@ -436,7 +437,8 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', marginLeft: 10, flex: 1, textAlign: 'center' },
   backButton: { backgroundColor: '#6c757d', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 5 },
   backButtonText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
-  content: { flex: 1, padding: 20 },
+  content: { flex: 1 },
+  contentContainer: { padding: 20 },
   searchContainer: { marginBottom: 15 },
   searchInput: { height: 50, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, paddingHorizontal: 15, fontSize: 16, backgroundColor: '#fff' },
   pickerContainer: { width: '100%', marginBottom: 20 },
