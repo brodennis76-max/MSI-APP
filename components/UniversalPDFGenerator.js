@@ -280,11 +280,13 @@ function createHtmlRenderer(pdf, opts) {
     if (tag === 'u') ctx.underline = true;
 
     if (tag === 'ul' || tag === 'ol') {
-      checkPage(lineHeight * 0.5); y += lineHeight * 0.5;
+      // Minimal spacing before list (just ensure page break check)
+      checkPage(lineHeight);
       let index = 1;
       const items = Array.from(node.children).filter(el => el.tagName.toLowerCase() === 'li');
       for (const li of items) {
-        checkPage(lineHeight); y += lineHeight;
+        // Each list item starts on a new line - drawWrappedText already advanced y from previous item
+        checkPage(lineHeight);
 
         const { x } = lineBox(indent);
         const marker = tag === 'ul' ? '•' : `${index}.`;
@@ -306,9 +308,12 @@ function createHtmlRenderer(pdf, opts) {
           }
         }
         
+        // drawWrappedText already advanced y after the last line
+        // This provides single lineHeight spacing between list items
         index += 1;
       }
-      checkPage(lineHeight * 0.5); y += lineHeight * 0.5;
+      // Minimal spacing after list (just ensure page break check)
+      checkPage(lineHeight);
       return;
     }
 
@@ -326,10 +331,8 @@ function createHtmlRenderer(pdf, opts) {
       await renderNode(child, snap, indent);
     }
 
-    // Paragraph spacing: minimal spacing (0.5 × lineHeight) to create single spacing between paragraphs
-    // drawWrappedText already advances y after last line, so we add a small gap for paragraph separation
-    if (tag === 'p') { checkPage(lineHeight * 0.5); y += lineHeight * 0.5; }
-    if (tag === 'div') { checkPage(lineHeight * 0.5); y += lineHeight * 0.5; }
+    // No spacing after paragraphs/divs - drawWrappedText already advances y after the last line
+    // Adding extra spacing here causes double spacing between paragraphs
   };
 
   return {
@@ -530,7 +533,7 @@ export async function generateAccountInstructionsPDF(options) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
       pdf.text(title, MARGIN_PT, y);
-      y += LINE_HEIGHT;
+      y += LINE_HEIGHT; // Advance to next line for content
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
     };
@@ -541,7 +544,7 @@ export async function generateAccountInstructionsPDF(options) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
       pdf.text(title, MARGIN_PT, y);
-      y += LINE_HEIGHT;
+      y += LINE_HEIGHT; // Advance to next line for content
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
     };
@@ -605,12 +608,12 @@ export async function generateAccountInstructionsPDF(options) {
         subSectionHeader('Area Mapping');
         htmlRenderer.setY(y);
         await htmlRenderer.renderHtmlString(String(areaMappingRaw));
-        y = htmlRenderer.getY() + 10;
+        y = htmlRenderer.getY();
       } else {
         subSectionHeader('Area Mapping');
         htmlRenderer.setY(y);
         await htmlRenderer.renderHtmlString(storeMappingText);
-        y = htmlRenderer.getY() + 10;
+        y = htmlRenderer.getY();
       }
 
       if (String(storePrepRaw).trim()) {
