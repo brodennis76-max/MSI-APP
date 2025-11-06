@@ -130,33 +130,6 @@ function htmlToPlainInline(html) {
   return s.trim();
 }
 
-// ---------- Normalizer for mashed text ----------
-
-function normalizeTextForLayout(s) {
-  if (!s) return '';
-  let t = String(s);
-
-  // Ensure a space after a period or colon when followed by alnum
-  t = t.replace(/\.([A-Za-z0-9])/g, '. $1');
-  t = t.replace(/:([^\s])/g, ': $1');
-
-  // Force line break before these labels if they appear mid line
-  t = t.replace(/(?<!^)\s*(Map as Follows:)/gi, '\n$1');
-  t = t.replace(/(?<!^)\s*(NOTE:)/g, '\n$1');
-
-  // Break after MSI Inventory Reports when a number follows
-  t = t.replace(/(MSI\s+Inventory\s+Reports)\s*([0-9])/i, '$1\n$2');
-
-  // Repair numbered items missing dot or space
-  t = t.replace(/(\b\d)\s*\.(\S)/g, '$1. $2');
-  t = t.replace(/(\b\d)(\S)/g, '$1 $2');
-
-  // Insert a break before a bullet glued to a token
-  t = t.replace(/(\S)•/g, '$1\n•');
-
-  return t;
-}
-
 // ---------- Web HTML -> jsPDF renderer ----------
 
 function createHtmlRenderer(pdf, opts) {
@@ -205,6 +178,7 @@ function createHtmlRenderer(pdf, opts) {
       const blockedRight = pageWidth - margin - floatRegion.x;
       return { x: fullX, w: Math.max(24, fullW - blockedRight) };
     }
+    const leftBlockWidth = (floatRegion.x + (floatRegion.w || 0)) - fullX;
     const x = Math.max(fullX, floatRegion.x + (floatRegion.w || 0) + 6);
     const w = pageWidth - margin - x;
     return { x, w: Math.max(24, w) };
@@ -237,21 +211,25 @@ function createHtmlRenderer(pdf, opts) {
 
   const drawWrappedText = (ctx, text, indent) => {
     if (!text) return;
-    const normalized = normalizeTextForLayout(text);
-    const lines = normalized.replace(/\r\n/g, '\n').split('\n');
+    const lines = text.replace(/\r\n/g, '\n').split('\n');
     lines.forEach((raw, idx) => {
-      let cleaned = raw.replace(/[ \t]+/g, ' ').trim();
+      let cleaned = raw.replace(/(\S)•/g, '$1\n•');
+      cleaned = cleaned.replace(/[ \t]+/g, ' ').trim();
       if (idx > 0) { checkPage(lineHeight); y += lineHeight; }
       if (!cleaned) return;
-      const wrapped = wrapMeasureLines(ctx, cleaned, indent);
-      wrapped.forEach((ln, wi) => {
-        if (wi > 0) { checkPage(lineHeight); y += lineHeight; }
-        setFontFor(ctx);
-        pdf.text(ln.text, ln.x, y);
-        if (ctx.underline) {
-          const w = pdf.getTextWidth(ln.text);
-          pdf.line(ln.x, y + underlineOffset, ln.x + w, y + underlineOffset);
-        }
+      const pieces = cleaned.split('\n');
+      pieces.forEach((piece, pi) => {
+        if (pi > 0) { checkPage(lineHeight); y += lineHeight; }
+        const wrapped = wrapMeasureLines(ctx, piece, indent);
+        wrapped.forEach((ln, wi) => {
+          if (wi > 0) { checkPage(lineHeight); y += lineHeight; }
+          setFontFor(ctx);
+          pdf.text(ln.text, ln.x, y);
+          if (ctx.underline) {
+            const w = pdf.getTextWidth(ln.text);
+            pdf.line(ln.x, y + underlineOffset, ln.x + w, y + underlineOffset);
+          }
+        });
       });
     });
   };
@@ -342,7 +320,7 @@ function createHtmlRenderer(pdf, opts) {
     setY: v => { y = v; },
     async renderHtmlString(html, indentPx = 0) {
       if (!HAS_DOM) return;
-      const normalized = normalizeTextForLayout(String(html));
+      const normalized = String(html).replace(/(\S)•/g, '$1\n•');
       const clean = sanitizeHtmlSubset(normalized);
       const container = document.createElement('div');
       container.innerHTML = clean;
@@ -528,7 +506,7 @@ export async function generateAccountInstructionsPDF(options) {
 
     const contentWidth = PAGE_WIDTH_PT - (2 * MARGIN_PT);
 
-    // Uniform spacing
+    // === UNIFORM 2-LINE SPACING FOR ALL HEADINGS ===
     const sectionHeader = (title) => {
       y += LINE_HEIGHT * 2;
       checkPageBreak(LINE_HEIGHT);
@@ -589,15 +567,42 @@ export async function generateAccountInstructionsPDF(options) {
     wrapped.forEach(w => { pdf.text(w, MARGIN_PT + 8, ty); ty += LINE_HEIGHT; });
     y += boxHeight + 20;
 
-    // Pre-Inventory
+    // === PRE-INVENTORY – FIXED OVERLAPS ===
     const { generalText, areaMappingRaw, storePrepRaw } = extractPreInventoryBundle(client.sections);
     const alrIntro = client.ALR ? `• ALR disk is ${client.ALR}.` : '';
+
+    const storeMappingText = `STANDARD STORE MAPPING APPLIES.\n\nMap as Follows:\nDO NOT ADD ADDITIONAL AREA NUMBERS\n\n1. 1#21, 1#61 gondolas. The last two digits of each number identify left or right side of gondola (from front of store). For example 1021 would be first right side of the gondola going right to left in the store. The left side of the gondola would be 1061. The next gondola right side would be 1121, then 1161 right side.\n2. Front end caps are 3801 (sub location 01, 02 etc. for each end cap)\n3. Back end caps are 3901 (sub location 01, 02 etc. for each end cap)\n4. Front wall 4001.\n5. Left wall 4101.\n6. Rear wall 4201.\n7. Right wall 4301.\n8. Check stand. Each checkstand will have it's own location.\n9. Displays 6001, 6101, 6201, etc.\n10. Office 7001\n11. Backroom use 9000 series\n\nNOTE: Stores are to be counted in 4' sections or by door.\nUse the map from the prior.\nIn all areas: Location 01 will be J-hooks, 02 will be floor displays, and 03 will be tops.\n\n* All locations must have a description. Utilize the location description utility as needed.\n\nCounters to number each display with a yellow tag to match posting sheet locations.`;
+
     const combinedPre = [alrIntro, String(generalText || client.preInventory || '').trim()].filter(Boolean).join('\n');
-    if (combinedPre || areaMappingRaw || storePrepRaw) {
+
+    if (combinedPre || areaMappingRaw || storePrepRaw || true) {
       sectionHeader('Pre-Inventory');
-      if (combinedPre) { htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(combinedPre); y = htmlRenderer.getY() + 8; }
-      if (String(areaMappingRaw).trim()) { subSectionHeader('Area Mapping'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(String(areaMappingRaw)); y = htmlRenderer.getY() + 10; }
-      if (String(storePrepRaw).trim()) { subSectionHeader('Store Prep/Instructions'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(String(storePrepRaw)); y = htmlRenderer.getY() + 10; }
+
+      if (combinedPre) {
+        htmlRenderer.setY(y);
+        await htmlRenderer.renderHtmlString(combinedPre);
+        y = htmlRenderer.getY() + 8;
+      }
+
+      if (String(areaMappingRaw).trim()) {
+        subSectionHeader('Area Mapping');
+        htmlRenderer.setY(y);
+        await htmlRenderer.renderHtmlString(String(areaMappingRaw));
+        y = htmlRenderer.getY() + 10;
+      } else {
+        subSectionHeader('Area Mapping');
+        htmlRenderer.setY(y);
+        await htmlRenderer.renderHtmlString(storeMappingText);
+        y = htmlRenderer.getY() + 10;
+      }
+
+      if (String(storePrepRaw).trim()) {
+        subSectionHeader('Store Prep/Instructions');
+        htmlRenderer.setY(y);
+        await htmlRenderer.renderHtmlString(String(storePrepRaw));
+        y = htmlRenderer.getY() + 10;
+      }
+
       y += 8;
     }
 
@@ -623,12 +628,19 @@ export async function generateAccountInstructionsPDF(options) {
     const finalize = String(client.Finalize ?? '').trim();
     const finRep = String(client.Fin_Rep ?? '').trim();
     const processing = String(client.Processing ?? '').trim();
+
     if (progRep || finalize || finRep || processing) {
       sectionHeader('REPORTS');
       if (progRep) { subSectionHeader('Progressives:'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(progRep); y = htmlRenderer.getY() + 12; }
       if (finalize) { subSectionHeader('Finalizing the Count:'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(finalize); y = htmlRenderer.getY() + 12; }
       if (finRep) { subSectionHeader('Final Reports:'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(finRep); y = htmlRenderer.getY() + 12; }
-      if (processing) { subSectionHeader('Final Processing:'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(processing); y = htmlRenderer.getY() + 12; }
+      if (processing) {
+        subSectionHeader('Final Processing:');
+        const cleanProcessing = processing.replace(/^MSI Inventory Reports/gi, '\nMSI Inventory Reports');
+        htmlRenderer.setY(y);
+        await htmlRenderer.renderHtmlString(cleanProcessing);
+        y = htmlRenderer.getY() + 12;
+      }
     }
 
     const filename = `Account_Instructions_${(client.name || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
