@@ -31,6 +31,28 @@ export async function generateAccountInstructionsPDF(options) {
     const { default: jsPDF } = await import('jspdf');
     const pdf = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
 
+    // Minimal HTML -> plain text converter for inline fields
+    const htmlToPlainInline = (html) => {
+      if (!html) return '';
+      let s = String(html);
+      // Convert common breaks and list items to readable text
+      s = s
+        .replace(/<\s*br\s*\/?>/gi, '\n')
+        .replace(/<\s*\/p\s*>/gi, '\n')
+        .replace(/<\s*\/div\s*>/gi, '\n')
+        .replace(/<\s*li\s*>/gi, '• ')
+        .replace(/<\s*\/li\s*>/gi, '\n')
+        .replace(/<\s*ul[^>]*>/gi, '')
+        .replace(/<\s*\/ul\s*>/gi, '')
+        .replace(/<\s*ol[^>]*>/gi, '')
+        .replace(/<\s*\/ol\s*>/gi, '');
+      // Strip remaining tags
+      s = s.replace(/<[^>]+>/g, '');
+      // Normalize whitespace/newlines
+      s = s.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n');
+      return s.trim();
+    };
+
     // Compute centered header lines
     const headerLines = [
       'MSI Inventory',
@@ -100,11 +122,11 @@ export async function generateAccountInstructionsPDF(options) {
     pdf.setFontSize(12);
     const updatedAt = formatUpdatedAt(client.updatedAt);
     const infoLines = [
-      `Inventory Type: ${client.inventoryType ?? ''}`,
+      `Inventory Type: ${htmlToPlainInline(client.inventoryType ?? '')}`,
       `Updated: ${updatedAt}`,
-      `PIC: ${client.PIC ?? ''}`,
-      `Verification: ${client.verification ?? ''}`,
-      `Start Time: ${client.startTime ?? ''}`,
+      `PIC: ${htmlToPlainInline(client.PIC ?? '')}`,
+      `Verification: ${htmlToPlainInline(client.verification ?? '')}`,
+      `Start Time: ${htmlToPlainInline(client.startTime ?? '')}`,
     ];
     const lineHeight = 14;
     infoLines.forEach((line) => {
