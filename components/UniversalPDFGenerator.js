@@ -135,6 +135,42 @@ async function bundledPngToDataUrl(moduleRef) {
 }
 
 /**
+ * Encode a path preserving slashes for URL construction
+ */
+function encodePathPreserveSlashes(p) {
+  return p.split('/').map(encodeURIComponent).join('/');
+}
+
+// Base URL for GitHub assets via jsDelivr CDN
+// Points to the main branch of the MSI-APP repository
+const DEFAULT_ASSET_BASE = 'https://cdn.jsdelivr.net/gh/brodennis76-max/MSI-APP@main';
+
+/**
+ * Fetch a PNG from GitHub via jsDelivr CDN and convert to data URL
+ * @param {string} relPath - Relative path from repo root (e.g., 'msi-expo/qr-codes/1450 Scanner Program.png')
+ * @param {string} assetBase - Base URL for assets (defaults to DEFAULT_ASSET_BASE)
+ * @returns {Promise<string|null>} Data URL or null on error
+ */
+async function githubPngToDataUrl(relPath, assetBase = DEFAULT_ASSET_BASE) {
+  const encoded = encodePathPreserveSlashes(relPath);
+  const url = `${assetBase}/${encoded}`;
+  try {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`PNG fetch failed: ${res.status}`);
+    const blob = await res.blob();
+    return await new Promise(resolve => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result); // data:image/png;base64,...
+      fr.onerror = () => resolve(null);
+      fr.readAsDataURL(blob);
+    });
+  } catch (e) {
+    console.error('Error fetching GitHub PNG:', e);
+    return null;
+  }
+}
+
+/**
  * Web rich HTML renderer for jsPDF
  * Supports b i u, p, div, br, ul, ol, li, and <img src="data:image/...">
  */
@@ -203,10 +239,9 @@ function createHtmlRenderer(pdf, opts) {
   const renderNode = async (node, ctx, indent) => {
     if (node.nodeType === 3) {
       if (!node.nodeValue) return;
-      // Preserve hard breaks, but normalize spaces within lines
-      const lines = node.nodeValue.replace(/\r\n/g, '\n').split('\n');
       const x = margin + indent;
       const width = pageWidth - margin - x;
+      const lines = node.nodeValue.replace(/\r\n/g, '\n').split('\n');
       lines.forEach((raw, idx) => {
         const text = raw.replace(/[ \t]+/g, ' ').trim();
         if (idx > 0) { checkPage(lineHeight); y += lineHeight; }
@@ -235,12 +270,15 @@ function createHtmlRenderer(pdf, opts) {
       let index = 1;
       const items = Array.from(node.children).filter(el => el.tagName.toLowerCase() === 'li');
       for (const li of items) {
+        // start each bullet on a fresh line
+        checkPage(lineHeight);
+        y += lineHeight;
+
         const marker = tag === 'ul' ? '•' : `${index}.`;
         const markerX = margin + indent;
         const contentX = markerX + bulletIndent;
         const width = pageWidth - margin - contentX;
 
-        checkPage(lineHeight);
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(baseFontSize);
         pdf.text(marker, markerX, y);
@@ -251,10 +289,7 @@ function createHtmlRenderer(pdf, opts) {
           if (child.nodeType === 3) {
             const t = child.nodeValue;
             if (t && t.trim()) {
-              if (!firstChunk) {
-                checkPage(lineHeight);
-                y += lineHeight;
-              }
+              if (!firstChunk) { checkPage(lineHeight); y += lineHeight; }
               drawText(liCtx, t, contentX, width);
               firstChunk = false;
             }
@@ -262,12 +297,9 @@ function createHtmlRenderer(pdf, opts) {
             await renderNode(child, liCtx, indent + listIndent);
           }
         }
-        // go to next line for the next bullet/number
-        checkPage(lineHeight);
-        y += lineHeight;
         index += 1;
       }
-      // small space after the whole list
+      // small space after list
       checkPage(6);
       y += 6;
       return;
@@ -826,6 +858,11 @@ async function buildHtml(client) {
   // const logoDataUrl = await bundledPngToDataUrl(require('../assets/logo.png'));
   // Then use in HTML: <img src="${logoDataUrl}" class="logo" />
 
+  // Fetch QR code image from GitHub if path is provided
+  const qrDataUrl = client.qrPath
+    ? await githubPngToDataUrl(client.qrPath, client.assetBase || DEFAULT_ASSET_BASE)
+    : '';
+
   return `
     <!DOCTYPE html>
     <html>
@@ -851,6 +888,7 @@ async function buildHtml(client) {
       </head>
       <body>
         <div class="header">
+          ${qrDataUrl ? `<img class="logo" src="${qrDataUrl}" />` : ''}
           <h1>MSI Inventory</h1>
           <h2>Account Instructions:</h2>
           <h3>${escapeHtml(safeName)}</h3>

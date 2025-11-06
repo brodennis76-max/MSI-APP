@@ -162,10 +162,10 @@ const RichTextEditor = ({ value, onChange }) => {
         
         // Update content and trigger change
         setTimeout(() => {
-          const newContent = editor.innerHTML;
-          setContent(newContent);
+        const newContent = editor.innerHTML;
+        setContent(newContent);
           isInternalUpdateRef.current = true;
-          onChange && onChange(newContent);
+        onChange && onChange(newContent);
         }, 10);
       }
     } else {
