@@ -1,6 +1,6 @@
+// UniversalPDFGenerator.js
+
 import { Platform } from 'react-native';
-import * as Print from 'expo-print';
-import { Asset } from 'expo-asset';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase-config';
 
@@ -9,18 +9,22 @@ const MARGIN_PT = 72;
 const PAGE_WIDTH_PT = 612;
 const PAGE_HEIGHT_PT = 792;
 
-// DOM guards for web usage and SSR safety
+// DOM guards for web and SSR safety
 const HAS_DOM = typeof window !== 'undefined' && typeof document !== 'undefined';
 const SHOW_ELEMENT = typeof NodeFilter !== 'undefined' ? NodeFilter.SHOW_ELEMENT : 1;
 
 // Allowed tags for sanitized rich content
-const ALLOWED_TAGS = ['b', 'strong', 'i', 'em', 'u', 'br', 'p', 'div', 'ul', 'ol', 'li', 'img'];
+const ALLOWED_TAGS = ['b','strong','i','em','u','br','p','div','ul','ol','li','img'];
 
-/**
- * Sanitizes HTML to a safe subset.
- * Web path uses DOM. Native path uses a conservative regex fallback.
- * Keeps only allowed tags. For <img>, only data URLs are allowed.
- */
+// --------- Repo asset bases ---------
+const ORG = 'brodennis76-max';
+const REPO = 'MSI-APP';
+const BRANCH_TAG = 'main';
+const DEFAULT_JSDELIVR_BASE = `https://cdn.jsdelivr.net/gh/${ORG}/${REPO}@${BRANCH_TAG}`;
+const RAW_BASE = `https://raw.githubusercontent.com/${ORG}/${REPO}/${BRANCH_TAG}`;
+
+// ---------- Sanitizer ----------
+
 function sanitizeHtmlSubset(input) {
   const html = String(input || '');
 
@@ -39,7 +43,7 @@ function sanitizeHtmlSubset(input) {
         node.remove();
         return;
       }
-      // Strip attributes except img src with data URL
+      // strip attributes (only keep <img src="data:image/...">)
       [...node.attributes].forEach(attr => {
         const name = attr.name.toLowerCase();
         const okImg = tag === 'img' && name === 'src' && /^data:image\//i.test(attr.value);
@@ -58,7 +62,7 @@ function sanitizeHtmlSubset(input) {
     return root.innerHTML;
   }
 
-  // Native fallback with conservative filtering
+  // Native fallback (conservative)
   return html
     .replace(/<(script|style|iframe)[\s\S]*?<\/\1>/gi, '')
     .replace(/\son\w+=(?:"[^"]*"|'[^']*')/gi, '')
@@ -76,83 +80,48 @@ function sanitizeHtmlSubset(input) {
     .replace(/<\/(?!b|strong|i|em|u|p|div|ul|ol|li)\w+>/gi, '');
 }
 
-// Helper function for rich HTML content
-function rich(html) {
-  return sanitizeHtmlSubset(html);
-}
+// ---------- Small utils ----------
 
-// Escape for labels and titles only
 function escapeHtml(str) {
   return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
 
-/**
- * Web helper to convert a remote image to a data URL
- */
 async function fetchAsDataURL(url) {
   const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
   const blob = await res.blob();
   return await new Promise(resolve => {
     const fr = new FileReader();
-    fr.onload = () => resolve(fr.result);
+    fr.onload = () => resolve(fr.result); // data:image/...;base64,....
     fr.readAsDataURL(blob);
   });
 }
 
-/**
- * Convert bundled PNG asset to data URL for Expo (native)
- */
-async function bundledPngToDataUrl(moduleRef) {
-  if (!moduleRef) return null;
-  try {
-    const asset = Asset.fromModule(moduleRef);
-    await asset.downloadAsync();
-    const resp = await fetch(asset.localUri);
-    const blob = await resp.blob();
-    return await new Promise(resolve => {
-      const fr = new FileReader();
-      fr.onload = () => resolve(fr.result);
-      fr.onerror = () => resolve(null);
-      fr.readAsDataURL(blob);
-    });
-  } catch (e) {
-    console.error('Error loading bundled asset:', e);
-    return null;
-  }
-}
-
-/**
- * Encode a path preserving slashes for URL construction
- */
 function encodePathPreserveSlashes(p) {
   return String(p || '').split('/').map(encodeURIComponent).join('/');
 }
 
-// Base URL for GitHub assets via jsDelivr CDN
-const DEFAULT_ASSET_BASE = 'https://cdn.jsdelivr.net/gh/brodennis76-max/MSI-APP@main';
-
-/**
- * Fetch a PNG from GitHub via jsDelivr CDN and convert to data URL
- * @param {string} relPath - Relative path from repo root (e.g., 'qr-codes/1450 Scanner Program.png')
- * @param {string} assetBase - Base URL for assets (defaults to DEFAULT_ASSET_BASE)
- * @returns {Promise<string>} Data URL
- */
-async function githubPngToDataUrl(relPath, assetBase = DEFAULT_ASSET_BASE) {
-  const encoded = encodePathPreserveSlashes(relPath);
-  const url = `${assetBase}/${encoded}`;
-  return await fetchAsDataURL(url);
+// Try jsDelivr then raw.githubusercontent.com to get a Data URL
+async function getRepoImageDataUrl(relPath, assetBase) {
+  const path = encodePathPreserveSlashes(relPath);
+  const bases = [
+    assetBase || DEFAULT_JSDELIVR_BASE,
+    RAW_BASE
+  ];
+  for (const base of bases) {
+    try {
+      const url = `${base}/${path}`;
+      return await fetchAsDataURL(url);
+    } catch { /* try next */ }
+  }
+  throw new Error('All repo image fetch attempts failed');
 }
 
-/**
- * Web rich HTML renderer for jsPDF
- * Supports b i u, p, div, br, ul, ol, li, and <img src="data:image/...">
- */
+// ---------- Web HTML -> jsPDF renderer (spacing + list fixes) ----------
+
 function createHtmlRenderer(pdf, opts) {
   const {
     pageWidth = PAGE_WIDTH_PT,
@@ -176,19 +145,16 @@ function createHtmlRenderer(pdf, opts) {
 
   const drawText = (ctx, text, x, width) => {
     if (!text) return;
-    const style = ctx.bold && ctx.italic ? 'bolditalic'
-      : ctx.bold ? 'bold'
-      : ctx.italic ? 'italic'
-      : 'normal';
+    const style =
+      ctx.bold && ctx.italic ? 'bolditalic' :
+      ctx.bold ? 'bold' :
+      ctx.italic ? 'italic' : 'normal';
     pdf.setFont('helvetica', style);
     pdf.setFontSize(baseFontSize);
 
     const lines = pdf.splitTextToSize(text, width);
     lines.forEach((ln, idx) => {
-      if (idx > 0) {
-        checkPage(lineHeight);
-        y += lineHeight;
-      }
+      if (idx > 0) { checkPage(lineHeight); y += lineHeight; }
       pdf.text(ln, x, y);
       if (ctx.underline) {
         const w = pdf.getTextWidth(ln);
@@ -210,12 +176,11 @@ function createHtmlRenderer(pdf, opts) {
       const type = /^data:image\/jpeg/i.test(dataUrl) ? 'JPEG' : 'PNG';
       pdf.addImage(dataUrl, type, x, y, w, h);
       y += h;
-    } catch {
-      // ignore failures silently
-    }
+    } catch { /* ignore */ }
   };
 
   const renderNode = async (node, ctx, indent) => {
+    // TEXT_NODE: preserve hard line breaks
     if (node.nodeType === 3) {
       if (!node.nodeValue) return;
       const x = margin + indent;
@@ -237,22 +202,23 @@ function createHtmlRenderer(pdf, opts) {
       y += lineHeight;
       return;
     }
-    if (tag === 'p' || tag === 'div') {
-      checkPage(lineHeight);
-      y += tag === 'p' ? lineHeight : 6;
-    }
+
+    // ----- NO lead-in spacing for <p> or <div> -----
+    // (spacing is now added *outside* the renderer, after headers)
+
     if (tag === 'b' || tag === 'strong') ctx.bold = true;
     if (tag === 'i' || tag === 'em') ctx.italic = true;
     if (tag === 'u') ctx.underline = true;
 
     if (tag === 'ul' || tag === 'ol') {
-      // if a list follows a header, ensure a clean lead-in line
+      // list should always start on a clean new body line
       checkPage(lineHeight);
       y += lineHeight;
+
       let index = 1;
       const items = Array.from(node.children).filter(el => el.tagName.toLowerCase() === 'li');
       for (const li of items) {
-        // start each bullet on a fresh line
+        // each bullet starts on a fresh line
         checkPage(lineHeight);
         y += lineHeight;
 
@@ -261,7 +227,7 @@ function createHtmlRenderer(pdf, opts) {
         const contentX = markerX + bulletIndent;
         const width = pageWidth - margin - contentX;
 
-        pdf.setFont('helvetica', 'normal');
+        pdf.setFont('helvetica','normal');
         pdf.setFontSize(baseFontSize);
         pdf.text(marker, markerX, y);
 
@@ -281,7 +247,7 @@ function createHtmlRenderer(pdf, opts) {
         }
         index += 1;
       }
-      // small space after list
+      // small space after whole list
       checkPage(6);
       y += 6;
       return;
@@ -297,23 +263,22 @@ function createHtmlRenderer(pdf, opts) {
       return;
     }
 
+    // generic element
     for (const child of node.childNodes) {
       const snap = { ...ctx };
       await renderNode(child, snap, indent);
     }
-    // Add small gap after paragraph for readability
-    if (tag === 'p') {
-      checkPage(lineHeight);
-      y += 2;
-    }
+
+    // tiny gap after paragraphs improves readability
+    if (tag === 'p') { checkPage(lineHeight); y += 2; }
   };
 
   return {
     getY: () => y,
     setY: v => { y = v; },
     async renderHtmlString(html, indentPx = 0) {
-      const clean = sanitizeHtmlSubset(html);
       if (!HAS_DOM) return;
+      const clean = sanitizeHtmlSubset(html);
       const container = document.createElement('div');
       container.innerHTML = clean;
       for (const n of container.childNodes) {
@@ -323,9 +288,8 @@ function createHtmlRenderer(pdf, opts) {
   };
 }
 
-/**
- * Formats Firestore timestamps or dates
- */
+// ---------- Data helpers ----------
+
 function formatUpdatedAt(val) {
   try {
     if (!val) return '';
@@ -336,7 +300,6 @@ function formatUpdatedAt(val) {
   }
 }
 
-// Resolve section texts from either a map object or an array of entries
 function extractPreInventoryBundle(sections) {
   const empty = { generalText: '', areaMappingRaw: '', storePrepRaw: '' };
   if (!sections) return empty;
@@ -366,464 +329,12 @@ function extractPreInventoryBundle(sections) {
   return empty;
 }
 
-export async function generateAccountInstructionsPDF(options) {
-  // options: { clientId?: string, clientData?: object }
-  const { clientId, clientData } = options || {};
-
-  let client = clientData;
-  if (!client && clientId) {
-    const ref = doc(db, 'clients', clientId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) {
-      throw new Error('Client not found');
-    }
-    client = { id: snap.id, ...snap.data() };
-  }
-  if (!client) {
-    throw new Error('Missing client data');
-  }
-
-  // Resolve assets once (logo, QR) for both paths
-  const assetBase = client.assetBase || DEFAULT_ASSET_BASE;
-
-  // Logo: prefer data URL on client, fallback to fetch from URL if provided
-  let logoDataUrl = '';
-  if (client.logoDataUrl && /^data:image\//i.test(client.logoDataUrl)) {
-    logoDataUrl = client.logoDataUrl;
-  } else if (client.logoUrl) {
-    try { logoDataUrl = await fetchAsDataURL(client.logoUrl); } catch { logoDataUrl = ''; }
-  }
-
-  // QR from GitHub path (default path if not supplied)
-  let qrDataUrl = '';
-  const qrPath = client.qrPath || 'qr-codes/1450 Scanner Program.png';
-  try {
-    qrDataUrl = await githubPngToDataUrl(qrPath, assetBase);
-  } catch {
-    qrDataUrl = '';
-  }
-
-  if (Platform.OS === 'web') {
-    // Web: use jsPDF
-    const { default: jsPDF } = await import('jspdf');
-    const pdf = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
-
-    // Create HTML renderer instance
-    const htmlRenderer = createHtmlRenderer(pdf, {
-      pageWidth: PAGE_WIDTH_PT,
-      pageHeight: PAGE_HEIGHT_PT,
-      margin: MARGIN_PT,
-      lineHeight: 14,
-      baseFontSize: 12
-    });
-    
-    // Simple HTML to plain text for fields that don't need formatting (Client Information)
-    const htmlToPlainInline = (html) => {
-      if (!html) return '';
-      
-      // First, sanitize HTML using DOM API if available (web only)
-      let s = HAS_DOM ? sanitizeHtmlSubset(html) : String(html);
-      
-      // Decode HTML entities FIRST (before stripping tags)
-      s = s
-        .replace(/&nbsp;/g, ' ')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&#039;/g, "'")
-        .replace(/&#39;/g, "'")
-        .replace(/&apos;/g, "'");
-      
-      // Convert block elements to newlines BEFORE stripping tags
-      s = s
-        .replace(/<\s*br\s*\/?\s*>/gi, '\n')
-        .replace(/<\s*\/p\s*[^>]*>/gi, '\n')
-        .replace(/<\s*p\s*[^>]*>/gi, '')
-        .replace(/<\s*\/div\s*[^>]*>/gi, '\n')
-        .replace(/<\s*div\s*[^>]*>/gi, '')
-        .replace(/<\s*\/li\s*[^>]*>/gi, '\n')
-        .replace(/<\s*li\s*[^>]*>/gi, '• ')
-        .replace(/<\s*\/ul\s*[^>]*>/gi, '\n')
-        .replace(/<\s*ul\s*[^>]*>/gi, '')
-        .replace(/<\s*\/ol\s*[^>]*>/gi, '\n')
-        .replace(/<\s*ol\s*[^>]*>/gi, '');
-      
-      // Strip ALL remaining HTML tags (including all attributes)
-      s = s.replace(/<[^>]*>/g, '');
-      
-      // Normalize whitespace
-      s = s.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n');
-      s = s.replace(/[ \t]+/g, ' ').replace(/^\s+|\s+$/gm, '');
-      
-      return s.trim();
-    };
-
-    // Compute centered header lines
-    const headerLines = [
-      'MSI Inventory',
-      'Account Instructions:',
-      client.name || client.id || 'Unknown Client'
-    ];
-
-    pdf.setFont('helvetica', 'bold');
-    let y = MARGIN_PT;
-    const checkPageBreak = (advance, keepWithNext = false) => {
-      if (y + advance > PAGE_HEIGHT_PT - MARGIN_PT) {
-        pdf.addPage();
-        y = MARGIN_PT;
-      }
-    };
-
-    const checkPageBreakWithContent = (headerHeight, contentHeight) => {
-      // If header would be orphaned (less than 2 lines of content after it), start new page
-      if (y + headerHeight + contentHeight > PAGE_HEIGHT_PT - MARGIN_PT && 
-          y + headerHeight + 30 > PAGE_HEIGHT_PT - MARGIN_PT) {
-        pdf.addPage();
-        y = MARGIN_PT;
-      }
-    };
-
-    // Write helper: uses HTML renderer to preserve formatting (bold, italic, lists, etc.)
-    const writeRich = async (text, width, lineH) => {
-      const str = String(text || '');
-      if (!str) return;
-      
-      // Sync y position with htmlRenderer
-      htmlRenderer.setY(y);
-      // Render HTML with formatting preserved
-      await htmlRenderer.renderHtmlString(str, 0);
-      // Sync y position back
-      y = htmlRenderer.getY();
-    };
-
-    const sectionHeader = (title) => {
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(16);
-      checkPageBreakWithContent(18, 50);
-      pdf.text(title, MARGIN_PT, y);
-      y += 18;
-      // add one full body line to ensure the next text does not share the header baseline
-      checkPageBreak(lineHeight);
-      y += lineHeight;
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(12);
-    };
-
-    headerLines.forEach((text, i) => {
-      // First two lines bold; client name normal weight and slightly smaller than subheader
-      if (i < 2) {
-        pdf.setFont('helvetica', 'bold');
-        pdf.setTextColor(0, 0, 0);
-      } else {
-        pdf.setFont('helvetica', 'normal');
-        // lighter gray for client name
-        pdf.setTextColor(102, 102, 102);
-      }
-      const fontSize = i === 0 ? 20 : i === 1 ? 18 : 14;
-      pdf.setFontSize(fontSize);
-      const textWidth = pdf.getTextWidth(text);
-      const x = (PAGE_WIDTH_PT - textWidth) / 2;
-      checkPageBreak(20);
-      pdf.text(text, x, y);
-      // reset to black after client name line to avoid affecting following content
-      if (i === 2) {
-        pdf.setTextColor(0, 0, 0);
-      }
-      y += i === 2 ? 30 : 20; // extra space after client name
-    });
-
-    // Client Information section
-    const contentWidth = PAGE_WIDTH_PT - (2 * MARGIN_PT);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(16);
-    checkPageBreakWithContent(20, 100); // Ensure header stays with content
-    pdf.text('Client Information', MARGIN_PT, y);
-    y += 20;
-
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(12);
-    const updatedAt = formatUpdatedAt(client.updatedAt);
-    const lineHeight = 14;
-    
-    // Helper to render key-value pairs with formatted values
-    const renderKeyValue = (label, value, useFormatting = true) => {
-      if (!value) return;
-      const labelText = `${label}: `;
-      pdf.setFont('helvetica', 'normal');
-      const labelWidth = pdf.getTextWidth(labelText);
-      checkPageBreak(lineHeight);
-      pdf.text(labelText, MARGIN_PT, y);
-      
-      const startX = MARGIN_PT + labelWidth;
-      const maxWidth = contentWidth - labelWidth;
-      
-      // Always strip HTML and render as plain text for Client Information
-      // This ensures no HTML tags show up in the PDF
-      const plainText = htmlToPlainInline(value);
-      if (plainText) {
-        const wrapped = pdf.splitTextToSize(plainText, maxWidth);
-        wrapped.forEach((line, idx) => {
-          if (idx > 0) {
-            checkPageBreak(lineHeight);
-            y += lineHeight;
-          }
-          pdf.text(line, startX, y);
-        });
-        y += lineHeight;
-      } else {
-        // If no text after stripping, still move to next line
-        y += lineHeight;
-      }
-    };
-    
-    // Render each field
-    if (client.inventoryType) {
-      renderKeyValue('Inventory Type', client.inventoryType, false);
-    }
-    if (updatedAt) {
-      checkPageBreak(lineHeight);
-      pdf.text(`Updated: ${updatedAt}`, MARGIN_PT, y);
-      y += lineHeight;
-    }
-    if (client.PIC) {
-      renderKeyValue('PIC', client.PIC, true);
-    }
-    if (client.verification) {
-      renderKeyValue('Verification', client.verification, true);
-    }
-    if (client.startTime) {
-      renderKeyValue('Start Time', client.startTime, true);
-    }
-    y += 8;
-
-    // Boxed notice
-    const notice = '"If you are going to be more than 5 minutes late to a store you must contact the store BEFORE you are late. NO EXCEPTIONS!!!"';
-    const wrapped = pdf.splitTextToSize(notice, contentWidth - 16);
-    const boxPadding = 8;
-    const boxHeight = wrapped.length * lineHeight + boxPadding * 2;
-    pdf.setDrawColor(0);
-    pdf.setLineWidth(1);
-    pdf.rect(MARGIN_PT, y, contentWidth, boxHeight);
-    // Text inside box
-    let ty = y + boxPadding + 12; // initial baseline inside box
-    wrapped.forEach((w) => {
-      pdf.text(w, MARGIN_PT + boxPadding, ty);
-      ty += lineHeight;
-    });
-    y += boxHeight + 20;
-
-    // Double space before next section
-    y += 20;
-
-    // Pre-Inventory section (wrapped heading)
-    sectionHeader('Pre-Inventory');
-
-    // General information (no label)
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(12);
-    const { generalText, areaMappingRaw, storePrepRaw } = extractPreInventoryBundle(client.sections);
-    const alrIntro = client.ALR ? `• ALR disk is ${client.ALR}.` : '';
-    const combinedPre = [alrIntro, String(generalText || client.preInventory || '').trim()].filter(Boolean).join('\n');
-    if (combinedPre) {
-      await writeRich(combinedPre, contentWidth, lineHeight);
-      y += 8;
-    }
-
-    // Area Mapping (wrapped subheading)
-    const areaMapping = String(areaMappingRaw).trim();
-    if (areaMapping) {
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(14);
-      await writeRich('Area Mapping', contentWidth, 16);
-      y += 16;
-      checkPageBreak(lineHeight);
-      y += lineHeight;
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(12);
-      await writeRich(areaMapping, contentWidth, lineHeight);
-      y += 12;
-    }
-
-    // Store Prep/Instructions (wrapped subheading)
-    const storePrep = String(storePrepRaw).trim();
-    if (storePrep) {
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(14);
-      await writeRich('Store Prep/Instructions', contentWidth, 16);
-      y += 16;
-      checkPageBreak(lineHeight);
-      y += lineHeight;
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(12);
-      await writeRich(storePrep, contentWidth, lineHeight);
-      y += 12;
-    }
-
-    // Double space before next section
-    y += 20;
-
-    // INVENTORY PROCEDURES section (from Inv_Proc)
-    const invProc = String(client.Inv_Proc ?? '').trim();
-    if (invProc) {
-      sectionHeader('INVENTORY PROCEDURES');
-      await writeRich(invProc, contentWidth, lineHeight);
-      y += 12;
-    }
-
-    // Double space before next section
-    y += 20;
-
-    // AUDITS section (from Audits)
-    const audits = String(client.Audits ?? '').trim();
-    if (audits) {
-      sectionHeader('Audits');
-      await writeRich(audits, contentWidth, lineHeight);
-      y += 12;
-    }
-
-    // INVENTORY FLOW section (from Inv_Flow)
-    const invFlow = String(client.Inv_Flow ?? '').trim();
-    if (invFlow) {
-      sectionHeader('Inventory Flow');
-      await writeRich(invFlow, contentWidth, lineHeight);
-      y += 12;
-    }
-
-    // SPECIAL NOTES section (from Special_Notes)
-    const specialNotes = String(client.Special_Notes ?? '').trim();
-    if (specialNotes) {
-      sectionHeader('Special Notes');
-      await writeRich(specialNotes, contentWidth, lineHeight);
-      y += 12;
-    }
-
-    // PRE-INVENTORY CREW INSTRUCTIONS section (from Team-Instr)
-    const teamInstr = String(client['Team-Instr'] ?? '').trim();
-    if (teamInstr) {
-      sectionHeader('Pre-Inventory Crew Instructions');
-      await writeRich(teamInstr, contentWidth, lineHeight);
-      y += 12;
-    }
-
-    // Double space before next section
-    y += 20;
-
-    // NON-COUNT PRODUCTS section (from noncount)
-    const noncount = String(client.noncount ?? '').trim();
-    if (noncount) {
-      sectionHeader('Non-Count Products');
-      await writeRich(noncount, contentWidth, lineHeight);
-      y += 12;
-    }
-
-    // Double space before next section
-    y += 20;
-
-    // REPORTS section
-    const progRep = String(client.Prog_Rep ?? '').trim();
-    const finalize = String(client.Finalize ?? '').trim();
-    const finRep = String(client.Fin_Rep ?? '').trim();
-    const processing = String(client.Processing ?? '').trim();
-    
-    if (progRep || finalize || finRep || processing) {
-      sectionHeader('REPORTS');
-      
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(12);
-      
-      // Progressives subsection
-      if (progRep) {
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(14);
-        await writeRich('Progressives:', contentWidth, 16);
-        y += 16;
-        checkPageBreak(lineHeight);
-        y += lineHeight;
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(12);
-        await writeRich(progRep, contentWidth, lineHeight);
-        y += 12;
-      }
-      
-      // Finalizing the Count subsection
-      if (finalize) {
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(14);
-        await writeRich('Finalizing the Count:', contentWidth, 16);
-        y += 16;
-        checkPageBreak(lineHeight);
-        y += lineHeight;
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(12);
-        await writeRich(finalize, contentWidth, lineHeight);
-        y += 12;
-      }
-      
-      // Final Reports subsection
-      if (finRep) {
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(14);
-        await writeRich('Final Reports:', contentWidth, 16);
-        y += 16;
-        checkPageBreak(lineHeight);
-        y += lineHeight;
-        // Detect and render "Utility Reports" as bold subheader when it's the first non-empty line
-        const finLines = finRep.split('\n');
-        const firstNonEmptyIdx = finLines.findIndex(l => l.trim().length > 0);
-        const firstLine = firstNonEmptyIdx >= 0 ? finLines[firstNonEmptyIdx].trim() : '';
-        let consumedHeader = false;
-        if (firstLine.toLowerCase().startsWith('utility reports')) {
-          pdf.setFont('helvetica', 'bold');
-          pdf.setFontSize(14);
-          await writeRich('Utility Reports:', contentWidth, 16);
-          y += 16;
-          checkPageBreak(lineHeight);
-          y += lineHeight;
-          consumedHeader = true;
-        }
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(12);
-        const finBody = consumedHeader ? finLines.slice(firstNonEmptyIdx + 1).join('\n') : finRep;
-        await writeRich(finBody, contentWidth, lineHeight);
-        y += 12;
-      }
-      
-      // Final Processing subsection
-      if (processing) {
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(14);
-        await writeRich('Final Processing:', contentWidth, 16);
-        y += 16;
-        checkPageBreak(lineHeight);
-        y += lineHeight;
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(12);
-        await writeRich(processing, contentWidth, lineHeight);
-        y += 12;
-      }
-    }
-
-    // Return data URI or save; for now, trigger download with filename
-    const filename = `Account_Instructions_${(client.name || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
-    pdf.save(filename);
-    return filename;
-  }
-
-  // Native (iOS/Android via Expo): use HTML + expo-print
-  const html = buildHtml(client, { logoDataUrl, qrDataUrl });
-  const result = await Print.printToFileAsync({
-    html,
-    base64: false,
-    width: PAGE_WIDTH_PT,
-    height: PAGE_HEIGHT_PT,
-  });
-  return result.uri;
-}
+// ---------- Native HTML builder ----------
 
 function buildHtml(client, assets) {
   const safeName = client.name || client.id || 'Unknown Client';
   const updatedAt = formatUpdatedAt(client.updatedAt);
+
   const extracted = extractPreInventoryBundle(client.sections);
   const preInv = String(extracted.generalText || client.preInventory || '').trim();
   const areaMapping = String(extracted.areaMappingRaw).trim();
@@ -842,6 +353,8 @@ function buildHtml(client, assets) {
   const logoDataUrl = assets?.logoDataUrl && /^data:image\//i.test(assets.logoDataUrl) ? assets.logoDataUrl : '';
   const qrDataUrl = assets?.qrDataUrl && /^data:image\//i.test(assets.qrDataUrl) ? assets.qrDataUrl : '';
 
+  const rich = (h) => sanitizeHtmlSubset(h);
+
   return `
     <!DOCTYPE html>
     <html>
@@ -854,7 +367,10 @@ function buildHtml(client, assets) {
           .header { text-align: center; }
           .header h1 { font-size: 20px; margin: 0 0 8px 0; }
           .header h2 { font-size: 18px; margin: 0 0 8px 0; }
-          .header h3 { font-size: 14px; font-weight: normal; color: #666; margin: 0 0 20px 0; }
+          .header h3 { font-size: 14px; font-weight: normal; color: #666; margin: 0 0 12px 0; }
+          .row { display: flex; justify-content: center; gap: 16px; align-items: center; margin-bottom: 6px; }
+          .logo { width: 180px; height: auto; }
+          .qr { width: 120px; height: auto; }
           .section { margin-top: 12px; }
           .section-title { font-size: 16px; font-weight: bold; margin: 12px 0 6px 0; }
           .info { font-size: 12px; line-height: 1.25; }
@@ -862,12 +378,14 @@ function buildHtml(client, assets) {
           .rich p, .rich div { margin: 0 0 8px 0; }
           .rich ul, .rich ol { margin: 4px 0 8px 1.2em; padding: 0; }
           .rich li { margin: 2px 0; }
-          .logo { width: 180px; height: auto; }
         </style>
       </head>
       <body>
         <div class="header">
-          ${qrDataUrl ? `<img class="logo" src="${qrDataUrl}" />` : ''}
+          <div class="row">
+            ${logoDataUrl ? `<img class="logo" src="${logoDataUrl}" />` : ''}
+            ${qrDataUrl ? `<img class="qr" src="${qrDataUrl}" />` : ''}
+          </div>
           <h1>MSI Inventory</h1>
           <h2>Account Instructions:</h2>
           <h3>${escapeHtml(safeName)}</h3>
@@ -880,7 +398,6 @@ function buildHtml(client, assets) {
             <p><strong>Updated:</strong> ${escapeHtml(updatedAt)}</p>
             <p><strong>PIC:</strong> ${escapeHtml(client.PIC ?? '')}</p>
             <p><strong>Verification:</strong> ${escapeHtml(client.verification ?? '')}</p>
-            <p><strong>Start Time:</strong> ${escapeHtml(client.startTime ?? '')}</p>
           </div>
           <div class="notice">"If you are going to be more than 5 minutes late to a store you must contact the store BEFORE you are late. NO EXCEPTIONS!!!"</div>
         </div>
@@ -972,9 +489,272 @@ function buildHtml(client, assets) {
   `;
 }
 
-export default function UniversalPDFGenerator() {
-  // This file primarily exposes the generator function above.
-  return null;
+// ---------- Main entry ----------
+
+export async function generateAccountInstructionsPDF(options) {
+  const { clientId, clientData } = options || {};
+
+  // Load client
+  let client = clientData;
+  if (!client && clientId) {
+    const ref = doc(db, 'clients', clientId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new Error('Client not found');
+    client = { id: snap.id, ...snap.data() };
+  }
+  if (!client) throw new Error('Missing client data');
+
+  // Resolve assets (logo + QR)
+  const assetBase = client.assetBase || DEFAULT_JSDELIVR_BASE;
+
+  let logoDataUrl = '';
+  if (client.logoDataUrl && /^data:image\//i.test(client.logoDataUrl)) {
+    logoDataUrl = client.logoDataUrl;
+  } else if (client.logoUrl) {
+    try { logoDataUrl = await fetchAsDataURL(client.logoUrl); } catch { logoDataUrl = ''; }
+  }
+
+  const qrPath = client.qrPath || 'qr-codes/1450 Scanner Program.png';
+  let qrDataUrl = '';
+  try { qrDataUrl = await getRepoImageDataUrl(qrPath, assetBase); } catch { qrDataUrl = ''; }
+
+  if (Platform.OS === 'web') {
+    const { default: jsPDF } = await import('jspdf');
+    const pdf = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
+
+    let y = MARGIN_PT;
+    const checkPageBreak = (advance) => {
+      if (y + advance > PAGE_HEIGHT_PT - MARGIN_PT) {
+        pdf.addPage();
+        y = MARGIN_PT;
+      }
+    };
+    const checkPageBreakWithContent = (headerHeight, contentHeight) => {
+      if (y + headerHeight + contentHeight > PAGE_HEIGHT_PT - MARGIN_PT &&
+          y + headerHeight + 30 > PAGE_HEIGHT_PT - MARGIN_PT) {
+        pdf.addPage();
+        y = MARGIN_PT;
+      }
+    };
+
+    const htmlRenderer = createHtmlRenderer(pdf, {
+      pageWidth: PAGE_WIDTH_PT,
+      pageHeight: PAGE_HEIGHT_PT,
+      margin: MARGIN_PT,
+      lineHeight: 14,
+      baseFontSize: 12
+    });
+
+    // Optional header images
+    if (logoDataUrl) {
+      try {
+        const type = /^data:image\/jpeg/i.test(logoDataUrl) ? 'JPEG' : 'PNG';
+        pdf.addImage(logoDataUrl, type, MARGIN_PT, y - 40, 120, 36);
+      } catch {}
+    }
+    if (qrDataUrl) {
+      try {
+        const type = /^data:image\/jpeg/i.test(qrDataUrl) ? 'JPEG' : 'PNG';
+        const qrW = 120;
+        const xImg = PAGE_WIDTH_PT - MARGIN_PT - qrW;
+        const yTop = MARGIN_PT;
+        pdf.addImage(qrDataUrl, type, xImg, yTop, qrW, qrW);
+      } catch {}
+    }
+
+    // Header text
+    const headerLines = [
+      'MSI Inventory',
+      'Account Instructions:',
+      client.name || client.id || 'Unknown Client'
+    ];
+    headerLines.forEach((text, i) => {
+      if (i < 2) {
+        pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 0, 0);
+      } else {
+        pdf.setFont('helvetica', 'normal'); pdf.setTextColor(102, 102, 102);
+      }
+      const fontSize = i === 0 ? 20 : i === 1 ? 18 : 14;
+      pdf.setFontSize(fontSize);
+      const textWidth = pdf.getTextWidth(text);
+      const x = (PAGE_WIDTH_PT - textWidth) / 2;
+      checkPageBreak(20);
+      pdf.text(text, x, y);
+      if (i === 2) pdf.setTextColor(0, 0, 0);
+      y += i === 2 ? 30 : 20;
+    });
+
+    const contentWidth = PAGE_WIDTH_PT - (2 * MARGIN_PT);
+    const lineHeight = 14;
+
+    // ---------- Helper: main section header ----------
+    const sectionHeader = (title) => {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(16);
+      checkPageBreakWithContent(18, 50);
+      pdf.text(title, MARGIN_PT, y);
+      y += 18;               // header line height
+      y += 8;                // FIX: gap after header
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(12);
+    };
+
+    // ---------- Helper: subsection header ----------
+    const subSectionHeader = (title) => {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(14);
+      checkPageBreakWithContent(16, 40);
+      pdf.text(title, MARGIN_PT, y);
+      y += 16;
+      y += 6;                // FIX: smaller gap for subsections
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(12);
+    };
+
+    // Client Information (with guaranteed separation)
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(16);
+    checkPageBreakWithContent(20, 100);
+    pdf.text('Client Information', MARGIN_PT, y);
+    y += 18 + 8; // header + gap
+
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(12);
+    const updatedAt = formatUpdatedAt(client.updatedAt);
+
+    const renderKV = (label, value) => {
+      if (!value) return;
+      const labelText = `${label}: `;
+      checkPageBreak(lineHeight);
+      const labelWidth = pdf.getTextWidth(labelText);
+      pdf.text(labelText, MARGIN_PT, y);
+
+      const startX = MARGIN_PT + labelWidth;
+      const maxWidth = contentWidth - labelWidth;
+      const lines = pdf.splitTextToSize(String(value), maxWidth);
+      lines.forEach((ln, idx) => {
+        if (idx > 0) { checkPageBreak(lineHeight); y += lineHeight; }
+        pdf.text(ln, startX, y);
+      });
+      y += lineHeight;
+    };
+
+    if (client.inventoryType) renderKV('Inventory Type', String(client.inventoryType));
+    if (updatedAt) { checkPageBreak(lineHeight); pdf.text(`Updated: ${updatedAt}`, MARGIN_PT, y); y += lineHeight; }
+    if (client.PIC) renderKV('PIC', String(client.PIC));
+    if (client.verification) renderKV('Verification', String(client.verification));
+    if (client.startTime) renderKV('Start Time', String(client.startTime));
+    y += 8;
+
+    // Notice box
+    const notice = '"If you are going to be more than 5 minutes late to a store you must contact the store BEFORE you are late. NO EXCEPTIONS!!!"';
+    const wrapped = pdf.splitTextToSize(notice, contentWidth - 16);
+    const boxPadding = 8;
+    const boxHeight = wrapped.length * lineHeight + boxPadding * 2;
+    pdf.setDrawColor(0); pdf.setLineWidth(1);
+    pdf.rect(MARGIN_PT, y, contentWidth, boxHeight);
+    let ty = y + boxPadding + 12;
+    wrapped.forEach(w => { pdf.text(w, MARGIN_PT + boxPadding, ty); ty += lineHeight; });
+    y += boxHeight + 20;
+
+    // ---------- Pre-Inventory ----------
+    const { generalText, areaMappingRaw, storePrepRaw } = extractPreInventoryBundle(client.sections);
+    const alrIntro = client.ALR ? `• ALR disk is ${client.ALR}.` : '';
+    const combinedPre = [alrIntro, String(generalText || client.preInventory || '').trim()].filter(Boolean).join('\n');
+
+    if (combinedPre || areaMappingRaw || storePrepRaw) {
+      sectionHeader('Pre-Inventory');
+
+      if (combinedPre) {
+        htmlRenderer.setY(y);
+        await htmlRenderer.renderHtmlString(combinedPre);
+        y = htmlRenderer.getY() + 8;
+      }
+
+      if (String(areaMappingRaw).trim()) {
+        subSectionHeader('Area Mapping');
+        htmlRenderer.setY(y);
+        await htmlRenderer.renderHtmlString(String(areaMappingRaw));
+        y = htmlRenderer.getY() + 10;
+      }
+
+      if (String(storePrepRaw).trim()) {
+        subSectionHeader('Store Prep/Instructions');
+        htmlRenderer.setY(y);
+        await htmlRenderer.renderHtmlString(String(storePrepRaw));
+        y = htmlRenderer.getY() + 10;
+      }
+
+      y += 8;
+    }
+
+    // ---------- Generic rich sections ----------
+    const writeRichSection = async (title, body) => {
+      const text = String(body || '').trim();
+      if (!text) return;
+      sectionHeader(title);
+      htmlRenderer.setY(y);
+      await htmlRenderer.renderHtmlString(text);
+      y = htmlRenderer.getY() + 12;
+    };
+
+    await writeRichSection('INVENTORY PROCEDURES', client.Inv_Proc);
+    await writeRichSection('Audits', client.Audits);
+    await writeRichSection('Inventory Flow', client.Inv_Flow);
+    await writeRichSection('Special Notes', client.Special_Notes);
+    await writeRichSection('Pre-Inventory Crew Instructions', client['Team-Instr']);
+    await writeRichSection('Non-Count Products', client.noncount);
+
+    // ---------- Reports ----------
+    const progRep = String(client.Prog_Rep ?? '').trim();
+    const finalize = String(client.Finalize ?? '').trim();
+    const finRep = String(client.Fin_Rep ?? '').trim();
+    const processing = String(client.Processing ?? '').trim();
+
+    if (progRep || finalize || finRep || processing) {
+      sectionHeader('REPORTS');
+
+      if (progRep) {
+        subSectionHeader('Progressives:');
+        htmlRenderer.setY(y);
+        await htmlRenderer.renderHtmlString(progRep);
+        y = htmlRenderer.getY() + 12;
+      }
+      if (finalize) {
+        subSectionHeader('Finalizing the Count:');
+        htmlRenderer.setY(y);
+        await htmlRenderer.renderHtmlString(finalize);
+        y = htmlRenderer.getY() + 12;
+      }
+      if (finRep) {
+        subSectionHeader('Final Reports:');
+        htmlRenderer.setY(y);
+        await htmlRenderer.renderHtmlString(finRep);
+        y = htmlRenderer.getY() + 12;
+      }
+      if (processing) {
+        subSectionHeader('Final Processing:');
+        htmlRenderer.setY(y);
+        await htmlRenderer.renderHtmlString(processing);
+        y = htmlRenderer.getY() + 12;
+      }
+    }
+
+    const filename = `Account_Instructions_${(client.name || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+    pdf.save(filename);
+    return filename;
+  }
+
+  // Native: expo-print with rich HTML and embedded images
+  const { printToFileAsync } = await import('expo-print');
+  const html = buildHtml(client, { logoDataUrl, qrDataUrl });
+  const result = await printToFileAsync({
+    html,
+    base64: false,
+    width: PAGE_WIDTH_PT,
+    height: PAGE_HEIGHT_PT
+  });
+  return result.uri;
 }
 
-
+export default function UniversalPDFGenerator() {
+  return null;
+}
