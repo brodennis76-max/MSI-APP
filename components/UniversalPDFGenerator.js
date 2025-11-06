@@ -36,7 +36,7 @@ export async function generateAccountInstructionsPDF(options) {
       if (!html) return;
       let text = String(html);
       
-      // Normalize multi-line tags
+      // Normalize multi-line tags first
       text = text.replace(/<([^>]*?)\n([^>]*?)>/g, '<$1 $2>');
       
       // Decode HTML entities
@@ -50,13 +50,35 @@ export async function generateAccountInstructionsPDF(options) {
         .replace(/&#39;/g, "'")
         .replace(/&apos;/g, "'");
       
-      // Convert block elements to newlines
+      // Convert block elements to newlines BEFORE stripping tags
       text = text
         .replace(/<\s*br\s*\/?\s*>/gi, '\n')
         .replace(/<\s*\/p\s*[^>]*>/gi, '\n')
         .replace(/<\s*p\s*[^>]*>/gi, '')
         .replace(/<\s*\/div\s*[^>]*>/gi, '\n')
         .replace(/<\s*div\s*[^>]*>/gi, '');
+      
+      // Now strip ALL non-formatting tags (keep only b, strong, i, em, u)
+      // First, replace formatting tags with placeholders
+      text = text
+        .replace(/<\s*(b|strong)\s*[^>]*>/gi, '{{BOLD_START}}')
+        .replace(/<\s*\/(b|strong)\s*>/gi, '{{BOLD_END}}')
+        .replace(/<\s*(i|em)\s*[^>]*>/gi, '{{ITALIC_START}}')
+        .replace(/<\s*\/(i|em)\s*>/gi, '{{ITALIC_END}}')
+        .replace(/<\s*u\s*[^>]*>/gi, '{{UNDERLINE_START}}')
+        .replace(/<\s*\/u\s*>/gi, '{{UNDERLINE_END}}');
+      
+      // Strip ALL remaining HTML tags (including all attributes)
+      text = text.replace(/<[^>]+>/g, '');
+      
+      // Restore formatting tags
+      text = text
+        .replace(/{{BOLD_START}}/g, '<b>')
+        .replace(/{{BOLD_END}}/g, '</b>')
+        .replace(/{{ITALIC_START}}/g, '<i>')
+        .replace(/{{ITALIC_END}}/g, '</i>')
+        .replace(/{{UNDERLINE_START}}/g, '<u>')
+        .replace(/{{UNDERLINE_END}}/g, '</u>');
       
       // Parse and render formatted text
       const parts = text.split(/(<[^>]+>)/);
@@ -70,24 +92,23 @@ export async function generateAccountInstructionsPDF(options) {
         if (!part) continue;
         
         if (part.startsWith('<')) {
-          // Handle HTML tags
-          if (/<\s*(b|strong)\s*[^>]*>/i.test(part)) {
+          // Handle formatting tags only (all other tags were stripped)
+          if (part === '<b>' || part === '<strong>') {
             isBold = true;
-          } else if (/<\s*\/(b|strong)\s*>/i.test(part)) {
+          } else if (part === '</b>' || part === '</strong>') {
             isBold = false;
-          } else if (/<\s*(i|em)\s*[^>]*>/i.test(part)) {
+          } else if (part === '<i>' || part === '<em>') {
             isItalic = true;
-          } else if (/<\s*\/(i|em)\s*>/i.test(part)) {
+          } else if (part === '</i>' || part === '</em>') {
             isItalic = false;
-          } else if (/<\s*u\s*[^>]*>/i.test(part)) {
+          } else if (part === '<u>') {
             isUnderline = true;
-          } else if (/<\s*\/u\s*>/i.test(part)) {
+          } else if (part === '</u>') {
             isUnderline = false;
           }
         } else {
           // Render text with current formatting
-          const trimmed = part;
-          if (trimmed) {
+          if (part.trim()) {
             let fontStyle = 'normal';
             if (isBold && isItalic) fontStyle = 'bolditalic';
             else if (isBold) fontStyle = 'bold';
@@ -96,14 +117,15 @@ export async function generateAccountInstructionsPDF(options) {
             pdf.setFont('helvetica', fontStyle);
             
             // Handle newlines and wrap text
-            const lines = trimmed.split('\n');
-            let isFirstLine = true;
+            const lines = part.split('\n');
+            let hasRenderedText = false;
             lines.forEach((line, lineIndex) => {
-              if (line || lineIndex === 0) {
+              if (line.trim() || (lineIndex === 0 && part.trim())) {
                 const availableWidth = maxWidth - (currentX - MARGIN_PT);
                 const wrappedLines = pdf.splitTextToSize(line, availableWidth);
                 wrappedLines.forEach((wrappedLine, wrapIndex) => {
-                  if (!isFirstLine || wrapIndex > 0) {
+                  // Move to next line if not first line of first wrapped segment
+                  if (wrapIndex > 0 || lineIndex > 0) {
                     checkPageBreak(lineHeight);
                     y += lineHeight;
                     currentX = MARGIN_PT;
@@ -113,22 +135,33 @@ export async function generateAccountInstructionsPDF(options) {
                     const textWidth = pdf.getTextWidth(wrappedLine);
                     pdf.line(currentX, y + 2, currentX + textWidth, y + 2);
                   }
-                  isFirstLine = false;
+                  hasRenderedText = true;
                 });
-                if (wrappedLines.length > 0) {
-                  currentX = MARGIN_PT; // Reset to margin after first line
+                // After rendering all wrapped lines for this line, move to next line
+                if (lineIndex < lines.length - 1) {
+                  y += lineHeight;
+                  currentX = MARGIN_PT;
+                } else if (wrappedLines.length > 0) {
+                  // After last line, increment y for next field
+                  y += lineHeight;
                 }
               } else if (lineIndex < lines.length - 1) {
                 // Empty line - add spacing
                 checkPageBreak(lineHeight);
                 y += lineHeight * 0.5;
-                isFirstLine = false;
               }
             });
+            // If no text was rendered, still increment y
+            if (!hasRenderedText && part.trim()) {
+              y += lineHeight;
+            }
           }
         }
       }
-      // Don't add extra lineHeight here - let the caller handle spacing
+      // Ensure y is incremented after rendering (if text was rendered)
+      // The y should already be incremented by the rendering logic above,
+      // but if no text was rendered, we still need to move to next line
+      // This is handled by the caller adding spacing
     };
     
     // Simple HTML to plain text for fields that don't need formatting
@@ -193,13 +226,20 @@ export async function generateAccountInstructionsPDF(options) {
       }
     };
 
-    const writeWrapped = (text, width, lineH) => {
-      const lines = pdf.splitTextToSize(text, width);
-      lines.forEach((ln) => {
-        checkPageBreak(lineH);
-        pdf.text(ln, MARGIN_PT, y);
-        y += lineH;
-      });
+    // Write helper: chooses formatted or plain rendering automatically
+    const writeRich = (text, width, lineH) => {
+      const str = String(text || '');
+      const hasHtml = str.includes('<') && str.includes('>');
+      if (hasHtml) {
+        renderFormattedText(str, MARGIN_PT, width, lineH);
+      } else {
+        const lines = pdf.splitTextToSize(str, width);
+        lines.forEach((ln) => {
+          checkPageBreak(lineH);
+          pdf.text(ln, MARGIN_PT, y);
+          y += lineH;
+        });
+      }
     };
 
     headerLines.forEach((text, i) => {
@@ -257,15 +297,9 @@ export async function generateAccountInstructionsPDF(options) {
                            value.includes('<div') || value.includes('<br');
       
       if (useFormatting && hasFormatting) {
-        // Save current y position
-        const startY = y;
         // Render with formatting (this will modify y)
         renderFormattedText(value, startX, maxWidth, lineHeight);
-        // Add spacing after formatted text
-        if (y === startY) {
-          y += lineHeight;
-        }
-        // Add a small gap after the field
+        // Add spacing after the field
         y += 2;
       } else {
         // Render as plain text
@@ -327,7 +361,7 @@ export async function generateAccountInstructionsPDF(options) {
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(16);
     checkPageBreakWithContent(18, 50); // Ensure header stays with content
-    writeWrapped('Pre-Inventory', contentWidth, 18);
+    writeRich('Pre-Inventory', contentWidth, 18);
     y += 2; // small spacer after wrapped heading
 
     // General information (no label)
@@ -337,7 +371,7 @@ export async function generateAccountInstructionsPDF(options) {
     const alrIntro = client.ALR ? `• ALR disk is ${client.ALR}.` : '';
     const combinedPre = [alrIntro, String(generalText || client.preInventory || '').trim()].filter(Boolean).join('\n');
     if (combinedPre) {
-      writeWrapped(combinedPre, contentWidth, lineHeight);
+      writeRich(combinedPre, contentWidth, lineHeight);
       y += 8;
     }
 
@@ -346,11 +380,11 @@ export async function generateAccountInstructionsPDF(options) {
     if (areaMapping) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
-      writeWrapped('Area Mapping', contentWidth, 16);
+      writeRich('Area Mapping', contentWidth, 16);
       y += 0;
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
-      writeWrapped(areaMapping, contentWidth, lineHeight);
+      writeRich(areaMapping, contentWidth, lineHeight);
       y += 12;
     }
 
@@ -359,11 +393,11 @@ export async function generateAccountInstructionsPDF(options) {
     if (storePrep) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
-      writeWrapped('Store Prep/Instructions', contentWidth, 16);
+      writeRich('Store Prep/Instructions', contentWidth, 16);
       y += 0;
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
-      writeWrapped(storePrep, contentWidth, lineHeight);
+      writeRich(storePrep, contentWidth, lineHeight);
       y += 12;
     }
 
@@ -376,11 +410,11 @@ export async function generateAccountInstructionsPDF(options) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
       checkPageBreakWithContent(18, 50); // Ensure header stays with content
-      writeWrapped('INVENTORY PROCEDURES', contentWidth, 18);
+      writeRich('INVENTORY PROCEDURES', contentWidth, 18);
       y += 2;
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
-      writeWrapped(invProc, contentWidth, lineHeight);
+      writeRich(invProc, contentWidth, lineHeight);
       y += 12;
     }
 
@@ -393,11 +427,11 @@ export async function generateAccountInstructionsPDF(options) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
       checkPageBreakWithContent(18, 50); // Ensure header stays with content
-      writeWrapped('Audits', contentWidth, 18);
+      writeRich('Audits', contentWidth, 18);
       y += 2;
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
-      writeWrapped(audits, contentWidth, lineHeight);
+      writeRich(audits, contentWidth, lineHeight);
       y += 12;
     }
 
@@ -407,11 +441,11 @@ export async function generateAccountInstructionsPDF(options) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
       checkPageBreakWithContent(18, 50); // Ensure header stays with content
-      writeWrapped('Inventory Flow', contentWidth, 18);
+      writeRich('Inventory Flow', contentWidth, 18);
       y += 2;
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
-      writeWrapped(invFlow, contentWidth, lineHeight);
+      writeRich(invFlow, contentWidth, lineHeight);
       y += 12;
     }
 
@@ -435,11 +469,11 @@ export async function generateAccountInstructionsPDF(options) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
       checkPageBreakWithContent(18, 50); // Ensure header stays with content
-      writeWrapped('Pre-Inventory Crew Instructions', contentWidth, 18);
+      writeRich('Pre-Inventory Crew Instructions', contentWidth, 18);
       y += 2;
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
-      writeWrapped(teamInstr, contentWidth, lineHeight);
+      writeRich(teamInstr, contentWidth, lineHeight);
       y += 12;
     }
 
@@ -452,11 +486,11 @@ export async function generateAccountInstructionsPDF(options) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
       checkPageBreakWithContent(18, 50); // Ensure header stays with content
-      writeWrapped('Non-Count Products', contentWidth, 18);
+      writeRich('Non-Count Products', contentWidth, 18);
       y += 2;
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
-      writeWrapped(noncount, contentWidth, lineHeight);
+      writeRich(noncount, contentWidth, lineHeight);
       y += 12;
     }
 
@@ -473,7 +507,7 @@ export async function generateAccountInstructionsPDF(options) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
       checkPageBreakWithContent(18, 100); // Ensure header stays with content
-      writeWrapped('REPORTS', contentWidth, 18);
+      writeRich('REPORTS', contentWidth, 18);
       y += 2;
       
       pdf.setFont('helvetica', 'normal');
@@ -483,11 +517,11 @@ export async function generateAccountInstructionsPDF(options) {
       if (progRep) {
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(14);
-        writeWrapped('Progressives:', contentWidth, 16);
+        writeRich('Progressives:', contentWidth, 16);
         y += 0;
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(12);
-        writeWrapped(progRep, contentWidth, lineHeight);
+        writeRich(progRep, contentWidth, lineHeight);
         y += 12;
       }
       
@@ -495,11 +529,11 @@ export async function generateAccountInstructionsPDF(options) {
       if (finalize) {
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(14);
-        writeWrapped('Finalizing the Count:', contentWidth, 16);
+        writeRich('Finalizing the Count:', contentWidth, 16);
         y += 0;
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(12);
-        writeWrapped(finalize, contentWidth, lineHeight);
+        writeRich(finalize, contentWidth, lineHeight);
         y += 12;
       }
       
@@ -507,7 +541,7 @@ export async function generateAccountInstructionsPDF(options) {
       if (finRep) {
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(14);
-        writeWrapped('Final Reports:', contentWidth, 16);
+        writeRich('Final Reports:', contentWidth, 16);
         y += 0;
         // Detect and render "Utility Reports" as bold subheader when it's the first non-empty line
         const finLines = finRep.split('\n');
@@ -524,7 +558,7 @@ export async function generateAccountInstructionsPDF(options) {
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(12);
         const finBody = consumedHeader ? finLines.slice(firstNonEmptyIdx + 1).join('\n') : finRep;
-        writeWrapped(finBody, contentWidth, lineHeight);
+        writeRich(finBody, contentWidth, lineHeight);
         y += 12;
       }
       
@@ -532,11 +566,11 @@ export async function generateAccountInstructionsPDF(options) {
       if (processing) {
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(14);
-        writeWrapped('Final Processing:', contentWidth, 16);
+        writeRich('Final Processing:', contentWidth, 16);
         y += 0;
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(12);
-        writeWrapped(processing, contentWidth, lineHeight);
+        writeRich(processing, contentWidth, lineHeight);
         y += 12;
       }
     }
