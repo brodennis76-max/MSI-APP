@@ -104,6 +104,7 @@ export async function generateAccountInstructionsPDF(options) {
       `Updated: ${updatedAt}`,
       `PIC: ${client.PIC ?? ''}`,
       `Verification: ${client.verification ?? ''}`,
+      `Start Time: ${client.startTime ?? ''}`,
     ];
     const lineHeight = 14;
     infoLines.forEach((line) => {
@@ -224,6 +225,20 @@ export async function generateAccountInstructionsPDF(options) {
       y += 12;
     }
 
+    // SPECIAL NOTES section (from Special_Notes)
+    const specialNotes = String(client.Special_Notes ?? '').trim();
+    if (specialNotes) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(16);
+      checkPageBreakWithContent(18, 50);
+      writeWrapped('Special Notes', contentWidth, 18);
+      y += 2;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(12);
+      writeWrapped(specialNotes, contentWidth, lineHeight);
+      y += 12;
+    }
+
     // PRE-INVENTORY CREW INSTRUCTIONS section (from Team-Instr)
     const teamInstr = String(client['Team-Instr'] ?? '').trim();
     if (teamInstr) {
@@ -304,9 +319,22 @@ export async function generateAccountInstructionsPDF(options) {
         pdf.setFontSize(14);
         writeWrapped('Final Reports:', contentWidth, 16);
         y += 0;
+        // Detect and render "Utility Reports" as bold subheader when it's the first non-empty line
+        const finLines = finRep.split('\n');
+        const firstNonEmptyIdx = finLines.findIndex(l => l.trim().length > 0);
+        const firstLine = firstNonEmptyIdx >= 0 ? finLines[firstNonEmptyIdx].trim() : '';
+        let consumedHeader = false;
+        if (firstLine.toLowerCase().startsWith('utility reports')) {
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(14);
+          writeWrapped('Utility Reports:', contentWidth, 16);
+          y += 0;
+          consumedHeader = true;
+        }
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(12);
-        writeWrapped(finRep, contentWidth, lineHeight);
+        const finBody = consumedHeader ? finLines.slice(firstNonEmptyIdx + 1).join('\n') : finRep;
+        writeWrapped(finBody, contentWidth, lineHeight);
         y += 12;
       }
       
