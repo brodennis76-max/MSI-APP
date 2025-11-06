@@ -202,11 +202,16 @@ function createHtmlRenderer(pdf, opts) {
 
   const renderNode = async (node, ctx, indent) => {
     if (node.nodeType === 3) {
-      const text = node.nodeValue.replace(/\s+/g, ' ').trim();
-      if (!text) return;
+      if (!node.nodeValue) return;
+      // Preserve hard breaks, but normalize spaces within lines
+      const lines = node.nodeValue.replace(/\r\n/g, '\n').split('\n');
       const x = margin + indent;
       const width = pageWidth - margin - x;
-      drawText(ctx, text, x, width);
+      lines.forEach((raw, idx) => {
+        const text = raw.replace(/[ \t]+/g, ' ').trim();
+        if (idx > 0) { checkPage(lineHeight); y += lineHeight; }
+        if (text) drawText(ctx, text, x, width);
+      });
       return;
     }
     if (node.nodeType !== 1) return;
@@ -257,8 +262,14 @@ function createHtmlRenderer(pdf, opts) {
             await renderNode(child, liCtx, indent + listIndent);
           }
         }
+        // go to next line for the next bullet/number
+        checkPage(lineHeight);
+        y += lineHeight;
         index += 1;
       }
+      // small space after the whole list
+      checkPage(6);
+      y += 6;
       return;
     }
 
@@ -275,6 +286,11 @@ function createHtmlRenderer(pdf, opts) {
     for (const child of node.childNodes) {
       const snap = { ...ctx };
       await renderNode(child, snap, indent);
+    }
+    // Add small gap after paragraph for readability
+    if (tag === 'p') {
+      checkPage(lineHeight);
+      y += 2;
     }
   };
 
