@@ -164,42 +164,140 @@ function createHtmlRenderer(pdf, opts) {
 
   let y = margin;
 
+  // Tracks an image "float rectangle" to wrap text around
+  // { side: 'right'|'left', x, yTop, yBottom }
+  let floatRegion = null;
+
+  const clearFloatIfPassed = () => {
+    if (floatRegion && y > floatRegion.yBottom) {
+      floatRegion = null;
+    }
+  };
+
   const checkPage = (advance = 0) => {
     if (y + advance > pageHeight - margin) {
       pdf.addPage();
       y = margin;
+      // floats do not span pages; clear if we page break
+      floatRegion = null;
     }
   };
 
-  const drawText = (ctx, text, x, width) => {
-    if (!text) return;
+  const setFontFor = (ctx) => {
     const style =
       ctx.bold && ctx.italic ? 'bolditalic' :
       ctx.bold ? 'bold' :
       ctx.italic ? 'italic' : 'normal';
     pdf.setFont('helvetica', style);
     pdf.setFontSize(baseFontSize);
+  };
 
-    const lines = pdf.splitTextToSize(text, width);
-    lines.forEach((ln, idx) => {
-      if (idx > 0) { checkPage(lineHeight); y += lineHeight; }
-      pdf.text(ln, x, y);
-      if (ctx.underline) {
-        const w = pdf.getTextWidth(ln);
-        pdf.line(x, y + underlineOffset, x + w, y + underlineOffset);
+  // Compute x & width for a given line based on float region
+  const lineBox = (indent) => {
+    const fullX = margin + indent;
+    const fullW = pageWidth - margin - fullX;
+
+    if (!floatRegion) return { x: fullX, w: fullW };
+
+    const within = y >= floatRegion.yTop && y <= floatRegion.yBottom;
+    if (!within) return { x: fullX, w: fullW };
+
+    // Reduce width depending on which side floats
+    if (floatRegion.side === 'right') {
+      const blockedLeft = fullX;             // unchanged
+      const blockedRight = pageWidth - margin - floatRegion.x; // width taken by float on right
+      return { x: fullX, w: Math.max(24, fullW - blockedRight) };
+    }
+    // left float
+    const leftBlockWidth = (floatRegion.x + (floatRegion.w || 0)) - fullX;
+    const x = Math.max(fullX, floatRegion.x + (floatRegion.w || 0) + 6);
+    const w = pageWidth - margin - x;
+    return { x, w: Math.max(24, w) };
+  };
+
+  // Word-wrapping that re-measures per line allowing width to change as we pass the float's bottom
+  const wrapMeasureLines = (ctx, text, indent) => {
+    setFontFor(ctx);
+    const words = String(text).split(/\s+/);
+    let line = '';
+    const out = [];
+
+    const measure = (s) => pdf.getTextWidth(s);
+
+    for (let i = 0; i < words.length; i++) {
+      clearFloatIfPassed();
+      const { x, w } = lineBox(indent);
+      const candidate = line ? line + ' ' + words[i] : words[i];
+      if (measure(candidate) <= w) {
+        line = candidate;
+      } else {
+        if (line) out.push({ x, text: line });
+        // If single word longer than width, we still place it (jsPDF will overflow a bit)
+        line = words[i];
       }
+    }
+    if (line) {
+      clearFloatIfPassed();
+      const { x } = lineBox(indent);
+      out.push({ x, text: line });
+    }
+    return out;
+  };
+
+  const drawWrappedText = (ctx, text, indent) => {
+    if (!text) return;
+    const lines = text.replace(/\r\n/g, '\n').split('\n');
+    lines.forEach((raw, idx) => {
+      let cleaned = raw.replace(/(\S)•/g, '$1\n•'); // fix jammed bullets
+      cleaned = cleaned.replace(/[ \t]+/g, ' ').trim();
+      if (idx > 0) { checkPage(lineHeight); y += lineHeight; }
+      if (!cleaned) return;
+
+      const pieces = cleaned.split('\n'); // because we may have injected newlines for bullets
+      pieces.forEach((piece, pi) => {
+        if (pi > 0) { checkPage(lineHeight); y += lineHeight; }
+        const wrapped = wrapMeasureLines(ctx, piece, indent);
+        wrapped.forEach((ln, wi) => {
+          if (wi > 0) { checkPage(lineHeight); y += lineHeight; }
+          setFontFor(ctx);
+          pdf.text(ln.text, ln.x, y);
+          if (ctx.underline) {
+            const w = pdf.getTextWidth(ln.text);
+            pdf.line(ln.x, y + underlineOffset, ln.x + w, y + underlineOffset);
+          }
+        });
+      });
     });
   };
 
-  const drawImage = async (dataUrl, x, maxWidth) => {
+  const drawImage = async (node, x, maxWidth, asFloat) => {
     try {
       if (!HAS_DOM || typeof Image === 'undefined') return;
+      const dataUrl = node.getAttribute('src') || '';
+      if (!/^data:image\//i.test(dataUrl)) return;
+
       const img = new Image();
       img.src = dataUrl;
       await new Promise(res => { img.onload = res; });
+
+      // compute final size
       const ratio = img.height / img.width || 1;
-      const w = Math.min(maxWidth, img.width || maxWidth);
+      const naturalW = img.width || maxWidth;
+      const w = Math.min(maxWidth, naturalW);
       const h = w * ratio;
+
+      if (asFloat) {
+        // draw without advancing y; set float region so text flows around
+        const side = (node.getAttribute('data-float') || '').toLowerCase() === 'left' ? 'left' : 'right';
+        const fx = (side === 'right')
+          ? (pageWidth - margin - w)
+          : (margin + (parseFloat(node.getAttribute('data-indent')) || 0));
+        const type = /^data:image\/jpeg/i.test(dataUrl) ? 'JPEG' : 'PNG';
+        pdf.addImage(dataUrl, type, fx, y, w, h);
+        floatRegion = { side, x: fx, yTop: y - lineHeight, yBottom: y + h, w };
+        return;
+      }
+
       checkPage(h);
       const type = /^data:image\/jpeg/i.test(dataUrl) ? 'JPEG' : 'PNG';
       pdf.addImage(dataUrl, type, x, y, w, h);
@@ -208,17 +306,9 @@ function createHtmlRenderer(pdf, opts) {
   };
 
   const renderNode = async (node, ctx, indent) => {
-    // TEXT_NODE: preserve hard line breaks
+    // TEXT_NODE
     if (node.nodeType === 3) {
-      if (!node.nodeValue) return;
-      const x = margin + indent;
-      const width = pageWidth - margin - x;
-      const lines = node.nodeValue.replace(/\r\n/g, '\n').split('\n');
-      lines.forEach((raw, idx) => {
-        const text = raw.replace(/[ \t]+/g, ' ').trim();
-        if (idx > 0) { checkPage(lineHeight); y += lineHeight; }
-        if (text) drawText(ctx, text, x, width);
-      });
+      drawWrappedText(ctx, node.nodeValue, indent);
       return;
     }
     if (node.nodeType !== 1) return;
@@ -231,61 +321,56 @@ function createHtmlRenderer(pdf, opts) {
       return;
     }
 
-    // NO lead-in spacing for <p> or <div> – spacing is added outside
     if (tag === 'b' || tag === 'strong') ctx.bold = true;
     if (tag === 'i' || tag === 'em') ctx.italic = true;
     if (tag === 'u') ctx.underline = true;
 
     if (tag === 'ul' || tag === 'ol') {
-      // list should always start on a clean new body line
-      checkPage(lineHeight);
-      y += lineHeight;
+      // small pre-gap before list
+      checkPage(lineHeight * 0.5);
+      y += lineHeight * 0.5;
 
       let index = 1;
       const items = Array.from(node.children).filter(el => el.tagName.toLowerCase() === 'li');
       for (const li of items) {
-        // each bullet starts on a fresh line
         checkPage(lineHeight);
         y += lineHeight;
 
+        // marker position respects float region too
+        const { x, w } = lineBox(indent);
         const marker = tag === 'ul' ? '•' : `${index}.`;
-        const markerX = margin + indent;
-        const contentX = markerX + bulletIndent;
-        const width = pageWidth - margin - contentX;
+        setFontFor({}); // normal
+        pdf.text(marker, x, y);
 
-        pdf.setFont('helvetica','normal');
-        pdf.setFontSize(baseFontSize);
-        pdf.text(marker, markerX, y);
-
+        // content starts after a fixed bullet indent
         const liCtx = { ...ctx };
-        let firstChunk = true;
+        // Wrap LI content using the same width logic (indent + bullet)
+        let liText = '';
+        li.childNodes.forEach(ch => {
+          if (ch.nodeType === 3) liText += ch.nodeValue;
+        });
+        drawWrappedText(liCtx, liText, indent + bulletIndent);
+
+        // Render nested elements (bold/italic/links etc.)
         for (const child of li.childNodes) {
-          if (child.nodeType === 3) {
-            const t = child.nodeValue;
-            if (t && t.trim()) {
-              if (!firstChunk) { checkPage(lineHeight); y += lineHeight; }
-              drawText(liCtx, t, contentX, width);
-              firstChunk = false;
-            }
-          } else {
-            await renderNode(child, liCtx, indent + listIndent);
+          if (child.nodeType === 1) {
+            await renderNode(child, { ...liCtx }, indent + listIndent);
           }
         }
         index += 1;
       }
-      // small space after whole list
-      checkPage(6);
-      y += 6;
+      // post-gap after list
+      checkPage(lineHeight * 0.5);
+      y += lineHeight * 0.5;
       return;
     }
 
     if (tag === 'img') {
-      const src = node.getAttribute('src') || '';
-      if (/^data:image\//i.test(src)) {
-        const x = margin + indent;
-        const maxWidth = pageWidth - margin - x;
-        await drawImage(src, x, maxWidth);
-      }
+      const floatSide = (node.getAttribute('data-float') || '').toLowerCase();
+      const isFloat = floatSide === 'right' || floatSide === 'left';
+      const x = margin + indent;
+      const maxWidth = pageWidth - margin - x;
+      await drawImage(node, x, maxWidth, isFloat);
       return;
     }
 
@@ -295,8 +380,9 @@ function createHtmlRenderer(pdf, opts) {
       await renderNode(child, snap, indent);
     }
 
-    // tiny gap after paragraphs improves readability
-    if (tag === 'p') { checkPage(lineHeight); y += 2; }
+    // paragraph spacing
+    if (tag === 'p') { checkPage(lineHeight); y += lineHeight; }
+    if (tag === 'div') { checkPage(lineHeight * 0.5); y += lineHeight * 0.5; }
   };
 
   return {
@@ -304,12 +390,16 @@ function createHtmlRenderer(pdf, opts) {
     setY: v => { y = v; },
     async renderHtmlString(html, indentPx = 0) {
       if (!HAS_DOM) return;
-      const clean = sanitizeHtmlSubset(html);
+      // Add a newline when a bullet is jammed to previous word
+      const normalized = String(html).replace(/(\S)•/g, '$1\n•');
+      const clean = sanitizeHtmlSubset(normalized);
       const container = document.createElement('div');
       container.innerHTML = clean;
       for (const n of container.childNodes) {
         await renderNode(n, { bold: false, italic: false, underline: false }, indentPx);
       }
+      // clear any lingering float after finishing this block
+      floatRegion = null;
     }
   };
 }
