@@ -326,8 +326,10 @@ function createHtmlRenderer(pdf, opts) {
       await renderNode(child, snap, indent);
     }
 
-    if (tag === 'p') { checkPage(lineHeight); y += lineHeight; }
-    if (tag === 'div') { checkPage(lineHeight * 0.5); y += lineHeight * 0.5; }
+    // Paragraph spacing: double after (2 × lineHeight)
+    if (tag === 'p') { checkPage(lineHeight * 2); y += lineHeight * 2; }
+    // Div spacing: double after (2 × lineHeight) for consistency
+    if (tag === 'div') { checkPage(lineHeight * 2); y += lineHeight * 2; }
   };
 
   return {
@@ -405,8 +407,8 @@ function buildHtml(client, assets) {
   const qrDataUrl = assets?.qrDataUrl && /^data:image\//i.test(assets.qrDataUrl) ? assets.qrDataUrl : '';
   const rich = (h) => sanitizeHtmlSubset(h);
 
-  const sectionStyle = 'margin-top:24pt;';
-  const subsectionStyle = 'margin-top:24pt;';
+  const sectionStyle = 'margin-top:28pt;';
+  const subsectionStyle = 'margin-top:28pt;';
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Account Instructions - ${escapeHtml(safeName)}</title>
   <style>
@@ -421,11 +423,11 @@ function buildHtml(client, assets) {
     .qr { width: 120px; height: auto; }
     .section { ${sectionStyle} }
     .subsection { ${subsectionStyle} }
-    .section-title { font-size: 16px; font-weight: bold; margin: 0 0 6px 0; }
-    .subsection-title { font-size: 14px; font-weight: bold; margin: 0 0 6px 0; }
+    .section-title { font-size: 16px; font-weight: bold; margin: 0 0 14px 0; }
+    .subsection-title { font-size: 14px; font-weight: bold; margin: 0 0 14px 0; }
     .info { font-size: 12px; }
     .notice { border: 1px solid #000; padding: 8px; margin-top: 8px; font-size: 12px; }
-    .rich p, .rich div { margin: 0 0 8px 0; }
+    .rich p, .rich div { margin: 0 0 28px 0; }
     .rich ul, .rich ol { margin: 4px 0 8px 1.2em; padding: 0; }
     .rich li { margin: 2px 0; }
   </style></head><body>
