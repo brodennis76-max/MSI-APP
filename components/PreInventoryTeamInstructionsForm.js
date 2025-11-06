@@ -7,18 +7,15 @@ import {
   ScrollView,
   Image,
   Alert,
-  Platform,
-  TextInput
+  Platform
 } from 'react-native';
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
 const PreInventoryTeamInstructionsForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
-  const [showAdditional, setShowAdditional] = useState(false);
-  const [additionalText, setAdditionalText] = useState('');
 
   const teamInstructions = [
-    "The Inventory Manager will brief the team on the proper counting procedures and their responsibilities to the customer and their customers. Below are the guidelines that must always be followed:\n",
+    "The Inventory Manager will brief the team on the proper counting procedures and their responsibilities to the customer and their customers. Below are the guidelines that must always be followed:",
     "1. Shirts are to be tucked in, pants pulled up, no hats or facial piercings.",
     "2. NO FOOD OR DRINK ON THE SALESFLOOR.",
     "3. Cell phones are to be turned OFF, except for supervisors running the inventory.",
@@ -44,7 +41,6 @@ const PreInventoryTeamInstructionsForm = ({ clientData, onBack, onComplete }) =>
       // Save team instructions to Firebase
       await updateDoc(clientRef, {
         'Team-Instr': teamInstructions.join('\n'),
-        'Team-Instr-Additional': (additionalText || '').trim(),
         updatedAt: new Date(),
       });
       console.log('Firebase update successful');
@@ -77,17 +73,6 @@ const PreInventoryTeamInstructionsForm = ({ clientData, onBack, onComplete }) =>
     }
   };
 
-  // Prefill additional instructions when editing
-  React.useEffect(() => {
-    try {
-      const existing = String(clientData['Team-Instr-Additional'] || '').trim();
-      if (existing) {
-        setAdditionalText(existing);
-        setShowAdditional(true);
-      }
-    } catch {}
-  }, [clientData]);
-
   // Navigation is handled by parent component
 
   return (
@@ -118,31 +103,6 @@ const PreInventoryTeamInstructionsForm = ({ clientData, onBack, onComplete }) =>
           <Text style={styles.acknowledgmentText}>
             Please review these instructions with your team before beginning the inventory process.
           </Text>
-        </View>
-
-        <View style={styles.additionalContainer}>
-          <TouchableOpacity
-            style={styles.toggleButton}
-            onPress={() => setShowAdditional(prev => !prev)}
-          >
-            <Text style={styles.toggleButtonText}>
-              {showAdditional ? 'Hide Additional Instructions' : 'Add Additional Instructions'}
-            </Text>
-          </TouchableOpacity>
-
-          {showAdditional && (
-            <View style={styles.textboxWrapper}>
-              <Text style={styles.additionalLabel}>Additional Instructions (optional)</Text>
-              <TextInput
-                style={styles.textbox}
-                multiline
-                placeholder="Enter any additional crew instructions..."
-                value={additionalText}
-                onChangeText={setAdditionalText}
-                textAlignVertical="top"
-              />
-            </View>
-          )}
         </View>
       </ScrollView>
 
@@ -263,46 +223,6 @@ const styles = StyleSheet.create({
     color: '#0c5460',
     textAlign: 'center',
     fontStyle: 'italic',
-  },
-  additionalContainer: {
-    marginTop: 16,
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  toggleButton: {
-    backgroundColor: '#17a2b8',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  toggleButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  textboxWrapper: {
-    marginTop: 12,
-  },
-  additionalLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  textbox: {
-    minHeight: 120,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 6,
-    padding: 10,
-    backgroundColor: '#fafafa',
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#333',
   },
   bottomButtonContainer: {
     flexDirection: 'row',

@@ -15,209 +15,21 @@ export async function generateAccountInstructionsPDF(options) {
 
   let client = clientData;
   if (!client && clientId) {
-    console.log('📥 Fetching client data from Firestore for clientId:', clientId);
     const ref = doc(db, 'clients', clientId);
     const snap = await getDoc(ref);
     if (!snap.exists()) {
       throw new Error('Client not found');
     }
     client = { id: snap.id, ...snap.data() };
-    console.log('✅ Client data fetched from Firestore');
-  } else if (clientData) {
-    console.log('📥 Using provided clientData directly');
   }
   if (!client) {
     throw new Error('Missing client data');
   }
-  
-  // Log client data summary for debugging
-  console.log('📋 Client data summary:', {
-    id: client.id,
-    name: client.name,
-    inventoryTypes: client.inventoryTypes,
-    inventoryType: client.inventoryType,
-    hasQRCodeBase64: !!client.scannerQRCodeImageBase64,
-    hasQRCodeUrl: !!client.scannerQRCodeImageUrl,
-    hasTeamInstr: !!client['Team-Instr'],
-    hasTeamInstrAdditional: !!client['Team-Instr-Additional'],
-    hasAdditionalNotes: !!client.additionalNotes,
-    allKeys: Object.keys(client).sort()
-  });
 
   if (Platform.OS === 'web') {
     // Web: use jsPDF
     const { default: jsPDF } = await import('jspdf');
     const pdf = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
-
-    // Convert rich HTML (from editors) to plain text for PDF
-    const htmlToPlain = (html) => {
-      if (!html) return '';
-      let text = String(html);
-      
-      // Convert lists to plain text with proper formatting and indentation
-      text = text
-        .replace(/<\s*ul[^>]*>/gi, '')  // Remove ul opening tags
-        .replace(/<\s*\/ul\s*>/gi, '')  // Remove ul closing tags
-        .replace(/<\s*ol[^>]*>/gi, '')  // Remove ol opening tags
-        .replace(/<\s*\/ol\s*>/gi, '')  // Remove ol closing tags
-        .replace(/<\s*li\s*>/gi, '• ')  // Convert li opening to bullet (no extra spaces)
-        .replace(/<\s*\/li\s*>/gi, '\n') // Convert li closing to newline
-        .replace(/<\s*br\s*\/?>/gi, '\n')
-        .replace(/<\s*\/p\s*>/gi, '\n')
-        .replace(/<\s*\/div\s*>/gi, '\n')
-        .replace(/<\s*h[1-6][^>]*>/gi, '')
-        .replace(/<\s*\/h[1-6]\s*>/gi, '\n');
-      
-      // Strip all HTML tags except basic formatting, but remove all attributes
-      text = text.replace(/<(\/?)(b|strong|i|em|u|br)(?:\s[^>]*)?>/gi, '<$1$2>');
-      text = text.replace(/<(?!\/?(b|strong|i|em|u|br)\b)[^>]*>/gi, '');
-      
-      // Fix malformed nested tags like <b><b></b><i>text</i></b>
-      text = text.replace(/<b>\s*<b>\s*<\/b>\s*<i>/gi, '<i><b>');
-      text = text.replace(/<\/i>\s*<\/b>/gi, '</b></i>');
-      text = text.replace(/<b>\s*<b>/gi, '<b>');
-      text = text.replace(/<\/b>\s*<\/b>/gi, '</b>');
-      text = text.replace(/<i>\s*<i>/gi, '<i>');
-      text = text.replace(/<\/i>\s*<\/i>/gi, '</i>');
-      // Remove empty formatting tags
-      text = text.replace(/<(b|strong|i|em|u)>\s*<\/\1>/gi, '');
-      // Collapse immediate close-open boundaries (prevents mid-sentence splits like </b></i><i><b>)
-      text = text.replace(/<\/(b|strong|i|em|u)>\s*<\1>/gi, '');
-      // Run twice to handle cross-pairs like </b></i><i><b>
-      text = text.replace(/<\/(b|strong|i|em|u)>\s*<\1>/gi, '');
-      
-      // Decode common HTML entities
-      text = text
-        .replace(/&nbsp;/g, ' ')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&#039;/g, "'");
-      
-      
-      // Collapse excessive whitespace but keep intentional double line breaks
-      text = text.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n');
-      
-      // Detect and split concatenated number patterns BEFORE line processing
-      // This handles cases like "Report120 Area" -> "Report\n120 Area"
-      // Pattern: complete word followed by number then space and capital letter
-      text = text.replace(/([A-Za-z]+)(\d+\s+[A-Z])/g, '$1\n$2');
-      // Also handle cases with no space: "Report120Area" -> "Report\n120 Area"
-      // Match word followed by number then capital letter directly
-      text = text.replace(/([A-Za-z]+)(\d+)([A-Z])/g, '$1\n$2 $3');
-      
-      // Detect and split numbered list items that come after text
-      // Pattern: text ending with colon/punctuation followed by space and "1. " (numbered list)
-      // Example: "followed: 1. Shirts..." -> "followed:\n1. Shirts..."
-      text = text.replace(/([:\.,;])\s+(\d+\.\s)/g, '$1\n$2');
-      
-      // Also handle cases where the pattern might be on a single line that needs splitting
-      // This catches any remaining instances where numbered lists follow text
-      text = text.replace(/([A-Za-z][:\.,;])\s+(\d+\.\s)/g, '$1\n$2');
-      
-      // More general: catch any text (word ending) followed by space and numbered list
-      // This ensures "followed 1. item" or "text 1. item" gets split
-      // Only apply if not already at start of line or after punctuation
-      text = text.replace(/([A-Za-z])\s+(\d+\.\s)/g, '$1\n$2');
-      
-      // Preserve newlines that are likely list items or intentional breaks
-      // Only collapse newlines that are clearly soft wraps (mid-paragraph continuation)
-      const lines = text.split('\n');
-      const preservedLines = [];
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const trimmed = line.trim();
-        const nextLine = i < lines.length - 1 ? lines[i + 1].trim() : '';
-        
-        // Always preserve empty lines (double line breaks)
-        if (trimmed.length === 0) {
-          preservedLines.push('\n');
-          continue;
-        }
-        
-        // Check if line contains text ending with punctuation followed by numbered list
-        // Example: "followed: 1. Shirts..." needs to be split
-        if (/([:\.,;])\s+(\d+\.\s)/.test(trimmed)) {
-          // Split the line at the punctuation + numbered list boundary
-          const parts = trimmed.split(/([:\.,;])\s+(\d+\.\s)/);
-          if (parts.length >= 3) {
-            // First part is text before punctuation, then punctuation, then numbered list and rest
-            const beforePunct = parts[0] + parts[1]; // text + punctuation
-            const numberedPart = parts.slice(2).join(''); // numbered list + rest of line
-            preservedLines.push(beforePunct + '\n');
-            preservedLines.push(numberedPart + '\n');
-            continue;
-          }
-        }
-        
-        // Check if line contains numbered list in the middle (not at start)
-        // Example: "text 1. item" needs to be split to "text\n1. item"
-        // This catches cases where numbered lists appear mid-line
-        if (/\s+(\d+\.\s)/.test(trimmed) && !/^\d+\.\s/.test(trimmed)) {
-          // Find the first numbered list pattern and split before it
-          const match = trimmed.match(/\s+(\d+\.\s)/);
-          if (match && match.index > 0) {
-            const beforeNumber = trimmed.substring(0, match.index).trim();
-            const numberedPart = trimmed.substring(match.index).trim();
-            if (beforeNumber && numberedPart) {
-              preservedLines.push(beforeNumber + '\n');
-              preservedLines.push(numberedPart + '\n');
-              continue;
-            }
-          }
-        }
-        
-        // Always preserve lines with bullets or numbers - add newline after
-        // Check for numbered lists (1. item) or number + text patterns (110 Category Report)
-        if (trimmed.startsWith('• ') || /^\d+\.\s/.test(trimmed) || /^\d+\s+[A-Z]/.test(trimmed)) {
-          preservedLines.push(line + '\n');
-          continue;
-        }
-        
-        // Preserve newline if next line looks like a list item:
-        // - Starts with capital letter (likely list item)
-        // - Starts with a number followed by text (like "110 Category Report")
-        // - Starts with numbered list (like "1. item")
-        // - Is short (likely list item - less than 60 chars)
-        // - Current line ends with punctuation (end of sentence/thought, including colon)
-        if (nextLine && (nextLine.length === 0 || 
-                        /^[A-Z]/.test(nextLine) || 
-                        /^\d+\s+[A-Z]/.test(nextLine) ||
-                        /^\d+\.\s/.test(nextLine) ||
-                        (nextLine.length < 60 && nextLine.length > 0) ||
-                        /[.!?:]$/.test(trimmed))) {
-          preservedLines.push(line + '\n');
-        } else if (i < lines.length - 1 && lines[i + 1].trim().length > 0) {
-          // Collapse soft wrap: add space instead of newline
-          preservedLines.push(line + ' ');
-        } else {
-          // Last line or no next line - preserve with newline
-          preservedLines.push(line + '\n');
-        }
-      }
-      text = preservedLines.join('');
-      
-      // Fix any malformed bullet points that might have been created
-      text = text.replace(/\s+•\s+/g, '\n• ');
-      text = text.replace(/•\s*•/g, '•');
-      
-      // Ensure text starting with bullet point has proper newline before it
-      // This handles cases where text starts directly with a bullet without preceding content
-      const trimmed = text.trim();
-      if (trimmed.startsWith('• ') && !text.match(/^\s*\n/)) {
-        // If text starts with bullet (after whitespace) but doesn't have a newline before it,
-        // add a newline to ensure it starts on its own line
-        text = '\n' + trimmed;
-      } else {
-        // Don't trim if we just added a newline - preserve leading whitespace/newlines
-        text = trimmed;
-      }
-      
-      // Don't trim final result - preserve leading newlines for proper formatting
-      // Only trim trailing whitespace
-      return text.replace(/\s+$/, '');
-    };
 
     // Compute centered header lines
     const headerLines = [
@@ -244,212 +56,13 @@ export async function generateAccountInstructionsPDF(options) {
       }
     };
 
-    // Helper: render a string with inline <b>/<i>/<u> formatting and wrapping
-    const renderInlineFormatted = (htmlText, x, maxWidth, lineHeight, keepIndent = false) => {
-      let currentX = x;
-      let isBold = false;
-      let isItalic = false;
-      let isUnderline = false;
-      const parts = htmlText.split(/(<[^>]+>)/);
-      for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
-        if (!part) continue;
-        if (part.startsWith('<')) {
-          if (/^<\s*(b|strong)\s*>/i.test(part)) isBold = true;
-          else if (/^<\s*\/(b|strong)\s*>/i.test(part)) isBold = false;
-          else if (/^<\s*(i|em)\s*>/i.test(part)) isItalic = true;
-          else if (/^<\s*\/(i|em)\s*>/i.test(part)) isItalic = false;
-          else if (/^<\s*u\s*>/i.test(part)) isUnderline = true;
-          else if (/^<\s*\/u\s*>/i.test(part)) isUnderline = false;
-        } else if (part.trim()) {
-          let fontStyle = 'normal';
-          if (isBold && isItalic) fontStyle = 'bolditalic';
-          else if (isBold) fontStyle = 'bold';
-          else if (isItalic) fontStyle = 'italic';
-          pdf.setFont('helvetica', fontStyle);
-          const lines = pdf.splitTextToSize(part, maxWidth - (currentX - MARGIN_PT));
-          lines.forEach((line, lineIndex) => {
-            checkPageBreak(lineHeight);
-            pdf.text(line, currentX, y);
-            y += lineHeight;
-            if (!keepIndent && lineIndex === 0) currentX = MARGIN_PT; // subsequent lines back to margin unless keeping indent
-          });
-        }
-      }
-    };
-
     const writeWrapped = (text, width, lineH) => {
-
-      // Check if text contains bullet points or numbered lists (only at start of lines)
-      // Also check for number + text patterns like "110 Category Report"
-      const hasBulletPoints = text.split('\n').some(line => line.trim().startsWith('• '));
-      const hasNumberedLists = text.split('\n').some(line => /^\d+\.\s/.test(line.trim()));
-      const hasNumberPatterns = text.split('\n').some(line => /^\d+\s+[A-Z]/.test(line.trim()));
-      
-      if (hasBulletPoints || hasNumberedLists || hasNumberPatterns) {
-        // Handle bullet points and numbered lists with hanging indents
-        const lines = text.split('\n');
-        lines.forEach((line, index) => {
-          const trimmedLine = line.trim();
-          if (trimmedLine.startsWith('• ') || /^\d+\.\s/.test(trimmedLine) || /^\d+\s+[A-Z]/.test(trimmedLine)) {
-            // This is a bullet point or numbered list line
-            let prefix = '';
-            let contentText = '';
-            
-            if (trimmedLine.startsWith('• ')) {
-              prefix = '• ';
-              contentText = trimmedLine.substring(2);
-            } else {
-              // Numbered list - extract number and content
-              let match = trimmedLine.match(/^(\d+\.\s)(.*)/);
-              if (match) {
-                prefix = match[1];
-                contentText = match[2];
-              } else {
-                // Number pattern like "110 Category Report" - extract number and space
-                match = trimmedLine.match(/^(\d+\s+)(.*)/);
-                if (match) {
-                  prefix = match[1];
-                  contentText = match[2];
-                } else {
-                  // Fallback: treat entire line as content
-                  contentText = trimmedLine;
-                }
-              }
-            }
-            
-            // Calculate proper indentation
-            const prefixWidth = pdf.getTextWidth(prefix);
-            const hangingIndent = prefixWidth + 10; // 10pt space after prefix
-            
-            // Split the content text
-            const textLines = pdf.splitTextToSize(contentText, width - hangingIndent);
-            
-            textLines.forEach((textLine, lineIndex) => {
-              checkPageBreak(lineH);
-              if (lineIndex === 0) {
-                // First line: show prefix + text
-                pdf.text(prefix, MARGIN_PT, y);
-                pdf.text(textLine, MARGIN_PT + prefixWidth, y);
-              } else {
-                // Wrapped lines: indent to align with content
-                pdf.text(textLine, MARGIN_PT + hangingIndent, y);
-              }
-              y += lineH;
-            });
-          } else if (trimmedLine.length === 0) {
-            // Empty line - add small spacing for visual separation
-            // Only add spacing if it's between content (not at start/end)
-            if (index > 0 && index < lines.length - 1) {
-              y += lineH * 0.3;
-            }
-          } else if (line.trim()) {
-            // Regular line: if it contains inline HTML, render with formatting; else wrap as plain
-            if (line.includes('<') && line.includes('>')) {
-              renderInlineFormatted(line, MARGIN_PT, width, lineH, false);
-            } else {
-              const wrappedLines = pdf.splitTextToSize(line, width);
-              wrappedLines.forEach((wrappedLine) => {
-                checkPageBreak(lineH);
-                pdf.text(wrappedLine, MARGIN_PT, y);
-                y += lineH;
-              });
-            }
-          }
-        });
-      } else if (text.includes('<') && text.includes('>')) {
-        // Parse HTML formatting and apply to PDF
-        const parseAndWriteFormattedText = (htmlText, x, width, lineHeight) => {
-          let currentX = x;
-          
-          // Track active formatting
-          let isBold = false;
-          let isItalic = false;
-          let isUnderline = false;
-          
-          // Simple HTML parser for basic formatting
-          const parts = htmlText.split(/(<[^>]+>)/);
-          
-          for (let i = 0; i < parts.length; i++) {
-            const part = parts[i];
-            
-            if (part.startsWith('<')) {
-              // Handle HTML tags
-              if (part.includes('<b>') || part.includes('<strong>')) {
-                isBold = true;
-              } else if (part.includes('</b>') || part.includes('</strong>')) {
-                isBold = false;
-              } else if (part.includes('<i>') || part.includes('<em>')) {
-                isItalic = true;
-              } else if (part.includes('</i>') || part.includes('</em>')) {
-                isItalic = false;
-              } else if (part.includes('<u>')) {
-                isUnderline = true;
-              } else if (part.includes('</u>')) {
-                isUnderline = false;
-              }
-            } else if (part.trim()) {
-              // Determine font style based on active formatting
-              let fontStyle = 'normal';
-              if (isBold && isItalic) {
-                fontStyle = 'bolditalic';
-              } else if (isBold) {
-                fontStyle = 'bold';
-              } else if (isItalic) {
-                fontStyle = 'italic';
-              }
-              
-              // Render text with current formatting
-              pdf.setFont('helvetica', fontStyle);
-              const lines = pdf.splitTextToSize(part, width - (currentX - MARGIN_PT));
-              
-              lines.forEach((line, lineIndex) => {
-                checkPageBreak(lineHeight);
-                pdf.text(line, currentX, y);
-                y += lineHeight;
-                if (lineIndex === 0) currentX = MARGIN_PT; // Subsequent lines start at margin
-              });
-            }
-          }
-        };
-        
-        parseAndWriteFormattedText(text, MARGIN_PT, width, lineH);
-      } else {
-        // Plain text - preserve explicit newlines and wrap each line
-        const inputLines = text.split('\n');
-        inputLines.forEach((inputLine) => {
-          if (inputLine.trim().length === 0) {
-            // Empty line - add spacing
-            y += lineH * 0.5;
-            return;
-          }
-          // Wrap each line to fit width
-          const wrappedLines = pdf.splitTextToSize(inputLine, width);
-          wrappedLines.forEach((wrappedLine) => {
-            checkPageBreak(lineH);
-            pdf.text(wrappedLine, MARGIN_PT, y);
-            y += lineH;
-          });
-        });
-      }
-    };
-
-    const writeWrappedWithIndent = (text, width, lineH, indentPt = 0) => {
-      // Check if text contains HTML tags
-      if (text.includes('<') && text.includes('>')) {
-        // Use shared inline formatter honoring the indent
-        const xPos = MARGIN_PT + indentPt;
-        renderInlineFormatted(text, xPos, width - indentPt, lineH, true);
-      } else {
-        // Plain text - use original simple approach
-        const lines = pdf.splitTextToSize(text, width - indentPt);
-        lines.forEach((ln, index) => {
-          checkPageBreak(lineH);
-          const xPos = MARGIN_PT + indentPt;
-          pdf.text(ln, xPos, y);
-          y += lineH;
-        });
-      }
+      const lines = pdf.splitTextToSize(text, width);
+      lines.forEach((ln) => {
+        checkPageBreak(lineH);
+        pdf.text(ln, MARGIN_PT, y);
+        y += lineH;
+      });
     };
 
     headerLines.forEach((text, i) => {
@@ -477,7 +90,6 @@ export async function generateAccountInstructionsPDF(options) {
 
     // Client Information section
     const contentWidth = PAGE_WIDTH_PT - (2 * MARGIN_PT);
-    console.log('🔍 Content width calculation:', PAGE_WIDTH_PT, '- (2 *', MARGIN_PT, ') =', contentWidth);
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(16);
     checkPageBreakWithContent(20, 100); // Ensure header stays with content
@@ -487,36 +99,18 @@ export async function generateAccountInstructionsPDF(options) {
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(12);
     const updatedAt = formatUpdatedAt(client.updatedAt);
-    const inventoryTypes = Array.isArray(client.inventoryTypes) ? client.inventoryTypes : (client.inventoryType ? [client.inventoryType] : []);
-    const inventoryTypeString = inventoryTypes
-      .concat((Array.isArray(client.inventoryTypes) && client.inventoryTypes.includes('financial') && client.financialPrice) ? [client.financialPrice] : [])
-      .join(', ');
+    const infoLines = [
+      `Inventory Type: ${client.inventoryType ?? ''}`,
+      `Updated: ${updatedAt}`,
+      `PIC: ${client.PIC ?? ''}`,
+      `Verification: ${client.verification ?? ''}`,
+    ];
     const lineHeight = 14;
-
-    // Helper to write key/value lines with hanging indent wrapping
-    const writeKeyValue = (keyLabel, valueText) => {
-      const label = `${keyLabel}: `;
-      const value = String(valueText || '').trim();
-      const labelWidth = pdf.getTextWidth(label);
-      const available = contentWidth - labelWidth;
-      const wrappedVals = pdf.splitTextToSize(value, Math.max(available, 10));
-      // First line: label + first wrapped value line
+    infoLines.forEach((line) => {
       checkPageBreak(lineHeight);
-      pdf.text(label, MARGIN_PT, y);
-      pdf.text(wrappedVals[0] || '', MARGIN_PT + labelWidth, y);
+      pdf.text(line, MARGIN_PT, y);
       y += lineHeight;
-      // Subsequent lines: indent to after the label
-      for (let i = 1; i < wrappedVals.length; i++) {
-        checkPageBreak(lineHeight);
-        pdf.text(wrappedVals[i], MARGIN_PT + labelWidth, y);
-        y += lineHeight;
-      }
-    };
-
-    writeKeyValue('Inventory Type', htmlToPlain(inventoryTypeString));
-    writeKeyValue('Updated', updatedAt);
-    writeKeyValue('PIC', htmlToPlain(client.PIC ?? ''));
-    writeKeyValue('Verification', htmlToPlain(client.verification ?? ''));
+    });
     y += 8;
 
     // Boxed notice
@@ -550,14 +144,14 @@ export async function generateAccountInstructionsPDF(options) {
     pdf.setFontSize(12);
     const { generalText, areaMappingRaw, storePrepRaw } = extractPreInventoryBundle(client.sections);
     const alrIntro = client.ALR ? `• ALR disk is ${client.ALR}.` : '';
-    const combinedPre = htmlToPlain([alrIntro, String(generalText || client.preInventory || '').trim()].filter(Boolean).join('\n'));
+    const combinedPre = [alrIntro, String(generalText || client.preInventory || '').trim()].filter(Boolean).join('\n');
     if (combinedPre) {
       writeWrapped(combinedPre, contentWidth, lineHeight);
       y += 8;
     }
 
     // Area Mapping (wrapped subheading)
-    const areaMapping = htmlToPlain(String(areaMappingRaw).trim());
+    const areaMapping = String(areaMappingRaw).trim();
     if (areaMapping) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
@@ -570,7 +164,7 @@ export async function generateAccountInstructionsPDF(options) {
     }
 
     // Store Prep/Instructions (wrapped subheading)
-    const storePrep = htmlToPlain(String(storePrepRaw).trim());
+    const storePrep = String(storePrepRaw).trim();
     if (storePrep) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
@@ -586,7 +180,7 @@ export async function generateAccountInstructionsPDF(options) {
     y += 20;
 
     // INVENTORY PROCEDURES section (from Inv_Proc)
-    const invProc = htmlToPlain(String(client.Inv_Proc ?? '').trim());
+    const invProc = String(client.Inv_Proc ?? '').trim();
     if (invProc) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
@@ -603,7 +197,7 @@ export async function generateAccountInstructionsPDF(options) {
     y += 20;
 
     // AUDITS section (from Audits)
-    const audits = htmlToPlain(String(client.Audits ?? '').trim());
+    const audits = String(client.Audits ?? '').trim();
     if (audits) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
@@ -617,7 +211,7 @@ export async function generateAccountInstructionsPDF(options) {
     }
 
     // INVENTORY FLOW section (from Inv_Flow)
-    const invFlow = htmlToPlain(String(client.Inv_Flow ?? '').trim());
+    const invFlow = String(client.Inv_Flow ?? '').trim();
     if (invFlow) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
@@ -630,73 +224,9 @@ export async function generateAccountInstructionsPDF(options) {
       y += 12;
     }
 
-    // Double space before next section
-    y += 20;
-
-    // DEPARTMENTS section (only when items present; format "DeptNo LABEL" sorted by DeptNo)
-    const rawDepartments = String(client.Departments ?? '').trim();
-    console.log('🔍 Raw Departments data:', rawDepartments);
-    if (rawDepartments) {
-      const parseDepartmentItems = (text) => {
-        const items = [];
-        const lines = String(text).split('\n');
-        for (const ln of lines) {
-          const t = ln.trim();
-          if (!t.startsWith('_')) continue; // only item lines
-          const parts = t.replace(/^_\s*/, '').split(/\s+/);
-          if (parts.length === 0) continue;
-          const last = parts[parts.length - 1];
-          if (!/^\d+(?:-\d+)?$/.test(last)) continue; // require dept number
-          const deptNum = parseInt(last.split('-')[0], 10);
-          const label = parts.slice(0, -1).join(' ').trim().toUpperCase();
-          if (!label) continue;
-          items.push({ dept: deptNum, label });
-        }
-        return items.sort((a, b) => a.dept - b.dept);
-      };
-
-      const items = parseDepartmentItems(rawDepartments);
-      if (items.length > 0) {
-        const formatted = items.map(i => `${i.dept} ${i.label}`).join('\n');
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(16);
-        checkPageBreakWithContent(18, 50);
-        writeWrapped('Departments', contentWidth, 18);
-        y += 2;
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(12);
-        writeWrapped(formatted, contentWidth, lineHeight);
-        y += 12;
-      }
-    }
-
     // PRE-INVENTORY CREW INSTRUCTIONS section (from Team-Instr)
-    const teamInstr = htmlToPlain(String(client['Team-Instr'] ?? '').trim());
-    const teamInstrAdditional = htmlToPlain(String(client['Team-Instr-Additional'] ?? '').trim());
-    // Ensure proper spacing when joining sections
-    const parts = [teamInstr, teamInstrAdditional].filter(Boolean);
-    let teamInstrCombined = '';
-    if (parts.length === 0) {
-      teamInstrCombined = '';
-    } else if (parts.length === 1) {
-      teamInstrCombined = parts[0];
-    } else {
-      // Join with newline, but ensure proper spacing
-      // If either part starts with bullet, ensure it's on its own line
-      const first = parts[0];
-      const second = parts[1];
-      if (second.trim().startsWith('• ') || second.trim().match(/^\d+\s+[A-Z]/)) {
-        // Second part starts with bullet or number pattern - ensure newline before it
-        teamInstrCombined = first + '\n' + second;
-      } else {
-        teamInstrCombined = first + '\n' + second;
-      }
-    }
-    // Ensure first bullet point is on its own line if text starts with bullet
-    if (teamInstrCombined.trim().startsWith('• ') && !teamInstrCombined.match(/^\s*\n/)) {
-      teamInstrCombined = '\n' + teamInstrCombined.trim();
-    }
-    if (teamInstrCombined) {
+    const teamInstr = String(client['Team-Instr'] ?? '').trim();
+    if (teamInstr) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
       checkPageBreakWithContent(18, 50); // Ensure header stays with content
@@ -704,227 +234,15 @@ export async function generateAccountInstructionsPDF(options) {
       y += 2;
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
-      writeWrapped(teamInstrCombined, contentWidth, lineHeight);
+      writeWrapped(teamInstr, contentWidth, lineHeight);
       y += 12;
-    }
-    
-    // Add QR code section right after Pre-Inventory Crew Instructions (after special instructions)
-    // This should appear even if there are no team instructions, as long as scan type is selected
-    console.log('🔍 Starting QR Code section check...');
-    const inventoryTypesArr = Array.isArray(client.inventoryTypes) ? client.inventoryTypes : (client.inventoryType ? [client.inventoryType] : []);
-    // Check if scan type exists - handle both array and string formats
-    // Check for various forms: 'scan', 'scanner', 'scanning', etc.
-    const hasScanType = inventoryTypesArr.some(type => {
-      const typeStr = String(type).toLowerCase();
-      return typeStr.includes('scan');
-    }) || String(client.inventoryType || '').toLowerCase().includes('scan');
-    
-    console.log('🔍 QR Code Check:', {
-      hasScanType,
-      inventoryTypesArr,
-      inventoryType: client.inventoryType,
-      scannerQRCodeImageBase64: client.scannerQRCodeImageBase64 ? 'exists' : 'missing',
-      scannerQRCodeImageUrl: client.scannerQRCodeImageUrl || 'missing',
-      allClientKeys: Object.keys(client).filter(k => k.toLowerCase().includes('scan') || k.toLowerCase().includes('qr'))
-    });
-    
-    if (hasScanType) {
-      console.log('✅ Scan type detected - proceeding with QR code section');
-      try {
-        // Default QR code image URL (GitHub raw URL)
-        const DEFAULT_QR_CODE_IMAGE = 'https://raw.githubusercontent.com/brodennis76-max/MSI-APP/main/msi-expo/qr-codes/1450%20Scanner%20Program.png';
-        console.log('📋 QR Code section: Starting image loading process...');
-        const clientQRCodeImageBase64 = String(client.scannerQRCodeImageBase64 || '').trim();
-        const clientQRCodeImageUrl = String(client.scannerQRCodeImageUrl || '').trim();
-        let qrCodeDataUrl;
-        
-        console.log('🔍 QR Code Sources:', {
-          hasBase64: !!clientQRCodeImageBase64,
-          hasUrl: !!clientQRCodeImageUrl,
-          defaultUrl: DEFAULT_QR_CODE_IMAGE
-        });
-        
-        // Priority 1: Use uploaded base64 image if available
-        if (clientQRCodeImageBase64 && clientQRCodeImageBase64.length > 0) {
-          // Ensure it's a proper data URL format
-          if (clientQRCodeImageBase64.startsWith('data:')) {
-            qrCodeDataUrl = clientQRCodeImageBase64;
-          } else {
-            // If it's just base64, add the data URL prefix
-            qrCodeDataUrl = `data:image/png;base64,${clientQRCodeImageBase64}`;
-          }
-          console.log('✅ Using base64 QR code image (length:', qrCodeDataUrl.length, ')');
-        }
-        // Priority 2: Use client-specific PNG image URL if provided
-        else if (clientQRCodeImageUrl && clientQRCodeImageUrl.length > 0) {
-          try {
-            console.log('🔍 Fetching client QR code image from URL:', clientQRCodeImageUrl);
-            const res = await fetch(clientQRCodeImageUrl);
-            if (!res.ok) {
-              throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-            }
-            const blob = await res.blob();
-            console.log('✅ Client QR code image blob obtained, size:', blob.size, 'type:', blob.type);
-            const reader = new FileReader();
-            qrCodeDataUrl = await new Promise((resolve, reject) => {
-              reader.onloadend = () => {
-                console.log('✅ Client QR code image converted to data URL');
-                resolve(reader.result);
-              };
-              reader.onerror = (err) => {
-                console.error('❌ FileReader error:', err);
-                reject(err);
-              };
-              reader.readAsDataURL(blob);
-            });
-          } catch (error) {
-            console.error('❌ Error loading client QR code image from URL:', error);
-            // Fall back to default image if client image fails
-            try {
-              console.log('🔍 Falling back to default QR code image');
-              const res = await fetch(DEFAULT_QR_CODE_IMAGE);
-              if (!res.ok) {
-                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-              }
-              const blob = await res.blob();
-              console.log('✅ Default QR code image blob obtained, size:', blob.size, 'type:', blob.type);
-              const reader = new FileReader();
-              qrCodeDataUrl = await new Promise((resolve, reject) => {
-                reader.onloadend = () => {
-                  console.log('✅ Default QR code image converted to data URL');
-                  resolve(reader.result);
-                };
-                reader.onerror = (err) => {
-                  console.error('❌ FileReader error:', err);
-                  reject(err);
-                };
-                reader.readAsDataURL(blob);
-              });
-            } catch (defaultError) {
-              console.error('❌ Error loading default QR code image:', defaultError);
-              qrCodeDataUrl = null;
-            }
-          }
-        }
-        // Priority 3: Use default PNG image (when no custom image is provided)
-        else {
-          console.log('ℹ️ No custom QR code image provided, using default image');
-          try {
-            console.log('🔍 Fetching default QR code image from URL:', DEFAULT_QR_CODE_IMAGE);
-            const res = await fetch(DEFAULT_QR_CODE_IMAGE);
-            if (!res.ok) {
-              throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-            }
-            const blob = await res.blob();
-            console.log('✅ Default QR code image blob obtained, size:', blob.size, 'type:', blob.type);
-            const reader = new FileReader();
-            qrCodeDataUrl = await new Promise((resolve, reject) => {
-              reader.onloadend = () => {
-                console.log('✅ Default QR code image converted to data URL');
-                resolve(reader.result);
-              };
-              reader.onerror = (err) => {
-                console.error('❌ FileReader error:', err);
-                reject(err);
-              };
-              reader.readAsDataURL(blob);
-            });
-            console.log('✅ Successfully loaded default QR code image');
-          } catch (error) {
-            console.error('❌ Error loading default QR code image:', error);
-            console.error('❌ Error details:', error.message, error.stack);
-            // Continue without QR code if default image fails
-            qrCodeDataUrl = null;
-          }
-        }
-        
-        if (qrCodeDataUrl) {
-          console.log('✅ QR Code data URL obtained, adding to PDF at y:', y);
-          console.log('🔍 QR Code data URL preview:', qrCodeDataUrl.substring(0, 50) + '...');
-          
-          // Add spacing before QR code section
-          y += 20;
-          
-          // Add header
-          const headerText = '1450 SCANNER PROGRAM CODE:';
-          const headerFontSize = 14;
-          pdf.setFont('helvetica', 'bold');
-          pdf.setFontSize(headerFontSize);
-          const headerWidth = pdf.getTextWidth(headerText);
-          checkPageBreak(headerFontSize + 20);
-          const headerX = (PAGE_WIDTH_PT - headerWidth) / 2;
-          pdf.text(headerText, headerX, y); // Centered
-          console.log('✅ Header added at position:', headerX, y);
-          y += headerFontSize + 12;
-          
-          // Add QR code image (centered)
-          const qrSize = 108; // 1.5 inches (108pt)
-          const qrX = (PAGE_WIDTH_PT - qrSize) / 2; // Center horizontally
-          checkPageBreak(qrSize + 20);
-          
-          try {
-            // Validate data URL format
-            if (!qrCodeDataUrl.startsWith('data:image/')) {
-              throw new Error(`Invalid data URL format. Expected data:image/..., got: ${qrCodeDataUrl.substring(0, 50)}...`);
-            }
-            
-            // Determine image format from data URL
-            let imageFormat = 'PNG';
-            if (qrCodeDataUrl.startsWith('data:image/jpeg') || qrCodeDataUrl.startsWith('data:image/jpg')) {
-              imageFormat = 'JPEG';
-            } else if (qrCodeDataUrl.startsWith('data:image/png')) {
-              imageFormat = 'PNG';
-            } else {
-              // Try to extract format from MIME type
-              const mimeMatch = qrCodeDataUrl.match(/data:image\/([^;]+)/);
-              if (mimeMatch) {
-                const mimeType = mimeMatch[1].toUpperCase();
-                if (mimeType === 'JPEG' || mimeType === 'JPG') {
-                  imageFormat = 'JPEG';
-                } else if (mimeType === 'PNG') {
-                  imageFormat = 'PNG';
-                }
-              }
-            }
-            
-            console.log('🔍 Adding image with format:', imageFormat, 'at position:', qrX, y, 'size:', qrSize);
-            console.log('🔍 Data URL valid:', qrCodeDataUrl.substring(0, 100) + '...');
-            console.log('🔍 Data URL length:', qrCodeDataUrl.length);
-            
-            // Add image to PDF
-            pdf.addImage(qrCodeDataUrl, imageFormat, qrX, y, qrSize, qrSize);
-            console.log('✅ QR Code image successfully added to PDF');
-            y += qrSize + 12;
-          } catch (imageError) {
-            console.error('❌ Error adding QR code image to PDF:', imageError);
-            console.error('❌ Error name:', imageError.name);
-            console.error('❌ Error message:', imageError.message);
-            console.error('❌ Image data URL length:', qrCodeDataUrl ? qrCodeDataUrl.length : 'null');
-            console.error('❌ Image data URL preview:', qrCodeDataUrl ? qrCodeDataUrl.substring(0, 100) : 'null');
-            // Continue without image but add some space
-            y += 12;
-          }
-        } else {
-          console.warn('⚠️ QR Code data URL is null or undefined - image will not be added to PDF');
-          console.warn('⚠️ This means the default image failed to load, or there was an error');
-        }
-      } catch (error) {
-        console.error('❌ Error adding QR code:', error);
-        console.error('❌ Error details:', error.message, error.stack);
-        // Continue without QR code if generation fails
-      }
-    } else {
-      console.log('ℹ️ QR Code section skipped - scan type not found in inventory types');
-      console.log('ℹ️ Inventory types:', inventoryTypesArr);
-      console.log('ℹ️ Inventory type (string):', client.inventoryType);
     }
 
     // Double space before next section
     y += 20;
 
     // NON-COUNT PRODUCTS section (from noncount)
-    const noncount = htmlToPlain(String(client.noncount ?? '').trim());
-    console.log('🔍 Raw NonCount data:', client.noncount);
+    const noncount = String(client.noncount ?? '').trim();
     if (noncount) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
@@ -941,10 +259,10 @@ export async function generateAccountInstructionsPDF(options) {
     y += 20;
 
     // REPORTS section
-    const progRep = htmlToPlain(String(client.Prog_Rep ?? '').trim());
-    const finalize = htmlToPlain(String(client.Finalize ?? '').trim());
-    const finRep = htmlToPlain(String(client.Fin_Rep ?? '').trim());
-    const processing = htmlToPlain(String(client.Processing ?? '').trim());
+    const progRep = String(client.Prog_Rep ?? '').trim();
+    const finalize = String(client.Finalize ?? '').trim();
+    const finRep = String(client.Fin_Rep ?? '').trim();
+    const processing = String(client.Processing ?? '').trim();
     
     if (progRep || finalize || finRep || processing) {
       pdf.setFont('helvetica', 'bold');
@@ -968,6 +286,18 @@ export async function generateAccountInstructionsPDF(options) {
         y += 12;
       }
       
+      // Finalizing the Count subsection
+      if (finalize) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(14);
+        writeWrapped('Finalizing the Count:', contentWidth, 16);
+        y += 0;
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(12);
+        writeWrapped(finalize, contentWidth, lineHeight);
+        y += 12;
+      }
+      
       // Final Reports subsection
       if (finRep) {
         pdf.setFont('helvetica', 'bold');
@@ -977,18 +307,6 @@ export async function generateAccountInstructionsPDF(options) {
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(12);
         writeWrapped(finRep, contentWidth, lineHeight);
-        y += 12;
-      }
-      
-      // Finalizing the Count subsection (moved after Final Reports)
-      if (finalize) {
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(14);
-        writeWrapped('Finalizing the Count:', contentWidth, 16);
-        y += 0;
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(12);
-        writeWrapped(finalize, contentWidth, lineHeight);
         y += 12;
       }
       
@@ -1005,87 +323,6 @@ export async function generateAccountInstructionsPDF(options) {
       }
     }
 
-    // Double space before next section
-    y += 20;
-
-    // ADDITIONAL NOTES section (from additionalNotes)
-    const additionalNotes = htmlToPlain(String(client.additionalNotes ?? '').trim());
-    if (additionalNotes) {
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(16);
-      checkPageBreakWithContent(18, 50); // Ensure header stays with content
-      writeWrapped('Additional Notes', contentWidth, 18);
-      y += 2;
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(12);
-      writeWrapped(additionalNotes, contentWidth, lineHeight);
-      y += 12;
-    }
-
-    // Double space before next section
-    y += 20;
-
-    // Additional Images section (from pdfImageUrls: string or array)
-    const parseImageUrls = (val) => {
-      if (!val) return [];
-      if (Array.isArray(val)) return val.filter(Boolean).map(String);
-      return String(val)
-        .split(/\r?\n|,/) // split by newline or comma
-        .map(s => s.trim())
-        .filter(Boolean);
-    };
-    const imageUrls = parseImageUrls(client.pdfImageUrls);
-    if (imageUrls.length) {
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(16);
-      checkPageBreakWithContent(18, 100);
-      writeWrapped('Images', contentWidth, 18);
-      y += 8;
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(12);
-
-      const toDataUrl = async (url) => {
-        try {
-          const res = await fetch(url);
-          const blob = await res.blob();
-          const reader = new FileReader();
-          const p = new Promise((resolve, reject) => {
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = reject;
-          });
-          reader.readAsDataURL(blob);
-          return await p; // returns data URL
-        } catch (e) {
-          console.error('Failed to fetch image for PDF:', url, e);
-          return null;
-        }
-      };
-
-      // Render each image centered, scaled to fit content width
-      for (const url of imageUrls) {
-        const dataUrl = await toDataUrl(url);
-        if (!dataUrl) continue;
-
-        // Estimate image dimensions from data URL is non-trivial; create temp Image
-        const img = new Image();
-        const dim = await new Promise((resolve) => {
-          img.onload = () => resolve({ w: img.width, h: img.height });
-          img.onerror = () => resolve(null);
-          img.src = dataUrl;
-        });
-        if (!dim) continue;
-        const maxW = contentWidth;
-        const scale = Math.min(1, maxW / dim.w);
-        const drawW = dim.w * scale;
-        const drawH = dim.h * scale;
-
-        checkPageBreak(drawH + 12);
-        const x = MARGIN_PT + (contentWidth - drawW) / 2;
-        pdf.addImage(dataUrl, 'PNG', x, y, drawW, drawH);
-        y += drawH + 12;
-      }
-    }
-
     // Return data URI or save; for now, trigger download with filename
     const filename = `Account_Instructions_${(client.name || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
     pdf.save(filename);
@@ -1093,7 +330,7 @@ export async function generateAccountInstructionsPDF(options) {
   }
 
   // Native (iOS/Android via Expo): use HTML + expo-print
-  const html = await buildHtml(client);
+  const html = buildHtml(client);
   const result = await Print.printToFileAsync({
     html,
     base64: false,
@@ -1103,81 +340,13 @@ export async function generateAccountInstructionsPDF(options) {
   return result.uri;
 }
 
-async function buildHtml(client) {
+function buildHtml(client) {
   const safeName = client.name || client.id || 'Unknown Client';
   const updatedAt = formatUpdatedAt(client.updatedAt);
   const extracted = extractPreInventoryBundle(client.sections);
   const preInv = String(extracted.generalText || client.preInventory || '').trim();
   const areaMapping = String(extracted.areaMappingRaw).trim();
   const storePrep = String(extracted.storePrepRaw).trim();
-  
-  // Generate QR code for native HTML if scan type is selected
-  let qrCodeHtml = '';
-  const inventoryTypesArr = Array.isArray(client.inventoryTypes) ? client.inventoryTypes : (client.inventoryType ? [client.inventoryType] : []);
-  // Check if scan type exists - handle both array and string formats (same as web version)
-  const hasScanType = inventoryTypesArr.some(type => {
-    const typeStr = String(type).toLowerCase();
-    return typeStr.includes('scan');
-  }) || String(client.inventoryType || '').toLowerCase().includes('scan');
-  
-  // Default QR code image URL (GitHub raw URL)
-  const DEFAULT_QR_CODE_IMAGE = 'https://raw.githubusercontent.com/brodennis76-max/MSI-APP/main/msi-expo/qr-codes/1450%20Scanner%20Program.png';
-  const clientQRCodeImageBase64 = String(client.scannerQRCodeImageBase64 ?? '').trim();
-  const clientQRCodeImageUrl = String(client.scannerQRCodeImageUrl ?? '').trim();
-  
-  console.log('🔍 Native HTML QR Code Check:', {
-    hasScanType,
-    inventoryTypesArr,
-    inventoryType: client.inventoryType,
-    hasBase64: !!clientQRCodeImageBase64,
-    hasUrl: !!clientQRCodeImageUrl
-  });
-  
-  if (hasScanType) {
-    try {
-      let qrCodeSrc;
-      
-      // Priority 1: Use uploaded base64 image if available
-      if (clientQRCodeImageBase64 && clientQRCodeImageBase64.length > 0) {
-        // Ensure it's a proper data URL format
-        if (clientQRCodeImageBase64.startsWith('data:')) {
-          qrCodeSrc = clientQRCodeImageBase64;
-        } else {
-          // If it's just base64, add the data URL prefix
-          qrCodeSrc = `data:image/png;base64,${clientQRCodeImageBase64}`;
-        }
-        console.log('✅ Native: Using base64 QR code image');
-      }
-      // Priority 2: Use client-specific PNG image URL if provided
-      else if (clientQRCodeImageUrl && clientQRCodeImageUrl.length > 0) {
-        qrCodeSrc = clientQRCodeImageUrl;
-        console.log('✅ Native: Using client QR code image URL');
-      } 
-      // Priority 3: Use default PNG image
-      else {
-        qrCodeSrc = DEFAULT_QR_CODE_IMAGE;
-        console.log('✅ Native: Using default QR code image');
-      }
-      
-      if (qrCodeSrc) {
-        qrCodeHtml = `
-          <div class="section" style="text-align:center; margin-top:20px; page-break-inside:avoid;">
-            <div style="font-size:14px;font-weight:bold;margin-bottom:12px;">1450 SCANNER PROGRAM CODE:</div>
-            <img src="${escapeHtml(qrCodeSrc)}" style="width:144pt;height:144pt;margin:0 auto;display:block;" alt="1450 Scanner Program Code" />
-          </div>
-        `;
-        console.log('✅ Native: QR code HTML generated');
-      } else {
-        console.warn('⚠️ Native: QR code source is null or undefined');
-      }
-    } catch (error) {
-      console.error('❌ Error generating QR code for native:', error);
-      // QR code will be empty if generation fails
-    }
-  } else {
-    console.log('ℹ️ Native: QR Code section skipped - scan type not found');
-  }
-  
   return `
     <!DOCTYPE html>
     <html>
@@ -1207,12 +376,10 @@ async function buildHtml(client) {
         <div class="section">
           <div class="section-title">Client Information</div>
           <div class="info">
-            <p><strong>Inventory Type:</strong> ${sanitizeBasicHtml(((Array.isArray(client.inventoryTypes) ? client.inventoryTypes : (client.inventoryType ? [client.inventoryType] : []))
-              .concat((Array.isArray(client.inventoryTypes) && client.inventoryTypes.includes('financial') && client.financialPrice) ? [client.financialPrice] : [])
-            ).join(', '))}</p>
+            <p><strong>Inventory Type:</strong> ${escapeHtml(client.inventoryType ?? '')}</p>
             <p><strong>Updated:</strong> ${escapeHtml(updatedAt)}</p>
-            <p><strong>PIC:</strong> ${sanitizeBasicHtml(client.PIC ?? '')}</p>
-            <p><strong>Verification:</strong> ${sanitizeBasicHtml(client.verification ?? '')}</p>
+            <p><strong>PIC:</strong> ${escapeHtml(client.PIC ?? '')}</p>
+            <p><strong>Verification:</strong> ${escapeHtml(client.verification ?? '')}</p>
           </div>
           <div class="notice">"If you are going to be more than 5 minutes late to a store you must contact the store BEFORE you are late. NO EXCEPTIONS!!!"</div>
         </div>
@@ -1220,18 +387,18 @@ async function buildHtml(client) {
         <div class="section">
           <div class="section-title">Pre-Inventory</div>
           <div class="info" style="margin-top:8px;">
-            <p style="white-space:pre-wrap;">${sanitizeBasicHtml(preInv)}</p>
+            <p style="white-space:pre-wrap;">${escapeHtml(preInv)}</p>
           </div>
           ${areaMapping ? `
               <div class="subsection" style="margin-top:8px;">
                 <div class="section-title" style="font-size:14px;">Area Mapping</div>
-                <div class="info"><p style="white-space:pre-wrap;">${sanitizeBasicHtml(areaMapping)}</p></div>
+                <div class="info"><p style="white-space:pre-wrap;">${escapeHtml(areaMapping)}</p></div>
               </div>
             ` : ''}
           ${storePrep ? `
               <div class="subsection" style="margin-top:8px;">
                 <div class="section-title" style="font-size:14px;">Store Prep/Instructions</div>
-                <div class="info"><p style="white-space:pre-wrap;">${sanitizeBasicHtml(storePrep)}</p></div>
+                <div class="info"><p style="white-space:pre-wrap;">${escapeHtml(storePrep)}</p></div>
               </div>
             ` : ''}
         </div>
@@ -1243,7 +410,7 @@ async function buildHtml(client) {
             <div class="section">
               <div class="section-title">INVENTORY PROCEDURES</div>
               <div class="info" style="margin-top:8px;">
-                <p style="white-space:pre-wrap;">${sanitizeBasicHtml(invProc)}</p>
+                <p style="white-space:pre-wrap;">${escapeHtml(invProc)}</p>
               </div>
             </div>
           `;
@@ -1256,7 +423,7 @@ async function buildHtml(client) {
             <div class="section">
               <div class="section-title">Audits</div>
               <div class="info" style="margin-top:8px;">
-                <p style="white-space:pre-wrap;">${sanitizeBasicHtml(audits)}</p>
+                <p style="white-space:pre-wrap;">${escapeHtml(audits)}</p>
               </div>
             </div>
           `;
@@ -1269,7 +436,7 @@ async function buildHtml(client) {
             <div class="section">
               <div class="section-title">Inventory Flow</div>
               <div class="info" style="margin-top:8px;">
-                <p style="white-space:pre-wrap;">${sanitizeBasicHtml(invFlow)}</p>
+                <p style="white-space:pre-wrap;">${escapeHtml(invFlow)}</p>
               </div>
             </div>
           `;
@@ -1289,50 +456,17 @@ async function buildHtml(client) {
         })()}
 
         ${(() => {
-          const raw = String(client.Departments ?? '').trim();
-          if (!raw) return '';
-          const items = raw.split('\n').reduce((acc, ln) => {
-            const t = ln.trim();
-            if (!t.startsWith('_')) return acc;
-            const parts = t.replace(/^_\s*/, '').split(/\s+/);
-            if (parts.length === 0) return acc;
-            const maybeNum = parts[parts.length - 1];
-            if (!/^\d+(?:-\d+)?$/.test(maybeNum)) return acc; // require a number
-            const deptNum = parseInt(maybeNum.split('-')[0], 10);
-            const label = parts.slice(0, -1).join(' ').trim().toUpperCase();
-            if (!label) return acc;
-            acc.push({ dept: deptNum, label });
-            return acc;
-          }, []);
-          if (!items.length) return '';
-          items.sort((a, b) => a.dept - b.dept);
-          const formatted = items.map(i => `${i.dept} ${i.label}`).join('\n');
-          return `
-            <div class="section">
-              <div class="section-title">Departments</div>
-              <div class="info" style="margin-top:8px;">
-                <p style="white-space:pre-wrap;">${escapeHtml(formatted)}</p>
-              </div>
-            </div>
-          `;
-        })()}
-
-        ${(() => {
           const teamInstr = String(client['Team-Instr'] ?? '').trim();
-          const teamInstrAdditional = String(client['Team-Instr-Additional'] ?? '').trim();
-          const combined = [teamInstr, teamInstrAdditional].filter(Boolean).join('\n');
-          if (!combined) return '';
+          if (!teamInstr) return '';
           return `
             <div class="section">
               <div class="section-title">Pre-Inventory Crew Instructions</div>
               <div class="info" style="margin-top:8px;">
-                <p style="white-space:pre-wrap;">${sanitizeBasicHtml(combined)}</p>
+                <p style="white-space:pre-wrap;">${escapeHtml(teamInstr)}</p>
               </div>
             </div>
           `;
         })()}
-
-        ${qrCodeHtml}
 
         ${(() => {
           const noncount = String(client.noncount ?? '').trim();
@@ -1341,7 +475,7 @@ async function buildHtml(client) {
             <div class="section">
               <div class="section-title">Non-Count Products</div>
               <div class="info" style="margin-top:8px;">
-                <p style="white-space:pre-wrap;">${sanitizeBasicHtml(noncount)}</p>
+                <p style="white-space:pre-wrap;">${escapeHtml(noncount)}</p>
               </div>
             </div>
           `;
@@ -1362,62 +496,27 @@ async function buildHtml(client) {
                 ${progRep ? `
                   <div class="subsection" style="margin-top:8px;">
                     <div class="section-title" style="font-size:14px;">Progressives:</div>
-                    <div class="info"><p style="white-space:pre-wrap;">${sanitizeBasicHtml(progRep)}</p></div>
-                  </div>
-                ` : ''}
-                ${finRep ? `
-                  <div class="subsection" style="margin-top:8px;">
-                    <div class="section-title" style="font-size:14px;">Final Reports:</div>
-                    <div class="info"><p style="white-space:pre-wrap;">${sanitizeBasicHtml(finRep)}</p></div>
+                    <div class="info"><p style="white-space:pre-wrap;">${escapeHtml(progRep)}</p></div>
                   </div>
                 ` : ''}
                 ${finalize ? `
                   <div class="subsection" style="margin-top:8px;">
                     <div class="section-title" style="font-size:14px;">Finalizing the Count:</div>
-                    <div class="info"><p style="white-space:pre-wrap;">${sanitizeBasicHtml(finalize)}</p></div>
+                    <div class="info"><p style="white-space:pre-wrap;">${escapeHtml(finalize)}</p></div>
+                  </div>
+                ` : ''}
+                ${finRep ? `
+                  <div class="subsection" style="margin-top:8px;">
+                    <div class="section-title" style="font-size:14px;">Final Reports:</div>
+                    <div class="info"><p style="white-space:pre-wrap;">${escapeHtml(finRep)}</p></div>
                   </div>
                 ` : ''}
                 ${processing ? `
                   <div class="subsection" style="margin-top:8px;">
                     <div class="section-title" style="font-size:14px;">Final Processing:</div>
-                    <div class="info"><p style="white-space:pre-wrap;">${sanitizeBasicHtml(processing)}</p></div>
+                    <div class="info"><p style="white-space:pre-wrap;">${escapeHtml(processing)}</p></div>
                   </div>
                 ` : ''}
-              </div>
-            </div>
-          `;
-        })()}
-
-        ${(() => {
-          const additionalNotes = String(client.additionalNotes ?? '').trim();
-          if (!additionalNotes) return '';
-          return `
-            <div class="section">
-              <div class="section-title">Additional Notes</div>
-              <div class="info" style="margin-top:8px;">
-                <p style="white-space:pre-wrap;">${sanitizeBasicHtml(additionalNotes)}</p>
-              </div>
-            </div>
-          `;
-        })()}
-
-        ${(() => {
-          const parseImageUrls = (val) => {
-            if (!val) return [];
-            if (Array.isArray(val)) return val.filter(Boolean).map(String);
-            return String(val)
-              .split(/\r?\n|,/) // newline or comma
-              .map(s => s.trim())
-              .filter(Boolean);
-          };
-          const urls = parseImageUrls(client.pdfImageUrls);
-          if (!urls.length) return '';
-          const imgs = urls.map(u => `<img src="${escapeHtml(u)}" style="max-width:${PAGE_WIDTH_PT - (2 * MARGIN_PT)}pt; width:100%; height:auto; margin:8pt 0; display:block;" />`).join('');
-          return `
-            <div class="section" style="page-break-inside:avoid;">
-              <div class="section-title">Images</div>
-              <div class="info" style="margin-top:8px; text-align:center;">
-                ${imgs}
               </div>
             </div>
           `;
@@ -1434,58 +533,6 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
-}
-
-// Allow basic formatting including lists (ul, ol, li) and inline formatting
-function sanitizeBasicHtml(html) {
-  if (!html) return '';
-  let s = String(html);
-  
-  // Convert lists to plain text with proper formatting and indentation
-  s = s
-    .replace(/<\s*ul[^>]*>/gi, '')  // Remove ul opening tags
-    .replace(/<\s*\/ul\s*>/gi, '')  // Remove ul closing tags
-    .replace(/<\s*ol[^>]*>/gi, '')  // Remove ol opening tags
-    .replace(/<\s*\/ol\s*>/gi, '')  // Remove ol closing tags
-    .replace(/<\s*li\s*>/gi, '• ')  // Convert li opening to bullet (no extra spaces)
-    .replace(/<\s*\/li\s*>/gi, '\n') // Convert li closing to newline
-    .replace(/<\s*\/p\s*>/gi, '\n')  // Convert p closing to newline
-    .replace(/<\s*\/div\s*>/gi, '\n') // Convert div closing to newline
-    .replace(/<\s*br\s*\/?>/gi, '<br>'); // Keep br tags
-  
-  // Strip all HTML tags except basic formatting, but remove all attributes
-  s = s.replace(/<(\/?)(b|strong|i|em|u|br)(?:\s[^>]*)?>/gi, '<$1$2>');
-  s = s.replace(/<(?!\/?(b|strong|i|em|u|br)\b)[^>]*>/gi, '');
-  
-  // Fix malformed nested tags like <b><b></b><i>text</i></b>
-  s = s.replace(/<b>\s*<b>\s*<\/b>\s*<i>/gi, '<i><b>');
-  s = s.replace(/<\/i>\s*<\/b>/gi, '</b></i>');
-  s = s.replace(/<b>\s*<b>/gi, '<b>');
-  s = s.replace(/<\/b>\s*<\/b>/gi, '</b>');
-  s = s.replace(/<i>\s*<i>/gi, '<i>');
-  s = s.replace(/<\/i>\s*<\/i>/gi, '</i>');
-  // Remove empty formatting tags
-  s = s.replace(/<(b|strong|i|em|u)>\s*<\/\1>/gi, '');
-  // Collapse immediate close-open boundaries (prevents mid-sentence splits like </b></i><i><b>)
-  s = s.replace(/<\/(b|strong|i|em|u)>\s*<\1>/gi, '');
-  // Run twice to handle cross-pairs like </b></i><i><b>
-  s = s.replace(/<\/(b|strong|i|em|u)>\s*<\1>/gi, '');
-  
-  // Decode entities commonly inserted by editors
-  s = s
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'");
-  
-  
-  // Collapse extra blank lines
-  s = s.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n');
-  // Collapse single newlines that are likely soft wraps (not bullets or numbered list starts)
-  s = s.replace(/([^\n])\n(?!\n)(?!•\s)(?!\d+\.\s)/g, '$1 ');
-  return s.trim();
 }
 
 export default function UniversalPDFGenerator() {
