@@ -9,11 +9,11 @@ const MARGIN_PT = 72;
 const PAGE_WIDTH_PT = 612;
 const PAGE_HEIGHT_PT = 792;
 
-// DOM guards for web and SSR safety
+// DOM guards
 const HAS_DOM = typeof window !== 'undefined' && typeof document !== 'undefined';
 const SHOW_ELEMENT = typeof NodeFilter !== 'undefined' ? NodeFilter.SHOW_ELEMENT : 1;
 
-// Allowed tags for sanitized rich content
+// Allowed tags
 const ALLOWED_TAGS = ['b','strong','i','em','u','br','p','div','ul','ol','li','img'];
 
 // --------- Repo asset bases ---------
@@ -27,15 +27,12 @@ const RAW_BASE = `https://raw.githubusercontent.com/${ORG}/${REPO}/${BRANCH_TAG}
 
 function sanitizeHtmlSubset(input) {
   const html = String(input || '');
-
   if (HAS_DOM) {
     const root = document.createElement('div');
     root.innerHTML = html;
-
     const walker = document.createTreeWalker(root, SHOW_ELEMENT, null);
     const nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
-
     nodes.forEach(node => {
       const tag = node.tagName.toLowerCase();
       if (!ALLOWED_TAGS.includes(tag)) {
@@ -43,7 +40,6 @@ function sanitizeHtmlSubset(input) {
         node.remove();
         return;
       }
-      // strip attributes (only keep <img src="data:image/...">)
       [...node.attributes].forEach(attr => {
         const name = attr.name.toLowerCase();
         const okImg = tag === 'img' && name === 'src' && /^data:image\//i.test(attr.value);
@@ -58,11 +54,8 @@ function sanitizeHtmlSubset(input) {
         }
       }
     });
-
     return root.innerHTML;
   }
-
-  // Native fallback (conservative)
   return html
     .replace(/<(script|style|iframe)[\s\S]*?<\/\1>/gi, '')
     .replace(/\son\w+=(?:"[^"]*"|'[^']*')/gi, '')
@@ -80,7 +73,7 @@ function sanitizeHtmlSubset(input) {
     .replace(/<\/(?!b|strong|i|em|u|p|div|ul|ol|li)\w+>/gi, '');
 }
 
-// ---------- Small utils ----------
+// ---------- Utils ----------
 
 function escapeHtml(str) {
   return String(str)
@@ -95,7 +88,7 @@ async function fetchAsDataURL(url) {
   const blob = await res.blob();
   return await new Promise(resolve => {
     const fr = new FileReader();
-    fr.onload = () => resolve(fr.result); // data:image/...;base64,....
+    fr.onload = () => resolve(fr.result);
     fr.readAsDataURL(blob);
   });
 }
@@ -104,28 +97,22 @@ function encodePathPreserveSlashes(p) {
   return String(p || '').split('/').map(encodeURIComponent).join('/');
 }
 
-// Try jsDelivr then raw.githubusercontent.com to get a Data URL
 async function getRepoImageDataUrl(relPath, assetBase) {
   const path = encodePathPreserveSlashes(relPath);
-  const bases = [
-    assetBase || DEFAULT_JSDELIVR_BASE,
-    RAW_BASE
-  ];
+  const bases = [assetBase || DEFAULT_JSDELIVR_BASE, RAW_BASE];
   for (const base of bases) {
     try {
       const url = `${base}/${path}`;
       return await fetchAsDataURL(url);
-    } catch { /* try next */ }
+    } catch {}
   }
   throw new Error('All repo image fetch attempts failed');
 }
 
-// Strip HTML to plain text (preserve line breaks and bullets) for inline KV fields
+// Strip HTML for inline KV fields
 function htmlToPlainInline(html) {
   if (!html) return '';
   let s = String(html);
-
-  // Normalize common block breaks to newlines before stripping tags
   s = s
     .replace(/<\s*br\s*\/?\s*>/gi, '\n')
     .replace(/<\s*\/p\s*>/gi, '\n')
@@ -135,20 +122,15 @@ function htmlToPlainInline(html) {
     .replace(/<\s*li[^>]*>/gi, '• ')
     .replace(/<\s*\/li\s*>/gi, '\n')
     .replace(/<\s*\/?(ul|ol)[^>]*>/gi, '\n');
-
-  // Strip remaining tags
   s = s.replace(/<[^>]+>/g, '');
-
-  // Collapse whitespace
   s = s.replace(/\r\n/g, '\n')
        .replace(/\n{3,}/g, '\n\n')
        .replace(/[ \t]+/g, ' ')
        .replace(/^\s+|\s+$/gm, '');
-
   return s.trim();
 }
 
-// ---------- Web HTML -> jsPDF renderer (spacing + list fixes) ----------
+// ---------- Web HTML -> jsPDF renderer ----------
 
 function createHtmlRenderer(pdf, opts) {
   const {
@@ -163,22 +145,16 @@ function createHtmlRenderer(pdf, opts) {
   } = opts || {};
 
   let y = margin;
-
-  // Tracks an image "float rectangle" to wrap text around
-  // { side: 'right'|'left', x, yTop, yBottom }
   let floatRegion = null;
 
   const clearFloatIfPassed = () => {
-    if (floatRegion && y > floatRegion.yBottom) {
-      floatRegion = null;
-    }
+    if (floatRegion && y > floatRegion.yBottom) floatRegion = null;
   };
 
   const checkPage = (advance = 0) => {
     if (y + advance > pageHeight - margin) {
       pdf.addPage();
       y = margin;
-      // floats do not span pages; clear if we page break
       floatRegion = null;
     }
   };
@@ -192,38 +168,28 @@ function createHtmlRenderer(pdf, opts) {
     pdf.setFontSize(baseFontSize);
   };
 
-  // Compute x & width for a given line based on float region
   const lineBox = (indent) => {
     const fullX = margin + indent;
     const fullW = pageWidth - margin - fullX;
-
     if (!floatRegion) return { x: fullX, w: fullW };
-
     const within = y >= floatRegion.yTop && y <= floatRegion.yBottom;
     if (!within) return { x: fullX, w: fullW };
-
-    // Reduce width depending on which side floats
     if (floatRegion.side === 'right') {
-      const blockedLeft = fullX;             // unchanged
-      const blockedRight = pageWidth - margin - floatRegion.x; // width taken by float on right
+      const blockedRight = pageWidth - margin - floatRegion.x;
       return { x: fullX, w: Math.max(24, fullW - blockedRight) };
     }
-    // left float
     const leftBlockWidth = (floatRegion.x + (floatRegion.w || 0)) - fullX;
     const x = Math.max(fullX, floatRegion.x + (floatRegion.w || 0) + 6);
     const w = pageWidth - margin - x;
     return { x, w: Math.max(24, w) };
   };
 
-  // Word-wrapping that re-measures per line allowing width to change as we pass the float's bottom
   const wrapMeasureLines = (ctx, text, indent) => {
     setFontFor(ctx);
     const words = String(text).split(/\s+/);
     let line = '';
     const out = [];
-
     const measure = (s) => pdf.getTextWidth(s);
-
     for (let i = 0; i < words.length; i++) {
       clearFloatIfPassed();
       const { x, w } = lineBox(indent);
@@ -232,7 +198,6 @@ function createHtmlRenderer(pdf, opts) {
         line = candidate;
       } else {
         if (line) out.push({ x, text: line });
-        // If single word longer than width, we still place it (jsPDF will overflow a bit)
         line = words[i];
       }
     }
@@ -248,12 +213,11 @@ function createHtmlRenderer(pdf, opts) {
     if (!text) return;
     const lines = text.replace(/\r\n/g, '\n').split('\n');
     lines.forEach((raw, idx) => {
-      let cleaned = raw.replace(/(\S)•/g, '$1\n•'); // fix jammed bullets
+      let cleaned = raw.replace(/(\S)•/g, '$1\n•');
       cleaned = cleaned.replace(/[ \t]+/g, ' ').trim();
       if (idx > 0) { checkPage(lineHeight); y += lineHeight; }
       if (!cleaned) return;
-
-      const pieces = cleaned.split('\n'); // because we may have injected newlines for bullets
+      const pieces = cleaned.split('\n');
       pieces.forEach((piece, pi) => {
         if (pi > 0) { checkPage(lineHeight); y += lineHeight; }
         const wrapped = wrapMeasureLines(ctx, piece, indent);
@@ -275,93 +239,58 @@ function createHtmlRenderer(pdf, opts) {
       if (!HAS_DOM || typeof Image === 'undefined') return;
       const dataUrl = node.getAttribute('src') || '';
       if (!/^data:image\//i.test(dataUrl)) return;
-
       const img = new Image();
       img.src = dataUrl;
       await new Promise(res => { img.onload = res; });
-
-      // compute final size
       const ratio = img.height / img.width || 1;
-      const naturalW = img.width || maxWidth;
-      const w = Math.min(maxWidth, naturalW);
+      const w = Math.min(maxWidth, img.width || maxWidth);
       const h = w * ratio;
-
       if (asFloat) {
-        // draw without advancing y; set float region so text flows around
         const side = (node.getAttribute('data-float') || '').toLowerCase() === 'left' ? 'left' : 'right';
-        const fx = (side === 'right')
-          ? (pageWidth - margin - w)
-          : (margin + (parseFloat(node.getAttribute('data-indent')) || 0));
+        const fx = side === 'right' ? (pageWidth - margin - w) : (margin + (parseFloat(node.getAttribute('data-indent')) || 0));
         const type = /^data:image\/jpeg/i.test(dataUrl) ? 'JPEG' : 'PNG';
         pdf.addImage(dataUrl, type, fx, y, w, h);
         floatRegion = { side, x: fx, yTop: y - lineHeight, yBottom: y + h, w };
         return;
       }
-
       checkPage(h);
       const type = /^data:image\/jpeg/i.test(dataUrl) ? 'JPEG' : 'PNG';
       pdf.addImage(dataUrl, type, x, y, w, h);
       y += h;
-    } catch { /* ignore */ }
+    } catch {}
   };
 
   const renderNode = async (node, ctx, indent) => {
-    // TEXT_NODE
     if (node.nodeType === 3) {
       drawWrappedText(ctx, node.nodeValue, indent);
       return;
     }
     if (node.nodeType !== 1) return;
-
     const tag = node.tagName.toLowerCase();
-
-    if (tag === 'br') {
-      checkPage(lineHeight);
-      y += lineHeight;
-      return;
-    }
-
+    if (tag === 'br') { checkPage(lineHeight); y += lineHeight; return; }
     if (tag === 'b' || tag === 'strong') ctx.bold = true;
     if (tag === 'i' || tag === 'em') ctx.italic = true;
     if (tag === 'u') ctx.underline = true;
 
     if (tag === 'ul' || tag === 'ol') {
-      // small pre-gap before list
-      checkPage(lineHeight * 0.5);
-      y += lineHeight * 0.5;
-
+      checkPage(lineHeight * 0.5); y += lineHeight * 0.5;
       let index = 1;
       const items = Array.from(node.children).filter(el => el.tagName.toLowerCase() === 'li');
       for (const li of items) {
-        checkPage(lineHeight);
-        y += lineHeight;
-
-        // marker position respects float region too
-        const { x, w } = lineBox(indent);
+        checkPage(lineHeight); y += lineHeight;
+        const { x } = lineBox(indent);
         const marker = tag === 'ul' ? '•' : `${index}.`;
-        setFontFor({}); // normal
+        setFontFor({});
         pdf.text(marker, x, y);
-
-        // content starts after a fixed bullet indent
-        const liCtx = { ...ctx };
-        // Wrap LI content using the same width logic (indent + bullet)
         let liText = '';
-        li.childNodes.forEach(ch => {
-          if (ch.nodeType === 3) liText += ch.nodeValue;
-        });
-        drawWrappedText(liCtx, liText, indent + bulletIndent);
-
-        // Render nested elements (bold/italic/links etc.)
+        li.childNodes.forEach(ch => { if (ch.nodeType === 3) liText += ch.nodeValue; });
+        drawWrappedText({ ...ctx }, liText, indent + bulletIndent);
         for (const child of li.childNodes) {
-          if (child.nodeType === 1) {
-            await renderNode(child, { ...liCtx }, indent + listIndent);
-          }
+          if (child.nodeType === 1) await renderNode(child, { ...ctx }, indent + listIndent);
         }
         index += 1;
       }
-      // post-gap after list
-      checkPage(lineHeight * 0.5);
-      y += lineHeight * 0.5;
+      checkPage(lineHeight * 0.5); y += lineHeight * 0.5;
       return;
     }
 
@@ -374,13 +303,11 @@ function createHtmlRenderer(pdf, opts) {
       return;
     }
 
-    // generic element
     for (const child of node.childNodes) {
       const snap = { ...ctx };
       await renderNode(child, snap, indent);
     }
 
-    // paragraph spacing
     if (tag === 'p') { checkPage(lineHeight); y += lineHeight; }
     if (tag === 'div') { checkPage(lineHeight * 0.5); y += lineHeight * 0.5; }
   };
@@ -390,7 +317,6 @@ function createHtmlRenderer(pdf, opts) {
     setY: v => { y = v; },
     async renderHtmlString(html, indentPx = 0) {
       if (!HAS_DOM) return;
-      // Add a newline when a bullet is jammed to previous word
       const normalized = String(html).replace(/(\S)•/g, '$1\n•');
       const clean = sanitizeHtmlSubset(normalized);
       const container = document.createElement('div');
@@ -398,7 +324,6 @@ function createHtmlRenderer(pdf, opts) {
       for (const n of container.childNodes) {
         await renderNode(n, { bold: false, italic: false, underline: false }, indentPx);
       }
-      // clear any lingering float after finishing this block
       floatRegion = null;
     }
   };
@@ -411,9 +336,7 @@ function formatUpdatedAt(val) {
     if (!val) return '';
     const date = typeof val?.toDate === 'function' ? val.toDate() : new Date(val);
     return date.toLocaleDateString('en-US');
-  } catch {
-    return '';
-  }
+  } catch { return ''; }
 }
 
 function extractPreInventoryBundle(sections) {
@@ -436,21 +359,16 @@ function extractPreInventoryBundle(sections) {
       const text = entry ? (entry.content ?? entry.text ?? entry.value ?? '') : '';
       return typeof text === 'string' ? text : '';
     };
-    return {
-      generalText,
-      areaMappingRaw: findSub('Area Mapping'),
-      storePrepRaw: findSub('Store Prep Instructions')
-    };
+    return { generalText, areaMappingRaw: findSub('Area Mapping'), storePrepRaw: findSub('Store Prep Instructions') };
   }
   return empty;
 }
 
-// ---------- Native HTML builder ----------
+// ---------- Native HTML builder (with 2-line spacing) ----------
 
 function buildHtml(client, assets) {
   const safeName = client.name || client.id || 'Unknown Client';
   const updatedAt = formatUpdatedAt(client.updatedAt);
-
   const extracted = extractPreInventoryBundle(client.sections);
   const preInv = String(extracted.generalText || client.preInventory || '').trim();
   const areaMapping = String(extracted.areaMappingRaw).trim();
@@ -465,152 +383,64 @@ function buildHtml(client, assets) {
   const finalize = String(client.Finalize ?? '').trim();
   const finRep = String(client.Fin_Rep ?? '').trim();
   const processing = String(client.Processing ?? '').trim();
-
   const logoDataUrl = assets?.logoDataUrl && /^data:image\//i.test(assets.logoDataUrl) ? assets.logoDataUrl : '';
   const qrDataUrl = assets?.qrDataUrl && /^data:image\//i.test(assets.qrDataUrl) ? assets.qrDataUrl : '';
-
   const rich = (h) => sanitizeHtmlSubset(h);
 
-  return `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Account Instructions - ${escapeHtml(safeName)}</title>
-        <style>
-          @page { size: letter; margin: 0.5in; }
-          body { font-family: Helvetica, Arial, sans-serif; color: #000; }
-          .header { text-align: center; }
-          .header h1 { font-size: 20px; margin: 0 0 8px 0; }
-          .header h2 { font-size: 18px; margin: 0 0 8px 0; }
-          .header h3 { font-size: 14px; font-weight: normal; color: #666; margin: 0 0 12px 0; }
-          .row { display: flex; justify-content: center; gap: 16px; align-items: center; margin-bottom: 6px; }
-          .logo { width: 180px; height: auto; }
-          .qr { width: 120px; height: auto; }
-          .section { margin-top: 12px; }
-          .section-title { font-size: 16px; font-weight: bold; margin: 12px 0 6px 0; }
-          .info { font-size: 12px; line-height: 1.25; }
-          .notice { border: 1px solid #000; padding: 8px; margin-top: 8px; font-size: 12px; }
-          .rich p, .rich div { margin: 0 0 8px 0; }
-          .rich ul, .rich ol { margin: 4px 0 8px 1.2em; padding: 0; }
-          .rich li { margin: 2px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="row">
-            ${logoDataUrl ? `<img class="logo" src="${logoDataUrl}" />` : ''}
-            ${qrDataUrl ? `<img class="qr" src="${qrDataUrl}" />` : ''}
-          </div>
-          <h1>MSI Inventory</h1>
-          <h2>Account Instructions:</h2>
-          <h3>${escapeHtml(safeName)}</h3>
-        </div>
+  const sectionStyle = 'margin-top:24pt;'; // 2 × 12pt = 24pt between sections
+  const subsectionStyle = 'margin-top:24pt;';
 
-        <div class="section">
-          <div class="section-title">Client Information</div>
-          <div class="info">
-            <p><strong>Inventory Type:</strong> ${escapeHtml(client.inventoryType ?? '')}</p>
-            <p><strong>Updated:</strong> ${escapeHtml(updatedAt)}</p>
-            <p><strong>PIC:</strong> ${escapeHtml(client.PIC ?? '')}</p>
-            <p><strong>Verification:</strong> ${escapeHtml(client.verification ?? '')}</p>
-          </div>
-          <div class="notice">"If you are going to be more than 5 minutes late to a store you must contact the store BEFORE you are late. NO EXCEPTIONS!!!"</div>
-        </div>
-
-        <div class="section">
-          <div class="section-title">Pre-Inventory</div>
-          <div class="info rich">${rich(preInv)}</div>
-
-          ${areaMapping ? `
-            <div class="subsection">
-              <div class="section-title" style="font-size:14px;">Area Mapping</div>
-              <div class="info rich">${rich(areaMapping)}</div>
-            </div>` : ''}
-
-          ${storePrep ? `
-            <div class="subsection">
-              <div class="section-title" style="font-size:14px;">Store Prep/Instructions</div>
-              <div class="info rich">${rich(storePrep)}</div>
-            </div>` : ''}
-        </div>
-
-        ${invProc ? `
-          <div class="section">
-            <div class="section-title">INVENTORY PROCEDURES</div>
-            <div class="info rich">${rich(invProc)}</div>
-          </div>` : ''}
-
-        ${audits ? `
-          <div class="section">
-            <div class="section-title">Audits</div>
-            <div class="info rich">${rich(audits)}</div>
-          </div>` : ''}
-
-        ${invFlow ? `
-          <div class="section">
-            <div class="section-title">Inventory Flow</div>
-            <div class="info rich">${rich(invFlow)}</div>
-          </div>` : ''}
-
-        ${specialNotes ? `
-          <div class="section">
-            <div class="section-title">Special Notes</div>
-            <div class="info rich">${rich(specialNotes)}</div>
-          </div>` : ''}
-
-        ${teamInstr ? `
-          <div class="section">
-            <div class="section-title">Pre-Inventory Crew Instructions</div>
-            <div class="info rich">${rich(teamInstr)}</div>
-          </div>` : ''}
-
-        ${noncount ? `
-          <div class="section">
-            <div class="section-title">Non-Count Products</div>
-            <div class="info rich">${rich(noncount)}</div>
-          </div>` : ''}
-
-        ${progRep || finalize || finRep || processing ? `
-          <div class="section">
-            <div class="section-title">REPORTS</div>
-            <div class="info">
-              ${progRep ? `
-                <div class="subsection">
-                  <div class="section-title" style="font-size:14px;">Progressives:</div>
-                  <div class="info rich">${rich(progRep)}</div>
-                </div>` : ''}
-
-              ${finalize ? `
-                <div class="subsection">
-                  <div class="section-title" style="font-size:14px;">Finalizing the Count:</div>
-                  <div class="info rich">${rich(finalize)}</div>
-                </div>` : ''}
-
-              ${finRep ? `
-                <div class="subsection">
-                  <div class="section-title" style="font-size:14px;">Final Reports:</div>
-                  <div class="info rich">${rich(finRep)}</div>
-                </div>` : ''}
-
-              ${processing ? `
-                <div class="subsection">
-                  <div class="section-title" style="font-size:14px;">Final Processing:</div>
-                  <div class="info rich">${rich(processing)}</div>
-                </div>` : ''}
-            </div>
-          </div>` : ''}
-      </body>
-    </html>
-  `;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Account Instructions - ${escapeHtml(safeName)}</title>
+  <style>
+    @page { size: letter; margin: 0.5in; }
+    body { font-family: Helvetica, Arial, sans-serif; color: #000; line-height: 1.4; }
+    .header { text-align: center; margin-bottom: 24pt; }
+    .header h1 { font-size: 20px; margin: 0 0 8px 0; }
+    .header h2 { font-size: 18px; margin: 0 0 8px 0; }
+    .header h3 { font-size: 14px; font-weight: normal; color: #666; margin: 0 0 12px 0; }
+    .row { display: flex; justify-content: center; gap: 16px; align-items: center; margin-bottom: 6px; }
+    .logo { width: 180px; height: auto; }
+    .qr { width: 120px; height: auto; }
+    .section { ${sectionStyle} }
+    .subsection { ${subsectionStyle} }
+    .section-title { font-size: 16px; font-weight: bold; margin: 0 0 6px 0; }
+    .subsection-title { font-size: 14px; font-weight: bold; margin: 0 0 6px 0; }
+    .info { font-size: 12px; }
+    .notice { border: 1px solid #000; padding: 8px; margin-top: 8px; font-size: 12px; }
+    .rich p, .rich div { margin: 0 0 8px 0; }
+    .rich ul, .rich ol { margin: 4px 0 8px 1.2em; padding: 0; }
+    .rich li { margin: 2px 0; }
+  </style></head><body>
+  <div class="header"><div class="row">${logoDataUrl ? `<img class="logo" src="${logoDataUrl}" />` : ''}${qrDataUrl ? `<img class="qr" src="${qrDataUrl}" />` : ''}</div>
+  <h1>MSI Inventory</h1><h2>Account Instructions:</h2><h3>${escapeHtml(safeName)}</h3></div>
+  <div class="section"><div class="section-title">Client Information</div><div class="info">
+  <p><strong>Inventory Type:</strong> ${escapeHtml(client.inventoryType ?? '')}</p>
+  <p><strong>Updated:</strong> ${escapeHtml(updatedAt)}</p>
+  <p><strong>PIC:</strong> ${escapeHtml(client.PIC ?? '')}</p>
+  <p><strong>Verification:</strong> ${escapeHtml(client.verification ?? '')}</p>
+  </div><div class="notice">"If you are going to be more than 5 minutes late to a store you must contact the store BEFORE you are late. NO EXCEPTIONS!!!"</div></div>
+  ${preInv || areaMapping || storePrep ? `<div class="section"><div class="section-title">Pre-Inventory</div><div class="info rich">${rich(preInv)}</div>
+  ${areaMapping ? `<div class="subsection"><div class="subsection-title">Area Mapping</div><div class="info rich">${rich(areaMapping)}</div></div>` : ''}
+  ${storePrep ? `<div class="subsection"><div class="subsection-title">Store Prep/Instructions</div><div class="info rich">${rich(storePrep)}</div></div>` : ''}</div>` : ''}
+  ${invProc ? `<div class="section"><div class="section-title">INVENTORY PROCEDURES</div><div class="info rich">${rich(invProc)}</div></div>` : ''}
+  ${audits ? `<div class="section"><div class="section-title">Audits</div><div class="info rich">${rich(audits)}</div></div>` : ''}
+  ${invFlow ? `<div class="section"><div class="section-title">Inventory Flow</div><div class="info rich">${rich(invFlow)}</div></div>` : ''}
+  ${specialNotes ? `<div class="section"><div class="section-title">Special Notes</div><div class="info rich">${rich(specialNotes)}</div></div>` : ''}
+  ${teamInstr ? `<div class="section"><div class="section-title">Pre-Inventory Crew Instructions</div><div class="info rich">${rich(teamInstr)}</div></div>` : ''}
+  ${noncount ? `<div class="section"><div class="section-title">Non-Count Products</div><div class="info rich">${rich(noncount)}</div></div>` : ''}
+  ${progRep || finalize || finRep || processing ? `<div class="section"><div class="section-title">REPORTS</div><div class="info">
+  ${progRep ? `<div class="subsection"><div class="subsection-title">Progressives:</div><div class="info rich">${rich(progRep)}</div></div>` : ''}
+  ${finalize ? `<div class="subsection"><div class="subsection-title">Finalizing the Count:</div><div class="info rich">${rich(finalize)}</div></div>` : ''}
+  ${finRep ? `<div class="subsection"><div class="subsection-title">Final Reports:</div><div class="info rich">${rich(finRep)}</div></div>` : ''}
+  ${processing ? `<div class="subsection"><div class="subsection-title">Final Processing:</div><div class="info rich">${rich(processing)}</div></div>` : ''}
+  </div></div>` : ''}
+  </body></html>`;
 }
 
 // ---------- Main entry ----------
 
 export async function generateAccountInstructionsPDF(options) {
   const { clientId, clientData } = options || {};
-
-  // Load client
   let client = clientData;
   if (!client && clientId) {
     const ref = doc(db, 'clients', clientId);
@@ -620,48 +450,27 @@ export async function generateAccountInstructionsPDF(options) {
   }
   if (!client) throw new Error('Missing client data');
 
-  // Resolve assets (logo + QR)
   const assetBase = client.assetBase || DEFAULT_JSDELIVR_BASE;
-
   let logoDataUrl = '';
   if (client.logoDataUrl && /^data:image\//i.test(client.logoDataUrl)) {
     logoDataUrl = client.logoDataUrl;
   } else if (client.logoUrl) {
-    try { logoDataUrl = await fetchAsDataURL(client.logoUrl); } catch { logoDataUrl = ''; }
+    try { logoDataUrl = await fetchAsDataURL(client.logoUrl); } catch {}
   }
-
   const qrPath = client.qrPath || 'qr-codes/1450 Scanner Program.png';
   let qrDataUrl = '';
-  try { qrDataUrl = await getRepoImageDataUrl(qrPath, assetBase); } catch { qrDataUrl = ''; }
+  try { qrDataUrl = await getRepoImageDataUrl(qrPath, assetBase); } catch {}
 
   if (Platform.OS === 'web') {
     const { default: jsPDF } = await import('jspdf');
     const pdf = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
-
     let y = MARGIN_PT;
-    const checkPageBreak = (advance) => {
-      if (y + advance > PAGE_HEIGHT_PT - MARGIN_PT) {
-        pdf.addPage();
-        y = MARGIN_PT;
-      }
-    };
-    const checkPageBreakWithContent = (headerHeight, contentHeight) => {
-      if (y + headerHeight + contentHeight > PAGE_HEIGHT_PT - MARGIN_PT &&
-          y + headerHeight + 30 > PAGE_HEIGHT_PT - MARGIN_PT) {
-        pdf.addPage();
-        y = MARGIN_PT;
-      }
-    };
+    const LINE_HEIGHT = 14;
+    const checkPageBreak = (advance) => { if (y + advance > PAGE_HEIGHT_PT - MARGIN_PT) { pdf.addPage(); y = MARGIN_PT; } };
 
-    const htmlRenderer = createHtmlRenderer(pdf, {
-      pageWidth: PAGE_WIDTH_PT,
-      pageHeight: PAGE_HEIGHT_PT,
-      margin: MARGIN_PT,
-      lineHeight: 14,
-      baseFontSize: 12
-    });
+    const htmlRenderer = createHtmlRenderer(pdf, { pageWidth: PAGE_WIDTH_PT, pageHeight: PAGE_HEIGHT_PT, margin: MARGIN_PT, lineHeight: LINE_HEIGHT, baseFontSize: 12 });
 
-    // Optional header images
+    // Images
     if (logoDataUrl) {
       try {
         const type = /^data:image\/jpeg/i.test(logoDataUrl) ? 'JPEG' : 'PNG';
@@ -671,25 +480,17 @@ export async function generateAccountInstructionsPDF(options) {
     if (qrDataUrl) {
       try {
         const type = /^data:image\/jpeg/i.test(qrDataUrl) ? 'JPEG' : 'PNG';
-        const qrW = 120;
-        const xImg = PAGE_WIDTH_PT - MARGIN_PT - qrW;
-        const yTop = MARGIN_PT - 8;
-        pdf.addImage(qrDataUrl, type, xImg, yTop, qrW, qrW);
+        const size = 120;
+        const x = PAGE_WIDTH_PT - MARGIN_PT - size;
+        pdf.addImage(qrDataUrl, type, x, MARGIN_PT - 8, size, size);
       } catch {}
     }
 
     // Header text
-    const headerLines = [
-      'MSI Inventory',
-      'Account Instructions:',
-      client.name || client.id || 'Unknown Client'
-    ];
+    const headerLines = ['MSI Inventory', 'Account Instructions:', client.name || client.id || 'Unknown Client'];
     headerLines.forEach((text, i) => {
-      if (i < 2) {
-        pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 0, 0);
-      } else {
-        pdf.setFont('helvetica', 'normal'); pdf.setTextColor(102, 102, 102);
-      }
+      if (i < 2) { pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 0, 0); }
+      else { pdf.setFont('helvetica', 'normal'); pdf.setTextColor(102, 102, 102); }
       const fontSize = i === 0 ? 20 : i === 1 ? 18 : 14;
       pdf.setFontSize(fontSize);
       const textWidth = pdf.getTextWidth(text);
@@ -701,113 +502,81 @@ export async function generateAccountInstructionsPDF(options) {
     });
 
     const contentWidth = PAGE_WIDTH_PT - (2 * MARGIN_PT);
-    const lineHeight = 14;
 
-    // Helper: main section header
+    // === UNIFORM 2-LINE SPACING FOR ALL HEADINGS ===
     const sectionHeader = (title) => {
+      y += LINE_HEIGHT * 2;               // 2 × 12pt = 24pt gap
+      checkPageBreak(LINE_HEIGHT);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
-      checkPageBreakWithContent(18, 50);
       pdf.text(title, MARGIN_PT, y);
-      y += 18;               // header line height
-      y += 8;                // gap after header
+      y += LINE_HEIGHT;
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
     };
 
-    // Helper: subsection header
     const subSectionHeader = (title) => {
+      y += LINE_HEIGHT * 2;               // same 24pt gap
+      checkPageBreak(LINE_HEIGHT);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
-      checkPageBreakWithContent(16, 40);
       pdf.text(title, MARGIN_PT, y);
-      y += 16;
-      y += 6;                // smaller gap for subsections
+      y += LINE_HEIGHT;
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
     };
 
-    // Client Information (with guaranteed separation)
-    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(16);
-    checkPageBreakWithContent(20, 100);
-    pdf.text('Client Information', MARGIN_PT, y);
-    y += 18 + 8; // header + gap
-
-    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(12);
+    // Client Info
+    sectionHeader('Client Information');
     const updatedAt = formatUpdatedAt(client.updatedAt);
-
     const renderKV = (label, value) => {
       if (!value) return;
+      const plain = htmlToPlainInline(value);
+      if (!plain) return;
+      checkPageBreak(LINE_HEIGHT);
       const labelText = `${label}: `;
-      checkPageBreak(lineHeight);
-
       const labelWidth = pdf.getTextWidth(labelText);
       pdf.text(labelText, MARGIN_PT, y);
-
       const startX = MARGIN_PT + labelWidth;
       const maxWidth = contentWidth - labelWidth;
-
-      // *** FIX: strip HTML for inline KV values ***
-      const plain = htmlToPlainInline(value);
       const lines = pdf.splitTextToSize(plain, maxWidth);
-
       lines.forEach((ln, idx) => {
-        if (idx > 0) { checkPageBreak(lineHeight); y += lineHeight; }
+        if (idx > 0) { checkPageBreak(LINE_HEIGHT); y += LINE_HEIGHT; }
         pdf.text(ln, startX, y);
       });
-      y += lineHeight;
+      y += LINE_HEIGHT;
     };
 
     if (client.inventoryType) renderKV('Inventory Type', client.inventoryType);
-    if (updatedAt) { checkPageBreak(lineHeight); pdf.text(`Updated: ${updatedAt}`, MARGIN_PT, y); y += lineHeight; }
+    if (updatedAt) { checkPageBreak(LINE_HEIGHT); pdf.text(`Updated: ${updatedAt}`, MARGIN_PT, y); y += LINE_HEIGHT; }
     if (client.PIC) renderKV('PIC', client.PIC);
     if (client.verification) renderKV('Verification', client.verification);
     if (client.startTime) renderKV('Start Time', client.startTime);
     y += 8;
 
-    // Notice box
+    // Notice
     const notice = '"If you are going to be more than 5 minutes late to a store you must contact the store BEFORE you are late. NO EXCEPTIONS!!!"';
     const wrapped = pdf.splitTextToSize(notice, contentWidth - 16);
-    const boxPadding = 8;
-    const boxHeight = wrapped.length * lineHeight + boxPadding * 2;
+    const boxHeight = wrapped.length * LINE_HEIGHT + 16;
     pdf.setDrawColor(0); pdf.setLineWidth(1);
     pdf.rect(MARGIN_PT, y, contentWidth, boxHeight);
-    let ty = y + boxPadding + 12;
-    wrapped.forEach(w => { pdf.text(w, MARGIN_PT + boxPadding, ty); ty += lineHeight; });
+    let ty = y + 12;
+    wrapped.forEach(w => { pdf.text(w, MARGIN_PT + 8, ty); ty += LINE_HEIGHT; });
     y += boxHeight + 20;
 
     // Pre-Inventory
     const { generalText, areaMappingRaw, storePrepRaw } = extractPreInventoryBundle(client.sections);
     const alrIntro = client.ALR ? `• ALR disk is ${client.ALR}.` : '';
     const combinedPre = [alrIntro, String(generalText || client.preInventory || '').trim()].filter(Boolean).join('\n');
-
     if (combinedPre || areaMappingRaw || storePrepRaw) {
       sectionHeader('Pre-Inventory');
-
-      if (combinedPre) {
-        htmlRenderer.setY(y);
-        await htmlRenderer.renderHtmlString(combinedPre);
-        y = htmlRenderer.getY() + 8;
-      }
-
-      if (String(areaMappingRaw).trim()) {
-        subSectionHeader('Area Mapping');
-        htmlRenderer.setY(y);
-        await htmlRenderer.renderHtmlString(String(areaMappingRaw));
-        y = htmlRenderer.getY() + 10;
-      }
-
-      if (String(storePrepRaw).trim()) {
-        subSectionHeader('Store Prep/Instructions');
-        htmlRenderer.setY(y);
-        await htmlRenderer.renderHtmlString(String(storePrepRaw));
-        y = htmlRenderer.getY() + 10;
-      }
-
+      if (combinedPre) { htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(combinedPre); y = htmlRenderer.getY() + 8; }
+      if (String(areaMappingRaw).trim()) { subSectionHeader('Area Mapping'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(String(areaMappingRaw)); y = htmlRenderer.getY() + 10; }
+      if (String(storePrepRaw).trim()) { subSectionHeader('Store Prep/Instructions'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(String(storePrepRaw)); y = htmlRenderer.getY() + 10; }
       y += 8;
     }
 
-    // Generic rich sections
+    // Rich sections
     const writeRichSection = async (title, body) => {
       const text = String(body || '').trim();
       if (!text) return;
@@ -829,34 +598,12 @@ export async function generateAccountInstructionsPDF(options) {
     const finalize = String(client.Finalize ?? '').trim();
     const finRep = String(client.Fin_Rep ?? '').trim();
     const processing = String(client.Processing ?? '').trim();
-
     if (progRep || finalize || finRep || processing) {
       sectionHeader('REPORTS');
-
-      if (progRep) {
-        subSectionHeader('Progressives:');
-        htmlRenderer.setY(y);
-        await htmlRenderer.renderHtmlString(progRep);
-        y = htmlRenderer.getY() + 12;
-      }
-      if (finalize) {
-        subSectionHeader('Finalizing the Count:');
-        htmlRenderer.setY(y);
-        await htmlRenderer.renderHtmlString(finalize);
-        y = htmlRenderer.getY() + 12;
-      }
-      if (finRep) {
-        subSectionHeader('Final Reports:');
-        htmlRenderer.setY(y);
-        await htmlRenderer.renderHtmlString(finRep);
-        y = htmlRenderer.getY() + 12;
-      }
-      if (processing) {
-        subSectionHeader('Final Processing:');
-        htmlRenderer.setY(y);
-        await htmlRenderer.renderHtmlString(processing);
-        y = htmlRenderer.getY() + 12;
-      }
+      if (progRep) { subSectionHeader('Progressives:'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(progRep); y = htmlRenderer.getY() + 12; }
+      if (finalize) { subSectionHeader('Finalizing the Count:'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(finalize); y = htmlRenderer.getY() + 12; }
+      if (finRep) { subSectionHeader('Final Reports:'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(finRep); y = htmlRenderer.getY() + 12; }
+      if (processing) { subSectionHeader('Final Processing:'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(processing); y = htmlRenderer.getY() + 12; }
     }
 
     const filename = `Account_Instructions_${(client.name || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
@@ -864,18 +611,11 @@ export async function generateAccountInstructionsPDF(options) {
     return filename;
   }
 
-  // Native: expo-print with rich HTML and embedded images
+  // Native: expo-print
   const { printToFileAsync } = await import('expo-print');
   const html = buildHtml(client, { logoDataUrl, qrDataUrl });
-  const result = await printToFileAsync({
-    html,
-    base64: false,
-    width: PAGE_WIDTH_PT,
-    height: PAGE_HEIGHT_PT
-  });
+  const result = await printToFileAsync({ html, base64: false, width: PAGE_WIDTH_PT, height: PAGE_HEIGHT_PT });
   return result.uri;
 }
 
-export default function UniversalPDFGenerator() {
-  return null;
-}
+export default function UniversalPDFGenerator() { return null; }
