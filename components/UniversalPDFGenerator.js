@@ -31,25 +31,140 @@ export async function generateAccountInstructionsPDF(options) {
     const { default: jsPDF } = await import('jspdf');
     const pdf = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
 
-    // Minimal HTML -> plain text converter for inline fields
+    // Render HTML with formatting to PDF
+    const renderFormattedText = (html, x, maxWidth, lineHeight) => {
+      if (!html) return;
+      let text = String(html);
+      
+      // Normalize multi-line tags
+      text = text.replace(/<([^>]*?)\n([^>]*?)>/g, '<$1 $2>');
+      
+      // Decode HTML entities
+      text = text
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#039;/g, "'")
+        .replace(/&#39;/g, "'")
+        .replace(/&apos;/g, "'");
+      
+      // Convert block elements to newlines
+      text = text
+        .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+        .replace(/<\s*\/p\s*[^>]*>/gi, '\n')
+        .replace(/<\s*p\s*[^>]*>/gi, '')
+        .replace(/<\s*\/div\s*[^>]*>/gi, '\n')
+        .replace(/<\s*div\s*[^>]*>/gi, '');
+      
+      // Parse and render formatted text
+      const parts = text.split(/(<[^>]+>)/);
+      let currentX = x;
+      let isBold = false;
+      let isItalic = false;
+      let isUnderline = false;
+      
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        if (!part) continue;
+        
+        if (part.startsWith('<')) {
+          // Handle HTML tags
+          if (/<\s*(b|strong)\s*[^>]*>/i.test(part)) {
+            isBold = true;
+          } else if (/<\s*\/(b|strong)\s*>/i.test(part)) {
+            isBold = false;
+          } else if (/<\s*(i|em)\s*[^>]*>/i.test(part)) {
+            isItalic = true;
+          } else if (/<\s*\/(i|em)\s*>/i.test(part)) {
+            isItalic = false;
+          } else if (/<\s*u\s*[^>]*>/i.test(part)) {
+            isUnderline = true;
+          } else if (/<\s*\/u\s*>/i.test(part)) {
+            isUnderline = false;
+          }
+        } else {
+          // Render text with current formatting
+          const trimmed = part;
+          if (trimmed) {
+            let fontStyle = 'normal';
+            if (isBold && isItalic) fontStyle = 'bolditalic';
+            else if (isBold) fontStyle = 'bold';
+            else if (isItalic) fontStyle = 'italic';
+            
+            pdf.setFont('helvetica', fontStyle);
+            
+            // Handle newlines and wrap text
+            const lines = trimmed.split('\n');
+            let isFirstLine = true;
+            lines.forEach((line, lineIndex) => {
+              if (line || lineIndex === 0) {
+                const availableWidth = maxWidth - (currentX - MARGIN_PT);
+                const wrappedLines = pdf.splitTextToSize(line, availableWidth);
+                wrappedLines.forEach((wrappedLine, wrapIndex) => {
+                  if (!isFirstLine || wrapIndex > 0) {
+                    checkPageBreak(lineHeight);
+                    y += lineHeight;
+                    currentX = MARGIN_PT;
+                  }
+                  pdf.text(wrappedLine, currentX, y);
+                  if (isUnderline) {
+                    const textWidth = pdf.getTextWidth(wrappedLine);
+                    pdf.line(currentX, y + 2, currentX + textWidth, y + 2);
+                  }
+                  isFirstLine = false;
+                });
+                if (wrappedLines.length > 0) {
+                  currentX = MARGIN_PT; // Reset to margin after first line
+                }
+              } else if (lineIndex < lines.length - 1) {
+                // Empty line - add spacing
+                checkPageBreak(lineHeight);
+                y += lineHeight * 0.5;
+                isFirstLine = false;
+              }
+            });
+          }
+        }
+      }
+      // Don't add extra lineHeight here - let the caller handle spacing
+    };
+    
+    // Simple HTML to plain text for fields that don't need formatting
     const htmlToPlainInline = (html) => {
       if (!html) return '';
       let s = String(html);
-      // Convert common breaks and list items to readable text
+      
+      // Normalize multi-line tags
+      s = s.replace(/<([^>]*?)\n([^>]*?)>/g, '<$1 $2>');
+      
+      // Decode HTML entities
       s = s
-        .replace(/<\s*br\s*\/?>/gi, '\n')
-        .replace(/<\s*\/p\s*>/gi, '\n')
-        .replace(/<\s*\/div\s*>/gi, '\n')
-        .replace(/<\s*li\s*>/gi, '• ')
-        .replace(/<\s*\/li\s*>/gi, '\n')
-        .replace(/<\s*ul[^>]*>/gi, '')
-        .replace(/<\s*\/ul\s*>/gi, '')
-        .replace(/<\s*ol[^>]*>/gi, '')
-        .replace(/<\s*\/ol\s*>/gi, '');
-      // Strip remaining tags
-      s = s.replace(/<[^>]+>/g, '');
-      // Normalize whitespace/newlines
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#039;/g, "'")
+        .replace(/&#39;/g, "'")
+        .replace(/&apos;/g, "'");
+      
+      // Convert block elements to newlines
+      s = s
+        .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+        .replace(/<\s*\/p\s*[^>]*>/gi, '\n')
+        .replace(/<\s*p\s*[^>]*>/gi, '')
+        .replace(/<\s*\/div\s*[^>]*>/gi, '\n')
+        .replace(/<\s*div\s*[^>]*>/gi, '');
+      
+      // Strip all HTML tags
+      s = s.replace(/<[^>]*>/g, '');
+      
+      // Normalize whitespace
       s = s.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n');
+      s = s.replace(/[ \t]+/g, ' ').replace(/^\s+|\s+$/gm, '');
+      
       return s.trim();
     };
 
@@ -121,19 +236,72 @@ export async function generateAccountInstructionsPDF(options) {
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(12);
     const updatedAt = formatUpdatedAt(client.updatedAt);
-    const infoLines = [
-      `Inventory Type: ${htmlToPlainInline(client.inventoryType ?? '')}`,
-      `Updated: ${updatedAt}`,
-      `PIC: ${htmlToPlainInline(client.PIC ?? '')}`,
-      `Verification: ${htmlToPlainInline(client.verification ?? '')}`,
-      `Start Time: ${htmlToPlainInline(client.startTime ?? '')}`,
-    ];
     const lineHeight = 14;
-    infoLines.forEach((line) => {
+    
+    // Helper to render key-value pairs with formatted values
+    const renderKeyValue = (label, value, useFormatting = true) => {
+      if (!value) return;
+      const labelText = `${label}: `;
+      pdf.setFont('helvetica', 'normal');
+      const labelWidth = pdf.getTextWidth(labelText);
       checkPageBreak(lineHeight);
-      pdf.text(line, MARGIN_PT, y);
+      pdf.text(labelText, MARGIN_PT, y);
+      
+      const startX = MARGIN_PT + labelWidth;
+      const maxWidth = contentWidth - labelWidth;
+      
+      // Check if value has formatting tags
+      const hasFormatting = value.includes('<b>') || value.includes('<strong>') || 
+                           value.includes('<i>') || value.includes('<em>') || 
+                           value.includes('<u>') || value.includes('<p') || 
+                           value.includes('<div') || value.includes('<br');
+      
+      if (useFormatting && hasFormatting) {
+        // Save current y position
+        const startY = y;
+        // Render with formatting (this will modify y)
+        renderFormattedText(value, startX, maxWidth, lineHeight);
+        // Add spacing after formatted text
+        if (y === startY) {
+          y += lineHeight;
+        }
+        // Add a small gap after the field
+        y += 2;
+      } else {
+        // Render as plain text
+        const plainText = htmlToPlainInline(value);
+        if (plainText) {
+          const wrapped = pdf.splitTextToSize(plainText, maxWidth);
+          wrapped.forEach((line, idx) => {
+            if (idx > 0) {
+              checkPageBreak(lineHeight);
+              y += lineHeight;
+            }
+            pdf.text(line, startX, y);
+          });
+          y += lineHeight;
+        }
+      }
+    };
+    
+    // Render each field
+    if (client.inventoryType) {
+      renderKeyValue('Inventory Type', client.inventoryType, false);
+    }
+    if (updatedAt) {
+      checkPageBreak(lineHeight);
+      pdf.text(`Updated: ${updatedAt}`, MARGIN_PT, y);
       y += lineHeight;
-    });
+    }
+    if (client.PIC) {
+      renderKeyValue('PIC', client.PIC, true);
+    }
+    if (client.verification) {
+      renderKeyValue('Verification', client.verification, true);
+    }
+    if (client.startTime) {
+      renderKeyValue('Start Time', client.startTime, true);
+    }
     y += 8;
 
     // Boxed notice
