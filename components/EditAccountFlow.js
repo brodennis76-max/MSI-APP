@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Image, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Image, TouchableOpacity, TextInput, Alert, Platform } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+import * as ImagePicker from 'expo-image-picker';
 import { db } from '../firebase-config';
 import { collection, onSnapshot, doc, getDoc, updateDoc } from 'firebase/firestore';
 import RichTextEditor from './RichTextEditor';
+import { uploadQrToGitHub, getAccountQrPath } from '../utils/uploadQrToGitHub';
 import PreInventoryForm from './PreInventoryForm';
 import InventoryProceduresForm from './InventoryProceduresForm';
 import AuditsInventoryFlowForm from './AuditsInventoryFlowForm';
@@ -20,6 +22,8 @@ const EditAccountFlow = ({ onBack }) => {
   const [filteredClients, setFilteredClients] = useState([]);
   const [activeClient, setActiveClient] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [qrImageBase64, setQrImageBase64] = useState(null);
+  const [uploadingQr, setUploadingQr] = useState(false);
 
   const [step, setStep] = useState('picker');
 
@@ -65,19 +69,88 @@ const EditAccountFlow = ({ onBack }) => {
     }
   };
 
+  const pickQrImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 1,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const base64 = `data:image/png;base64,${result.assets[0].base64}`;
+        setQrImageBase64(base64);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image.');
+    }
+  };
+
+  const removeQrImage = () => {
+    setQrImageBase64(null);
+  };
+
+  const uploadQrCode = async () => {
+    if (!qrImageBase64 || !activeClient) return;
+    
+    setUploadingQr(true);
+    try {
+      // Get GitHub token from environment or config
+      // For now, we'll need to add this to a config file or environment variable
+      const githubToken = process.env.GITHUB_TOKEN || '';
+      
+      if (!githubToken) {
+        Alert.alert(
+          'GitHub Token Required',
+          'Please set GITHUB_TOKEN in your environment variables or config file to upload QR codes to GitHub.'
+        );
+        return;
+      }
+
+      const qrUrl = await uploadQrToGitHub(qrImageBase64, activeClient.id, githubToken);
+      const qrPath = getAccountQrPath(activeClient.id);
+      
+      // Update client with QR code path
+      const clientRef = doc(db, 'clients', activeClient.id);
+      await updateDoc(clientRef, {
+        qrPath: qrPath,
+        updatedAt: new Date(),
+      });
+      
+      setActiveClient({ ...activeClient, qrPath: qrPath });
+      setQrImageBase64(null);
+      Alert.alert('Success', 'QR code uploaded to GitHub successfully!');
+    } catch (error) {
+      console.error('Error uploading QR code:', error);
+      Alert.alert('Error', `Failed to upload QR code: ${error.message}`);
+    } finally {
+      setUploadingQr(false);
+    }
+  };
+
   const saveClientInfo = async () => {
     if (!activeClient) return;
     setSaving(true);
     try {
       const clientRef = doc(db, 'clients', activeClient.id);
-      await updateDoc(clientRef, {
+      const updateData = {
         inventoryType: activeClient.inventoryType,
         PIC: activeClient.PIC,
         startTime: activeClient.startTime,
         verification: activeClient.verification,
         additionalNotes: activeClient.additionalNotes,
         updatedAt: new Date(),
-      });
+      };
+      
+      // If QR code was uploaded, include qrPath
+      if (activeClient.qrPath) {
+        updateData.qrPath = activeClient.qrPath;
+      }
+      
+      await updateDoc(clientRef, updateData);
       Alert.alert('Success', 'Client information updated successfully!');
       setStep('preInventory');
     } catch (error) {
@@ -227,6 +300,46 @@ const EditAccountFlow = ({ onBack }) => {
                 onChange={(text) => setActiveClient({...activeClient, additionalNotes: text})}
               />
             </View>
+
+            <View style={styles.fieldContainer}>
+              <Text style={styles.fieldLabel}>Scanner QR Code</Text>
+              <Text style={styles.fieldSubLabel}>
+                {activeClient.qrPath 
+                  ? `Using account-specific QR code: ${activeClient.qrPath}`
+                  : 'Using default QR code (qr-codes/1450 Scanner Program.png)'}
+              </Text>
+              
+              {qrImageBase64 && (
+                <View style={styles.qrPreviewContainer}>
+                  <Image source={{ uri: qrImageBase64 }} style={styles.qrPreview} />
+                  <TouchableOpacity style={styles.removeButton} onPress={removeQrImage}>
+                    <Text style={styles.removeButtonText}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              
+              <TouchableOpacity 
+                style={styles.uploadButton} 
+                onPress={pickQrImage}
+                disabled={uploadingQr}
+              >
+                <Text style={styles.uploadButtonText}>
+                  {qrImageBase64 ? 'Change QR Code Image' : 'Select QR Code Image'}
+                </Text>
+              </TouchableOpacity>
+              
+              {qrImageBase64 && (
+                <TouchableOpacity 
+                  style={[styles.uploadButton, styles.uploadToGitHubButton, uploadingQr && styles.disabled]} 
+                  onPress={uploadQrCode}
+                  disabled={uploadingQr}
+                >
+                  <Text style={styles.uploadButtonText}>
+                    {uploadingQr ? 'Uploading to GitHub...' : 'Upload to GitHub'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
 
           <TouchableOpacity 
@@ -336,6 +449,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 15 },
   fieldContainer: { marginBottom: 15 },
   fieldLabel: { fontSize: 14, fontWeight: '600', color: '#555', marginBottom: 5 },
+  fieldSubLabel: { fontSize: 12, color: '#666', marginBottom: 10, fontStyle: 'italic' },
   textInput: { 
     height: 50, 
     borderWidth: 1, 
@@ -399,6 +513,47 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   inventoryTypeTextSelected: {
+    fontWeight: 'bold',
+  },
+  qrPreviewContainer: {
+    marginVertical: 10,
+    alignItems: 'center',
+  },
+  qrPreview: {
+    width: 200,
+    height: 200,
+    resizeMode: 'contain',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  uploadButton: {
+    backgroundColor: '#007AFF',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  uploadToGitHubButton: {
+    backgroundColor: '#28a745',
+    marginTop: 10,
+  },
+  uploadButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  removeButton: {
+    backgroundColor: '#dc3545',
+    padding: 8,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  removeButtonText: {
+    color: '#fff',
+    fontSize: 12,
     fontWeight: 'bold',
   },
 });
