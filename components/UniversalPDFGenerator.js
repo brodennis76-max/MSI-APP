@@ -95,21 +95,14 @@ function escapeHtml(str) {
  * Web helper to convert a remote image to a data URL
  */
 async function fetchAsDataURL(url) {
-  if (!url) return null;
-  try {
-    const res = await fetch(url, { cache: 'no-store' });
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    return await new Promise(resolve => {
-      const fr = new FileReader();
-      fr.onload = () => resolve(fr.result);
-      fr.onerror = () => resolve(null);
-      fr.readAsDataURL(blob);
-    });
-  } catch (e) {
-    console.error('Error fetching image:', e);
-    return null;
-  }
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+  const blob = await res.blob();
+  return await new Promise(resolve => {
+    const fr = new FileReader();
+    fr.onload = () => resolve(fr.result);
+    fr.readAsDataURL(blob);
+  });
 }
 
 /**
@@ -138,36 +131,22 @@ async function bundledPngToDataUrl(moduleRef) {
  * Encode a path preserving slashes for URL construction
  */
 function encodePathPreserveSlashes(p) {
-  return p.split('/').map(encodeURIComponent).join('/');
+  return String(p || '').split('/').map(encodeURIComponent).join('/');
 }
 
 // Base URL for GitHub assets via jsDelivr CDN
-// Points to the main branch of the MSI-APP repository
 const DEFAULT_ASSET_BASE = 'https://cdn.jsdelivr.net/gh/brodennis76-max/MSI-APP@main';
 
 /**
  * Fetch a PNG from GitHub via jsDelivr CDN and convert to data URL
- * @param {string} relPath - Relative path from repo root (e.g., 'msi-expo/qr-codes/1450 Scanner Program.png')
+ * @param {string} relPath - Relative path from repo root (e.g., 'qr-codes/1450 Scanner Program.png')
  * @param {string} assetBase - Base URL for assets (defaults to DEFAULT_ASSET_BASE)
- * @returns {Promise<string|null>} Data URL or null on error
+ * @returns {Promise<string>} Data URL
  */
 async function githubPngToDataUrl(relPath, assetBase = DEFAULT_ASSET_BASE) {
   const encoded = encodePathPreserveSlashes(relPath);
   const url = `${assetBase}/${encoded}`;
-  try {
-    const res = await fetch(url, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`PNG fetch failed: ${res.status}`);
-    const blob = await res.blob();
-    return await new Promise(resolve => {
-      const fr = new FileReader();
-      fr.onload = () => resolve(fr.result); // data:image/png;base64,...
-      fr.onerror = () => resolve(null);
-      fr.readAsDataURL(blob);
-    });
-  } catch (e) {
-    console.error('Error fetching GitHub PNG:', e);
-    return null;
-  }
+  return await fetchAsDataURL(url);
 }
 
 /**
@@ -267,6 +246,9 @@ function createHtmlRenderer(pdf, opts) {
     if (tag === 'u') ctx.underline = true;
 
     if (tag === 'ul' || tag === 'ol') {
+      // if a list follows a header, ensure a clean lead-in line
+      checkPage(lineHeight);
+      y += lineHeight;
       let index = 1;
       const items = Array.from(node.children).filter(el => el.tagName.toLowerCase() === 'li');
       for (const li of items) {
@@ -401,6 +383,26 @@ export async function generateAccountInstructionsPDF(options) {
     throw new Error('Missing client data');
   }
 
+  // Resolve assets once (logo, QR) for both paths
+  const assetBase = client.assetBase || DEFAULT_ASSET_BASE;
+
+  // Logo: prefer data URL on client, fallback to fetch from URL if provided
+  let logoDataUrl = '';
+  if (client.logoDataUrl && /^data:image\//i.test(client.logoDataUrl)) {
+    logoDataUrl = client.logoDataUrl;
+  } else if (client.logoUrl) {
+    try { logoDataUrl = await fetchAsDataURL(client.logoUrl); } catch { logoDataUrl = ''; }
+  }
+
+  // QR from GitHub path (default path if not supplied)
+  let qrDataUrl = '';
+  const qrPath = client.qrPath || 'qr-codes/1450 Scanner Program.png';
+  try {
+    qrDataUrl = await githubPngToDataUrl(qrPath, assetBase);
+  } catch {
+    qrDataUrl = '';
+  }
+
   if (Platform.OS === 'web') {
     // Web: use jsPDF
     const { default: jsPDF } = await import('jspdf');
@@ -493,6 +495,19 @@ export async function generateAccountInstructionsPDF(options) {
       await htmlRenderer.renderHtmlString(str, 0);
       // Sync y position back
       y = htmlRenderer.getY();
+    };
+
+    const sectionHeader = async (title) => {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(16);
+      checkPageBreakWithContent(18, 50);
+      await writeRich(title, contentWidth, 18);
+      y += 18;
+      // add one full body line to ensure the next text does not share the header baseline
+      checkPageBreak(lineHeight);
+      y += lineHeight;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(12);
     };
 
     headerLines.forEach((text, i) => {
@@ -602,11 +617,7 @@ export async function generateAccountInstructionsPDF(options) {
     y += 20;
 
     // Pre-Inventory section (wrapped heading)
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(16);
-    checkPageBreakWithContent(18, 50); // Ensure header stays with content
-    await writeRich('Pre-Inventory', contentWidth, 18);
-    y += 2; // small spacer after wrapped heading
+    await sectionHeader('Pre-Inventory');
 
     // General information (no label)
     pdf.setFont('helvetica', 'normal');
@@ -625,7 +636,9 @@ export async function generateAccountInstructionsPDF(options) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
       await writeRich('Area Mapping', contentWidth, 16);
-      y += 0;
+      y += 16;
+      checkPageBreak(lineHeight);
+      y += lineHeight;
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
       await writeRich(areaMapping, contentWidth, lineHeight);
@@ -638,7 +651,9 @@ export async function generateAccountInstructionsPDF(options) {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
       await writeRich('Store Prep/Instructions', contentWidth, 16);
-      y += 0;
+      y += 16;
+      checkPageBreak(lineHeight);
+      y += lineHeight;
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
       await writeRich(storePrep, contentWidth, lineHeight);
@@ -651,13 +666,7 @@ export async function generateAccountInstructionsPDF(options) {
     // INVENTORY PROCEDURES section (from Inv_Proc)
     const invProc = String(client.Inv_Proc ?? '').trim();
     if (invProc) {
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(16);
-      checkPageBreakWithContent(18, 50); // Ensure header stays with content
-      await writeRich('INVENTORY PROCEDURES', contentWidth, 18);
-      y += 2;
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(12);
+      await sectionHeader('INVENTORY PROCEDURES');
       await writeRich(invProc, contentWidth, lineHeight);
       y += 12;
     }
@@ -668,13 +677,7 @@ export async function generateAccountInstructionsPDF(options) {
     // AUDITS section (from Audits)
     const audits = String(client.Audits ?? '').trim();
     if (audits) {
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(16);
-      checkPageBreakWithContent(18, 50); // Ensure header stays with content
-      await writeRich('Audits', contentWidth, 18);
-      y += 2;
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(12);
+      await sectionHeader('Audits');
       await writeRich(audits, contentWidth, lineHeight);
       y += 12;
     }
@@ -682,13 +685,7 @@ export async function generateAccountInstructionsPDF(options) {
     // INVENTORY FLOW section (from Inv_Flow)
     const invFlow = String(client.Inv_Flow ?? '').trim();
     if (invFlow) {
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(16);
-      checkPageBreakWithContent(18, 50); // Ensure header stays with content
-      await writeRich('Inventory Flow', contentWidth, 18);
-      y += 2;
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(12);
+      await sectionHeader('Inventory Flow');
       await writeRich(invFlow, contentWidth, lineHeight);
       y += 12;
     }
@@ -696,13 +693,7 @@ export async function generateAccountInstructionsPDF(options) {
     // SPECIAL NOTES section (from Special_Notes)
     const specialNotes = String(client.Special_Notes ?? '').trim();
     if (specialNotes) {
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(16);
-      checkPageBreakWithContent(18, 50);
-      await writeRich('Special Notes', contentWidth, 18);
-      y += 2;
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(12);
+      await sectionHeader('Special Notes');
       await writeRich(specialNotes, contentWidth, lineHeight);
       y += 12;
     }
@@ -710,13 +701,7 @@ export async function generateAccountInstructionsPDF(options) {
     // PRE-INVENTORY CREW INSTRUCTIONS section (from Team-Instr)
     const teamInstr = String(client['Team-Instr'] ?? '').trim();
     if (teamInstr) {
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(16);
-      checkPageBreakWithContent(18, 50); // Ensure header stays with content
-      await writeRich('Pre-Inventory Crew Instructions', contentWidth, 18);
-      y += 2;
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(12);
+      await sectionHeader('Pre-Inventory Crew Instructions');
       await writeRich(teamInstr, contentWidth, lineHeight);
       y += 12;
     }
@@ -727,13 +712,7 @@ export async function generateAccountInstructionsPDF(options) {
     // NON-COUNT PRODUCTS section (from noncount)
     const noncount = String(client.noncount ?? '').trim();
     if (noncount) {
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(16);
-      checkPageBreakWithContent(18, 50); // Ensure header stays with content
-      await writeRich('Non-Count Products', contentWidth, 18);
-      y += 2;
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(12);
+      await sectionHeader('Non-Count Products');
       await writeRich(noncount, contentWidth, lineHeight);
       y += 12;
     }
@@ -748,11 +727,7 @@ export async function generateAccountInstructionsPDF(options) {
     const processing = String(client.Processing ?? '').trim();
     
     if (progRep || finalize || finRep || processing) {
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(16);
-      checkPageBreakWithContent(18, 100); // Ensure header stays with content
-      await writeRich('REPORTS', contentWidth, 18);
-      y += 2;
+      await sectionHeader('REPORTS');
       
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
@@ -762,7 +737,9 @@ export async function generateAccountInstructionsPDF(options) {
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(14);
         await writeRich('Progressives:', contentWidth, 16);
-        y += 0;
+        y += 16;
+        checkPageBreak(lineHeight);
+        y += lineHeight;
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(12);
         await writeRich(progRep, contentWidth, lineHeight);
@@ -774,7 +751,9 @@ export async function generateAccountInstructionsPDF(options) {
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(14);
         await writeRich('Finalizing the Count:', contentWidth, 16);
-        y += 0;
+        y += 16;
+        checkPageBreak(lineHeight);
+        y += lineHeight;
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(12);
         await writeRich(finalize, contentWidth, lineHeight);
@@ -786,7 +765,9 @@ export async function generateAccountInstructionsPDF(options) {
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(14);
         await writeRich('Final Reports:', contentWidth, 16);
-        y += 0;
+        y += 16;
+        checkPageBreak(lineHeight);
+        y += lineHeight;
         // Detect and render "Utility Reports" as bold subheader when it's the first non-empty line
         const finLines = finRep.split('\n');
         const firstNonEmptyIdx = finLines.findIndex(l => l.trim().length > 0);
@@ -796,7 +777,9 @@ export async function generateAccountInstructionsPDF(options) {
           pdf.setFont('helvetica', 'bold');
           pdf.setFontSize(14);
           await writeRich('Utility Reports:', contentWidth, 16);
-          y += 0;
+          y += 16;
+          checkPageBreak(lineHeight);
+          y += lineHeight;
           consumedHeader = true;
         }
         pdf.setFont('helvetica', 'normal');
@@ -811,7 +794,9 @@ export async function generateAccountInstructionsPDF(options) {
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(14);
         await writeRich('Final Processing:', contentWidth, 16);
-        y += 0;
+        y += 16;
+        checkPageBreak(lineHeight);
+        y += lineHeight;
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(12);
         await writeRich(processing, contentWidth, lineHeight);
@@ -826,7 +811,7 @@ export async function generateAccountInstructionsPDF(options) {
   }
 
   // Native (iOS/Android via Expo): use HTML + expo-print
-  const html = await buildHtml(client);
+  const html = buildHtml(client, { logoDataUrl, qrDataUrl });
   const result = await Print.printToFileAsync({
     html,
     base64: false,
@@ -836,7 +821,7 @@ export async function generateAccountInstructionsPDF(options) {
   return result.uri;
 }
 
-async function buildHtml(client) {
+function buildHtml(client, assets) {
   const safeName = client.name || client.id || 'Unknown Client';
   const updatedAt = formatUpdatedAt(client.updatedAt);
   const extracted = extractPreInventoryBundle(client.sections);
@@ -854,14 +839,8 @@ async function buildHtml(client) {
   const finRep = String(client.Fin_Rep ?? '').trim();
   const processing = String(client.Processing ?? '').trim();
 
-  // Example: Convert bundled asset to data URL for use in HTML
-  // const logoDataUrl = await bundledPngToDataUrl(require('../assets/logo.png'));
-  // Then use in HTML: <img src="${logoDataUrl}" class="logo" />
-
-  // Fetch QR code image from GitHub if path is provided
-  const qrDataUrl = client.qrPath
-    ? await githubPngToDataUrl(client.qrPath, client.assetBase || DEFAULT_ASSET_BASE)
-    : '';
+  const logoDataUrl = assets?.logoDataUrl && /^data:image\//i.test(assets.logoDataUrl) ? assets.logoDataUrl : '';
+  const qrDataUrl = assets?.qrDataUrl && /^data:image\//i.test(assets.qrDataUrl) ? assets.qrDataUrl : '';
 
   return `
     <!DOCTYPE html>
