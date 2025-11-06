@@ -120,6 +120,34 @@ async function getRepoImageDataUrl(relPath, assetBase) {
   throw new Error('All repo image fetch attempts failed');
 }
 
+// Strip HTML to plain text (preserve line breaks and bullets) for inline KV fields
+function htmlToPlainInline(html) {
+  if (!html) return '';
+  let s = String(html);
+
+  // Normalize common block breaks to newlines before stripping tags
+  s = s
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/<\s*\/p\s*>/gi, '\n')
+    .replace(/<\s*p[^>]*>/gi, '')
+    .replace(/<\s*\/div\s*>/gi, '\n')
+    .replace(/<\s*div[^>]*>/gi, '')
+    .replace(/<\s*li[^>]*>/gi, '• ')
+    .replace(/<\s*\/li\s*>/gi, '\n')
+    .replace(/<\s*\/?(ul|ol)[^>]*>/gi, '\n');
+
+  // Strip remaining tags
+  s = s.replace(/<[^>]+>/g, '');
+
+  // Collapse whitespace
+  s = s.replace(/\r\n/g, '\n')
+       .replace(/\n{3,}/g, '\n\n')
+       .replace(/[ \t]+/g, ' ')
+       .replace(/^\s+|\s+$/gm, '');
+
+  return s.trim();
+}
+
 // ---------- Web HTML -> jsPDF renderer (spacing + list fixes) ----------
 
 function createHtmlRenderer(pdf, opts) {
@@ -203,9 +231,7 @@ function createHtmlRenderer(pdf, opts) {
       return;
     }
 
-    // ----- NO lead-in spacing for <p> or <div> -----
-    // (spacing is now added *outside* the renderer, after headers)
-
+    // NO lead-in spacing for <p> or <div> – spacing is added outside
     if (tag === 'b' || tag === 'strong') ctx.bold = true;
     if (tag === 'i' || tag === 'em') ctx.italic = true;
     if (tag === 'u') ctx.underline = true;
@@ -549,7 +575,7 @@ export async function generateAccountInstructionsPDF(options) {
     if (logoDataUrl) {
       try {
         const type = /^data:image\/jpeg/i.test(logoDataUrl) ? 'JPEG' : 'PNG';
-        pdf.addImage(logoDataUrl, type, MARGIN_PT, y - 40, 120, 36);
+        pdf.addImage(logoDataUrl, type, MARGIN_PT, y - 44, 120, 36);
       } catch {}
     }
     if (qrDataUrl) {
@@ -557,7 +583,7 @@ export async function generateAccountInstructionsPDF(options) {
         const type = /^data:image\/jpeg/i.test(qrDataUrl) ? 'JPEG' : 'PNG';
         const qrW = 120;
         const xImg = PAGE_WIDTH_PT - MARGIN_PT - qrW;
-        const yTop = MARGIN_PT;
+        const yTop = MARGIN_PT - 8;
         pdf.addImage(qrDataUrl, type, xImg, yTop, qrW, qrW);
       } catch {}
     }
@@ -587,26 +613,26 @@ export async function generateAccountInstructionsPDF(options) {
     const contentWidth = PAGE_WIDTH_PT - (2 * MARGIN_PT);
     const lineHeight = 14;
 
-    // ---------- Helper: main section header ----------
+    // Helper: main section header
     const sectionHeader = (title) => {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
       checkPageBreakWithContent(18, 50);
       pdf.text(title, MARGIN_PT, y);
       y += 18;               // header line height
-      y += 8;                // FIX: gap after header
+      y += 8;                // gap after header
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
     };
 
-    // ---------- Helper: subsection header ----------
+    // Helper: subsection header
     const subSectionHeader = (title) => {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
       checkPageBreakWithContent(16, 40);
       pdf.text(title, MARGIN_PT, y);
       y += 16;
-      y += 6;                // FIX: smaller gap for subsections
+      y += 6;                // smaller gap for subsections
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
     };
@@ -624,12 +650,17 @@ export async function generateAccountInstructionsPDF(options) {
       if (!value) return;
       const labelText = `${label}: `;
       checkPageBreak(lineHeight);
+
       const labelWidth = pdf.getTextWidth(labelText);
       pdf.text(labelText, MARGIN_PT, y);
 
       const startX = MARGIN_PT + labelWidth;
       const maxWidth = contentWidth - labelWidth;
-      const lines = pdf.splitTextToSize(String(value), maxWidth);
+
+      // *** FIX: strip HTML for inline KV values ***
+      const plain = htmlToPlainInline(value);
+      const lines = pdf.splitTextToSize(plain, maxWidth);
+
       lines.forEach((ln, idx) => {
         if (idx > 0) { checkPageBreak(lineHeight); y += lineHeight; }
         pdf.text(ln, startX, y);
@@ -637,11 +668,11 @@ export async function generateAccountInstructionsPDF(options) {
       y += lineHeight;
     };
 
-    if (client.inventoryType) renderKV('Inventory Type', String(client.inventoryType));
+    if (client.inventoryType) renderKV('Inventory Type', client.inventoryType);
     if (updatedAt) { checkPageBreak(lineHeight); pdf.text(`Updated: ${updatedAt}`, MARGIN_PT, y); y += lineHeight; }
-    if (client.PIC) renderKV('PIC', String(client.PIC));
-    if (client.verification) renderKV('Verification', String(client.verification));
-    if (client.startTime) renderKV('Start Time', String(client.startTime));
+    if (client.PIC) renderKV('PIC', client.PIC);
+    if (client.verification) renderKV('Verification', client.verification);
+    if (client.startTime) renderKV('Start Time', client.startTime);
     y += 8;
 
     // Notice box
@@ -655,7 +686,7 @@ export async function generateAccountInstructionsPDF(options) {
     wrapped.forEach(w => { pdf.text(w, MARGIN_PT + boxPadding, ty); ty += lineHeight; });
     y += boxHeight + 20;
 
-    // ---------- Pre-Inventory ----------
+    // Pre-Inventory
     const { generalText, areaMappingRaw, storePrepRaw } = extractPreInventoryBundle(client.sections);
     const alrIntro = client.ALR ? `• ALR disk is ${client.ALR}.` : '';
     const combinedPre = [alrIntro, String(generalText || client.preInventory || '').trim()].filter(Boolean).join('\n');
@@ -686,7 +717,7 @@ export async function generateAccountInstructionsPDF(options) {
       y += 8;
     }
 
-    // ---------- Generic rich sections ----------
+    // Generic rich sections
     const writeRichSection = async (title, body) => {
       const text = String(body || '').trim();
       if (!text) return;
@@ -703,7 +734,7 @@ export async function generateAccountInstructionsPDF(options) {
     await writeRichSection('Pre-Inventory Crew Instructions', client['Team-Instr']);
     await writeRichSection('Non-Count Products', client.noncount);
 
-    // ---------- Reports ----------
+    // Reports
     const progRep = String(client.Prog_Rep ?? '').trim();
     const finalize = String(client.Finalize ?? '').trim();
     const finRep = String(client.Fin_Rep ?? '').trim();
