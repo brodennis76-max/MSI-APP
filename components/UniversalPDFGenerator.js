@@ -326,10 +326,10 @@ function createHtmlRenderer(pdf, opts) {
       await renderNode(child, snap, indent);
     }
 
-    // Paragraph spacing: single after (1 × lineHeight)
-    if (tag === 'p') { checkPage(lineHeight); y += lineHeight; }
-    // Div spacing: single after (1 × lineHeight) for consistency
-    if (tag === 'div') { checkPage(lineHeight); y += lineHeight; }
+    // Paragraph spacing: minimal spacing (0.5 × lineHeight) to create single spacing between paragraphs
+    // drawWrappedText already advances y after last line, so we add a small gap for paragraph separation
+    if (tag === 'p') { checkPage(lineHeight * 0.5); y += lineHeight * 0.5; }
+    if (tag === 'div') { checkPage(lineHeight * 0.5); y += lineHeight * 0.5; }
   };
 
   return {
@@ -427,7 +427,7 @@ function buildHtml(client, assets) {
     .subsection-title { font-size: 14px; font-weight: bold; margin: 0 0 14px 0; }
     .info { font-size: 12px; }
     .notice { border: 1px solid #000; padding: 8px; margin-top: 8px; font-size: 12px; }
-    .rich p, .rich div { margin: 0 0 14px 0; }
+    .rich p, .rich div { margin: 0 0 7px 0; }
     .rich ul, .rich ol { margin: 4px 0 8px 1.2em; padding: 0; }
     .rich li { margin: 2px 0; }
   </style></head><body>
