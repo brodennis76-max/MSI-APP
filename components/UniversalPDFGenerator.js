@@ -601,7 +601,7 @@ export async function generateAccountInstructionsPDF(options) {
       if (combinedPre) {
         htmlRenderer.setY(y);
         await htmlRenderer.renderHtmlString(combinedPre);
-        y = htmlRenderer.getY() + 8;
+        y = htmlRenderer.getY();
       }
 
       if (String(areaMappingRaw).trim()) {
@@ -620,10 +620,8 @@ export async function generateAccountInstructionsPDF(options) {
         subSectionHeader('Store Prep/Instructions');
         htmlRenderer.setY(y);
         await htmlRenderer.renderHtmlString(String(storePrepRaw));
-        y = htmlRenderer.getY() + 10;
+        y = htmlRenderer.getY();
       }
-
-      y += 8;
     }
 
     // Rich sections
@@ -633,7 +631,7 @@ export async function generateAccountInstructionsPDF(options) {
       sectionHeader(title);
       htmlRenderer.setY(y);
       await htmlRenderer.renderHtmlString(text);
-      y = htmlRenderer.getY() + 12;
+      y = htmlRenderer.getY();
     };
 
     await writeRichSection('INVENTORY PROCEDURES', client.Inv_Proc);
@@ -651,15 +649,15 @@ export async function generateAccountInstructionsPDF(options) {
 
     if (progRep || finalize || finRep || processing) {
       sectionHeader('REPORTS');
-      if (progRep) { subSectionHeader('Progressives:'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(progRep); y = htmlRenderer.getY() + 12; }
-      if (finalize) { subSectionHeader('Finalizing the Count:'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(finalize); y = htmlRenderer.getY() + 12; }
-      if (finRep) { subSectionHeader('Final Reports:'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(finRep); y = htmlRenderer.getY() + 12; }
+      if (progRep) { subSectionHeader('Progressives:'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(progRep); y = htmlRenderer.getY(); }
+      if (finalize) { subSectionHeader('Finalizing the Count:'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(finalize); y = htmlRenderer.getY(); }
+      if (finRep) { subSectionHeader('Final Reports:'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(finRep); y = htmlRenderer.getY(); }
       if (processing) {
         subSectionHeader('Final Processing:');
         const cleanProcessing = processing.replace(/^MSI Inventory Reports/gi, '\nMSI Inventory Reports');
         htmlRenderer.setY(y);
         await htmlRenderer.renderHtmlString(cleanProcessing);
-        y = htmlRenderer.getY() + 12;
+        y = htmlRenderer.getY();
       }
     }
 
