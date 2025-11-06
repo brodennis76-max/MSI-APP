@@ -216,19 +216,26 @@ function createHtmlRenderer(pdf, opts) {
       let cleaned = raw.replace(/(\S)•/g, '$1\n•');
       cleaned = cleaned.replace(/[ \t]+/g, ' ').trim();
       if (idx > 0) { checkPage(lineHeight); y += lineHeight; }
-      if (!cleaned) return;
+      if (!cleaned) {
+        // Empty line - still advance y to maintain spacing
+        checkPage(lineHeight);
+        y += lineHeight;
+        return;
+      }
       const pieces = cleaned.split('\n');
       pieces.forEach((piece, pi) => {
         if (pi > 0) { checkPage(lineHeight); y += lineHeight; }
         const wrapped = wrapMeasureLines(ctx, piece, indent);
         wrapped.forEach((ln, wi) => {
-          if (wi > 0) { checkPage(lineHeight); y += lineHeight; }
+          checkPage(lineHeight);
           setFontFor(ctx);
           pdf.text(ln.text, ln.x, y);
           if (ctx.underline) {
             const w = pdf.getTextWidth(ln.text);
             pdf.line(ln.x, y + underlineOffset, ln.x + w, y + underlineOffset);
           }
+          // CRITICAL: Always advance y after rendering each line to prevent overlap
+          y += lineHeight;
         });
       });
     });
@@ -284,13 +291,21 @@ function createHtmlRenderer(pdf, opts) {
         setFontFor({});
         pdf.text(marker, x, y);
 
-        let liText = '';
-        li.childNodes.forEach(ch => { if (ch.nodeType === 3) liText += ch.nodeValue; });
-        drawWrappedText({ ...ctx }, liText, indent + bulletIndent);
-
+        // Render all child nodes in order (text and elements together)
+        // This ensures proper ordering and prevents overlap
         for (const child of li.childNodes) {
-          if (child.nodeType === 1) await renderNode(child, { ...ctx }, indent + listIndent);
+          if (child.nodeType === 3) {
+            // Text node - render it with proper indentation
+            const text = child.nodeValue || '';
+            if (text.trim()) {
+              drawWrappedText({ ...ctx }, text, indent + bulletIndent);
+            }
+          } else if (child.nodeType === 1) {
+            // Element node - render it with list indent
+            await renderNode(child, { ...ctx }, indent + listIndent);
+          }
         }
+        
         index += 1;
       }
       checkPage(lineHeight * 0.5); y += lineHeight * 0.5;
