@@ -939,61 +939,9 @@ async function buildHtml(client) {
   `;
 }
 
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
 export default function UniversalPDFGenerator() {
   // This file primarily exposes the generator function above.
   return null;
-}
-
-function formatUpdatedAt(val) {
-  try {
-    if (!val) return '';
-    // Firestore Timestamp support
-    const date = typeof val.toDate === 'function' ? val.toDate() : new Date(val);
-    return date.toLocaleDateString('en-US');
-  } catch {
-    return '';
-  }
-}
-
-// Resolve section texts from either a map object or an array of entries
-function extractPreInventoryBundle(sections) {
-  // Returns { generalText, areaMappingRaw, storePrepRaw }
-  const empty = { generalText: '', areaMappingRaw: '', storePrepRaw: '' };
-  if (!sections) return empty;
-  // Map form not expected for nested subsections, but support minimal keys
-  if (typeof sections === 'object' && !Array.isArray(sections)) {
-    return {
-      generalText: sections['Pre-Inventory'] ?? '',
-      areaMappingRaw: sections['Area Mapping'] ?? '',
-      storePrepRaw: sections['Store Prep Instructions'] ?? ''
-    };
-  }
-  if (Array.isArray(sections)) {
-    const pre = sections.find(s => (s?.sectionName || '').toString().toLowerCase() === 'pre-inventory'.toLowerCase());
-    if (!pre) return empty;
-    const generalText = typeof pre.content === 'string' ? pre.content : '';
-    const subs = Array.isArray(pre.subsections) ? pre.subsections : [];
-    const findSub = (title) => {
-      const entry = subs.find(x => (x?.sectionName || '').toString().toLowerCase() === title.toLowerCase());
-      const text = entry ? (entry.content ?? entry.text ?? entry.value ?? '') : '';
-      return typeof text === 'string' ? text : '';
-    };
-    return {
-      generalText,
-      areaMappingRaw: findSub('Area Mapping'),
-      storePrepRaw: findSub('Store Prep Instructions')
-    };
-  }
-  return empty;
 }
 
 
