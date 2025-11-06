@@ -11,18 +11,19 @@
 const ORG = 'brodennis76-max';
 const REPO = 'MSI-APP';
 const BRANCH = 'main';
-const QR_CODES_DIR = 'msi-expo/qr-code';
+const QR_CODES_DIR = 'msi-expo/qr-codes';
 
 /**
  * Upload a QR code PNG to GitHub
  * @param {string} base64Data - Base64 encoded PNG data (data:image/png;base64,...)
- * @param {string} accountId - Account/client ID to use in filename
+ * @param {string} fileName - Original filename to preserve
+ * @param {string} accountId - Account/client ID (for logging)
  * @param {string} githubToken - GitHub Personal Access Token
  * @returns {Promise<string>} - Raw GitHub URL of the uploaded file
  */
-export async function uploadQrToGitHub(base64Data, accountId, githubToken) {
-  if (!base64Data || !accountId || !githubToken) {
-    throw new Error('Missing required parameters: base64Data, accountId, or githubToken');
+export async function uploadQrToGitHub(base64Data, fileName, accountId, githubToken) {
+  if (!base64Data || !fileName || !githubToken) {
+    throw new Error('Missing required parameters: base64Data, fileName, or githubToken');
   }
 
   // Extract base64 content (remove data:image/png;base64, prefix if present)
@@ -38,8 +39,8 @@ export async function uploadQrToGitHub(base64Data, accountId, githubToken) {
     bytes[i] = binaryString.charCodeAt(i);
   }
 
-  // Create filename: account-{accountId}-qr.png
-  const filename = `account-${accountId}-qr.png`;
+  // Use original filename as-is (preserve original name and extension)
+  const filename = fileName;
   const filePath = `${QR_CODES_DIR}/${filename}`;
 
   // Encode file content as base64 for GitHub API
@@ -80,7 +81,7 @@ export async function uploadQrToGitHub(base64Data, accountId, githubToken) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: `Upload QR code for account ${accountId}`,
+          message: `Upload QR code for account ${accountId || 'unknown'}`,
           content: content,
           branch: BRANCH,
           ...(sha ? { sha } : {}), // Include SHA if updating existing file
@@ -105,14 +106,14 @@ export async function uploadQrToGitHub(base64Data, accountId, githubToken) {
 }
 
 /**
- * Get the QR code path for an account (relative to repo root)
- * @param {string} accountId - Account/client ID
+ * Get the QR code path for a file (relative to repo root)
+ * @param {string} fileName - Filename of the QR code
  * @returns {string} - GitHub path to the QR code (relative to repo root)
  */
-export function getAccountQrPath(accountId) {
-  const filename = `account-${accountId}-qr.png`;
+export function getAccountQrPath(fileName) {
+  // Use original filename as-is (preserve original name and extension)
   // Return path relative to repo root (without msi-expo/)
-  return `qr-code/${filename}`;
+  return `qr-codes/${fileName}`;
 }
 
 /**

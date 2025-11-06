@@ -44,6 +44,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
   const [showCompletion, setShowCompletion] = useState(false);
   const [createdClient, setCreatedClient] = useState(null);
   const [qrImageBase64, setQrImageBase64] = useState(null);
+  const [qrImageFileName, setQrImageFileName] = useState(null);
   const [uploadingQr, setUploadingQr] = useState(false);
 
   // Firebase connection test function
@@ -348,6 +349,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
           additionalNotes: clientToEdit.additionalNotes || ''
         });
         setQrImageBase64(null); // Reset QR image when switching clients
+        setQrImageFileName(null);
       }
     }
   }, [clientAction, selectedClientId, clients]);
@@ -363,8 +365,14 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
       });
 
       if (!result.canceled && result.assets[0]) {
-        const base64 = `data:image/png;base64,${result.assets[0].base64}`;
+        const asset = result.assets[0];
+        // Preserve original image format from URI or use PNG as default
+        const mimeType = asset.mimeType || 'image/png';
+        const base64 = `data:${mimeType};base64,${asset.base64}`;
+        // Preserve original filename or extract from URI
+        const fileName = asset.fileName || asset.uri.split('/').pop() || 'qr-code.png';
         setQrImageBase64(base64);
+        setQrImageFileName(fileName);
       }
     } catch (error) {
       console.error('Error picking image:', error);
@@ -374,10 +382,11 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
 
   const removeQrImage = () => {
     setQrImageBase64(null);
+    setQrImageFileName(null);
   };
 
   const uploadQrCode = async (clientId) => {
-    if (!qrImageBase64 || !clientId) return;
+    if (!qrImageBase64 || !qrImageFileName || !clientId) return;
     
     setUploadingQr(true);
     try {
@@ -393,8 +402,8 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
         return;
       }
 
-      const qrUrl = await uploadQrToGitHub(qrImageBase64, clientId, githubToken);
-      const qrPath = getAccountQrPath(clientId);
+      const qrUrl = await uploadQrToGitHub(qrImageBase64, qrImageFileName, clientId, githubToken);
+      const qrPath = getAccountQrPath(qrImageFileName);
       
       // Update client with QR code path
       const clientRef = doc(db, 'clients', clientId);
@@ -404,6 +413,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
       });
       
       setQrImageBase64(null);
+      setQrImageFileName(null);
       Alert.alert('Success', 'QR code uploaded to GitHub successfully!');
     } catch (error) {
       console.error('Error uploading QR code:', error);

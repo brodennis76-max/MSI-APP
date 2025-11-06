@@ -24,6 +24,7 @@ const EditAccountFlow = ({ onBack }) => {
   const [activeClient, setActiveClient] = useState(null);
   const [saving, setSaving] = useState(false);
   const [qrImageBase64, setQrImageBase64] = useState(null);
+  const [qrImageFileName, setQrImageFileName] = useState(null);
   const [uploadingQr, setUploadingQr] = useState(false);
 
   const [step, setStep] = useState('picker');
@@ -81,8 +82,14 @@ const EditAccountFlow = ({ onBack }) => {
       });
 
       if (!result.canceled && result.assets[0]) {
-        const base64 = `data:image/png;base64,${result.assets[0].base64}`;
+        const asset = result.assets[0];
+        // Preserve original image format from URI or use PNG as default
+        const mimeType = asset.mimeType || 'image/png';
+        const base64 = `data:${mimeType};base64,${asset.base64}`;
+        // Preserve original filename or extract from URI
+        const fileName = asset.fileName || asset.uri.split('/').pop() || 'qr-code.png';
         setQrImageBase64(base64);
+        setQrImageFileName(fileName);
       }
     } catch (error) {
       console.error('Error picking image:', error);
@@ -92,6 +99,7 @@ const EditAccountFlow = ({ onBack }) => {
 
   const removeQrImage = () => {
     setQrImageBase64(null);
+    setQrImageFileName(null);
   };
 
   const uploadQrCode = async () => {
@@ -111,8 +119,8 @@ const EditAccountFlow = ({ onBack }) => {
         return;
       }
 
-      const qrUrl = await uploadQrToGitHub(qrImageBase64, activeClient.id, githubToken);
-      const qrPath = getAccountQrPath(activeClient.id);
+      const qrUrl = await uploadQrToGitHub(qrImageBase64, qrImageFileName, activeClient.id, githubToken);
+      const qrPath = getAccountQrPath(qrImageFileName);
       
       // Update client with QR code path
       const clientRef = doc(db, 'clients', activeClient.id);
@@ -123,6 +131,7 @@ const EditAccountFlow = ({ onBack }) => {
       
       setActiveClient({ ...activeClient, qrPath: qrPath });
       setQrImageBase64(null);
+      setQrImageFileName(null);
       Alert.alert('Success', 'QR code uploaded to GitHub successfully!');
     } catch (error) {
       console.error('Error uploading QR code:', error);
@@ -234,7 +243,12 @@ const EditAccountFlow = ({ onBack }) => {
             <Text style={styles.backButtonText}>Back</Text>
           </TouchableOpacity>
         </View>
-        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+        <ScrollView 
+          style={styles.content} 
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={true}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.clientInfoContainer}>
             <Text style={styles.sectionTitle}>Client Information</Text>
             
@@ -438,7 +452,7 @@ const styles = StyleSheet.create({
   backButton: { backgroundColor: '#6c757d', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 5 },
   backButtonText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
   content: { flex: 1 },
-  contentContainer: { padding: 20 },
+  contentContainer: { padding: 20, flexGrow: 1 },
   searchContainer: { marginBottom: 15 },
   searchInput: { height: 50, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, paddingHorizontal: 15, fontSize: 16, backgroundColor: '#fff' },
   pickerContainer: { width: '100%', marginBottom: 20 },
