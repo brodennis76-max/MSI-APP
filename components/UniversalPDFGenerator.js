@@ -497,11 +497,11 @@ export async function generateAccountInstructionsPDF(options) {
       y = htmlRenderer.getY();
     };
 
-    const sectionHeader = async (title) => {
+    const sectionHeader = (title) => {
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
       checkPageBreakWithContent(18, 50);
-      await writeRich(title, contentWidth, 18);
+      pdf.text(title, MARGIN_PT, y);
       y += 18;
       // add one full body line to ensure the next text does not share the header baseline
       checkPageBreak(lineHeight);
@@ -617,7 +617,7 @@ export async function generateAccountInstructionsPDF(options) {
     y += 20;
 
     // Pre-Inventory section (wrapped heading)
-    await sectionHeader('Pre-Inventory');
+    sectionHeader('Pre-Inventory');
 
     // General information (no label)
     pdf.setFont('helvetica', 'normal');
@@ -666,7 +666,7 @@ export async function generateAccountInstructionsPDF(options) {
     // INVENTORY PROCEDURES section (from Inv_Proc)
     const invProc = String(client.Inv_Proc ?? '').trim();
     if (invProc) {
-      await sectionHeader('INVENTORY PROCEDURES');
+      sectionHeader('INVENTORY PROCEDURES');
       await writeRich(invProc, contentWidth, lineHeight);
       y += 12;
     }
@@ -677,7 +677,7 @@ export async function generateAccountInstructionsPDF(options) {
     // AUDITS section (from Audits)
     const audits = String(client.Audits ?? '').trim();
     if (audits) {
-      await sectionHeader('Audits');
+      sectionHeader('Audits');
       await writeRich(audits, contentWidth, lineHeight);
       y += 12;
     }
@@ -685,7 +685,7 @@ export async function generateAccountInstructionsPDF(options) {
     // INVENTORY FLOW section (from Inv_Flow)
     const invFlow = String(client.Inv_Flow ?? '').trim();
     if (invFlow) {
-      await sectionHeader('Inventory Flow');
+      sectionHeader('Inventory Flow');
       await writeRich(invFlow, contentWidth, lineHeight);
       y += 12;
     }
@@ -693,7 +693,7 @@ export async function generateAccountInstructionsPDF(options) {
     // SPECIAL NOTES section (from Special_Notes)
     const specialNotes = String(client.Special_Notes ?? '').trim();
     if (specialNotes) {
-      await sectionHeader('Special Notes');
+      sectionHeader('Special Notes');
       await writeRich(specialNotes, contentWidth, lineHeight);
       y += 12;
     }
@@ -701,7 +701,7 @@ export async function generateAccountInstructionsPDF(options) {
     // PRE-INVENTORY CREW INSTRUCTIONS section (from Team-Instr)
     const teamInstr = String(client['Team-Instr'] ?? '').trim();
     if (teamInstr) {
-      await sectionHeader('Pre-Inventory Crew Instructions');
+      sectionHeader('Pre-Inventory Crew Instructions');
       await writeRich(teamInstr, contentWidth, lineHeight);
       y += 12;
     }
@@ -712,7 +712,7 @@ export async function generateAccountInstructionsPDF(options) {
     // NON-COUNT PRODUCTS section (from noncount)
     const noncount = String(client.noncount ?? '').trim();
     if (noncount) {
-      await sectionHeader('Non-Count Products');
+      sectionHeader('Non-Count Products');
       await writeRich(noncount, contentWidth, lineHeight);
       y += 12;
     }
@@ -727,7 +727,7 @@ export async function generateAccountInstructionsPDF(options) {
     const processing = String(client.Processing ?? '').trim();
     
     if (progRep || finalize || finRep || processing) {
-      await sectionHeader('REPORTS');
+      sectionHeader('REPORTS');
       
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
