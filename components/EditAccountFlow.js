@@ -112,16 +112,19 @@ const EditAccountFlow = ({ onBack }) => {
   };
 
   const uploadQrCode = async () => {
-    // Immediate feedback to confirm button was pressed
-    Alert.alert('Upload Started', 'Beginning upload process...');
-    
-    console.log('Upload QR Code button pressed');
+    console.log('=== uploadQrCode function called (EditAccountFlow) ===');
     console.log('qrImageBase64:', qrImageBase64 ? 'exists' : 'missing');
     console.log('activeClient:', activeClient ? activeClient.id : 'missing');
     
-    if (!qrImageBase64 || !activeClient) {
-      console.log('Validation failed - missing image or client');
+    if (!qrImageBase64) {
+      console.log('Validation failed - missing image');
       Alert.alert('Error', 'Please select a QR code image first.');
+      return;
+    }
+    
+    if (!activeClient) {
+      console.log('Validation failed - missing activeClient');
+      Alert.alert('Error', 'No client selected.');
       return;
     }
     
@@ -382,19 +385,35 @@ const EditAccountFlow = ({ onBack }) => {
                 style={[
                   styles.uploadButton, 
                   styles.uploadToGitHubButton, 
-                  (!qrImageBase64 || uploadingQr) && styles.disabled
+                  uploadingQr && styles.disabled
                 ]} 
-                onPress={async () => {
-                  console.log('Upload button pressed - starting upload');
-                  Alert.alert('Test', 'Button was pressed!');
-                  try {
-                    await uploadQrCode();
-                  } catch (error) {
-                    console.error('Error in upload button handler:', error);
-                    Alert.alert('Error', `Upload failed: ${error.message}`);
+                onPress={() => {
+                  console.log('=== UPLOAD BUTTON PRESSED (EditAccountFlow) ===');
+                  console.log('qrImageBase64 exists:', !!qrImageBase64);
+                  console.log('activeClient:', activeClient ? activeClient.id : 'missing');
+                  
+                  if (!qrImageBase64) {
+                    Alert.alert('No Image', 'Please select a QR code image first.');
+                    return;
                   }
+                  
+                  if (!activeClient) {
+                    Alert.alert('Error', 'No client selected.');
+                    return;
+                  }
+                  
+                  const handleUpload = async () => {
+                    try {
+                      await uploadQrCode();
+                    } catch (error) {
+                      console.error('Error in upload button handler:', error);
+                      Alert.alert('Error', `Upload failed: ${error.message}`);
+                    }
+                  };
+                  
+                  handleUpload();
                 }}
-                disabled={!qrImageBase64 || uploadingQr}
+                disabled={uploadingQr}
               >
                 <Text style={styles.uploadButtonText}>
                   {uploadingQr ? 'Uploading to GitHub...' : 'Upload to GitHub'}

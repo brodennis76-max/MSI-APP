@@ -627,7 +627,7 @@ export async function generateAccountInstructionsPDF(options) {
       } catch {}
     }
 
-    // Header text
+    // Header text - spacing based on font size
     const headerLines = ['MSI Inventory', 'Account Instructions:', client.name || client.id || 'Unknown Client'];
     headerLines.forEach((text, i) => {
       if (i < 2) { pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 0, 0); }
@@ -636,10 +636,12 @@ export async function generateAccountInstructionsPDF(options) {
       pdf.setFontSize(fontSize);
       const textWidth = pdf.getTextWidth(text);
       const x = (PAGE_WIDTH_PT - textWidth) / 2;
-      checkPageBreak(LINE_HEIGHT);
+      // Use spacing proportional to font size (1.0x line height)
+      const lineSpacing = fontSize;
+      checkPageBreak(lineSpacing);
       pdf.text(text, x, y);
       if (i === 2) pdf.setTextColor(0, 0, 0);
-      y += LINE_HEIGHT; // Single LINE_HEIGHT for all header lines
+      y += lineSpacing; // Spacing based on font size
     });
 
     const contentWidth = PAGE_WIDTH_PT - (2 * MARGIN_PT);
