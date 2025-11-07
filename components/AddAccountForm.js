@@ -16,8 +16,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { db } from '../firebase-config';
 import { collection, onSnapshot, doc, setDoc, updateDoc } from 'firebase/firestore';
 import RichTextEditor from './RichTextEditor';
-import { uploadQrToGitHub, getAccountQrPath } from '../utils/uploadQrToGitHub';
-import { getGitHubToken } from '../config/github-config';
+import { uploadQrToFirebase, getAccountQrPath } from '../utils/uploadQrToFirebase';
 import PreInventoryForm from './PreInventoryForm';
 import InventoryProceduresForm from './InventoryProceduresForm';
 import AuditsInventoryFlowForm from './AuditsInventoryFlowForm';
@@ -417,38 +416,25 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
     
     setUploadingQr(true);
     try {
-      // Get GitHub token from config
-      const githubToken = getGitHubToken();
-      console.log('GitHub token:', githubToken ? 'exists' : 'missing');
-      
-      if (!githubToken) {
-        console.log('GitHub token is missing');
-        Alert.alert(
-          'GitHub Token Required',
-          'Please set your GitHub token in config/github-config.js to upload QR codes to GitHub.'
-        );
-        setUploadingQr(false);
-        return;
-      }
-
-      console.log('Starting upload to GitHub...');
-      const qrUrl = await uploadQrToGitHub(qrImageBase64, fileName, clientId, githubToken);
+      console.log('Starting upload to Firebase Storage...');
+      const qrUrl = await uploadQrToFirebase(qrImageBase64, fileName, clientId);
       console.log('Upload successful, URL:', qrUrl);
       const qrPath = getAccountQrPath(fileName);
       
-      // Update client with QR code path and filename
+      // Update client with QR code path, filename, and Firebase Storage URL
       console.log('Updating Firestore with QR path:', qrPath);
       const clientRef = doc(db, 'clients', clientId);
       await updateDoc(clientRef, {
-        qrPath: qrPath, // Full path for backward compatibility
+        qrPath: qrPath, // Firebase Storage path (e.g., 'qr-codes/filename.png')
         qrFileName: fileName, // Just the filename for PDF generation
+        qrUrl: qrUrl, // Full Firebase Storage download URL
         updatedAt: new Date(),
       });
       
       setQrImageBase64(null);
       setQrImageFileName(null);
       console.log('Upload complete!');
-      Alert.alert('Success', 'QR code uploaded to GitHub successfully!');
+      Alert.alert('Success', 'QR code uploaded to Firebase Storage successfully!');
     } catch (error) {
       console.error('Error uploading QR code:', error);
       console.error('Error stack:', error.stack);
@@ -789,7 +775,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
                     disabled={uploadingQr}
                   >
                     <Text style={styles.uploadButtonText}>
-                      {uploadingQr ? 'Uploading to GitHub...' : 'Upload to GitHub'}
+                      {uploadingQr ? 'Uploading to Firebase Storage...' : 'Upload to Firebase Storage'}
                     </Text>
                   </TouchableOpacity>
 

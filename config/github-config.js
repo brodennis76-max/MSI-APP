@@ -2,19 +2,28 @@
  * GitHub Configuration
  * 
  * IMPORTANT: Do not commit your GitHub token to version control!
- * Add this file to .gitignore or store the token in a secure location.
  * 
- * To get a GitHub Personal Access Token:
- * 1. Go to GitHub Settings > Developer settings > Personal access tokens > Tokens (classic)
- * 2. Generate a new token with 'repo' permissions
- * 3. Copy the token and set it below
+ * SETUP INSTRUCTIONS:
+ * 
+ * Step 1: Get a GitHub Personal Access Token
+ *   1. Go to: https://github.com/settings/tokens
+ *   2. Click "Generate new token (classic)"
+ *   3. Name it: "MSI App QR Code Upload"
+ *   4. Check the 'repo' permission checkbox
+ *   5. Click "Generate token"
+ *   6. Copy the token (it starts with 'ghp_')
+ * 
+ * Step 2: Set the token below
+ *   Option A: Replace 'YOUR_GITHUB_TOKEN_HERE' with your actual token
+ *   Option B: Create a .env file with: GITHUB_TOKEN=your_token_here
+ * 
+ * See GITHUB_TOKEN_SETUP.md for detailed instructions.
  */
 
 export const GITHUB_CONFIG = {
   // GitHub Personal Access Token with 'repo' permissions
-  // Option 1: Set directly here (NOT recommended for production - use environment variable)
-  // Option 2: Use environment variable GITHUB_TOKEN
-  // IMPORTANT: Replace 'YOUR_GITHUB_TOKEN_HERE' with your actual token
+  // Replace 'YOUR_GITHUB_TOKEN_HERE' with your actual token from GitHub
+  // Or use environment variable: GITHUB_TOKEN=your_token_here
   token: process.env.GITHUB_TOKEN || 'YOUR_GITHUB_TOKEN_HERE',
   
   // GitHub repository information
