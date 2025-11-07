@@ -265,9 +265,7 @@ function createHtmlRenderer(pdf, opts) {
         y += lineHeight; 
       }
       if (!cleaned) {
-        // Empty line - still advance y to maintain spacing
-        checkPage(lineHeight);
-        y += lineHeight;
+        // Skip empty lines to prevent extra spacing
         return;
       }
       const pieces = cleaned.split('\n');
@@ -808,8 +806,10 @@ Counters to number each display with a yellow tag to match posting sheet locatio
       const text = String(body || '').trim();
       if (!text) return;
       sectionHeader(title);
+      // Normalize multiple newlines to single newlines to prevent extra spacing
+      const cleanText = text.replace(/\n{2,}/g, '\n');
       htmlRenderer.setY(y);
-      await htmlRenderer.renderHtmlString(text);
+      await htmlRenderer.renderHtmlString(cleanText);
       y = htmlRenderer.getY();
     };
 
