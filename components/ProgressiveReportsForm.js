@@ -14,6 +14,7 @@ import {
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
 import RichTextEditor from './RichTextEditor';
+import { sanitizeHtmlForFirebase } from '../utils/sanitizeHtmlForFirebase';
 
 const ProgressiveReportsForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
@@ -111,9 +112,12 @@ All posting sheets must be reviewed by the inventory manager before they can be 
       // Combine posting sheets and utility reports
       const combinedText = `${postingSheetsText}\n\nUTILITY REPORTS\n${utilityReportsText}`;
       
+      // Sanitize HTML before saving to Firebase - remove all inline styles and unnecessary attributes
+      const sanitizedProgRep = sanitizeHtmlForFirebase(combinedText);
+      
       // Update the client with progressive reports (user can modify the text in the editor)
       await updateDoc(clientRef, {
-        Prog_Rep: combinedText,
+        Prog_Rep: sanitizedProgRep,
         updatedAt: new Date(),
       });
 

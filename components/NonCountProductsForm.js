@@ -14,6 +14,7 @@ import {
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
 import RichTextEditor from './RichTextEditor';
+import { sanitizeHtmlForFirebase } from '../utils/sanitizeHtmlForFirebase';
 
 const NonCountProductsForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
@@ -59,9 +60,12 @@ const NonCountProductsForm = ({ clientData, onBack, onComplete }) => {
     try {
       const clientRef = doc(db, 'clients', clientData.id);
       
+      // Sanitize HTML before saving to Firebase - remove all inline styles and unnecessary attributes
+      const sanitizedNonCount = sanitizeHtmlForFirebase(nonCountText);
+      
       // Update the client with non-count products
       await updateDoc(clientRef, {
-        noncount: nonCountText,
+        noncount: sanitizedNonCount,
         updatedAt: new Date(),
       });
 

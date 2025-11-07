@@ -16,6 +16,7 @@ import { db } from '../firebase-config';
 import { doc, updateDoc, getDoc, deleteField } from 'firebase/firestore';
 import RichTextEditor from './RichTextEditor';
 import PreInventoryTeamInstructionsForm from './PreInventoryTeamInstructionsForm';
+import { sanitizeHtmlForFirebase } from '../utils/sanitizeHtmlForFirebase';
 
 const AuditsInventoryFlowForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
@@ -120,15 +121,22 @@ Audit trails will be provided as requested based on posting sheet results, withi
         ? `${inventoryFlowText}\n\n${complianceStatement}`
         : inventoryFlowText;
       
+      // Sanitize HTML before saving to Firebase - remove all inline styles and unnecessary attributes
+      const sanitizedAudits = sanitizeHtmlForFirebase(auditsText);
+      const sanitizedInventoryFlow = sanitizeHtmlForFirebase(finalInventoryFlow);
+      const sanitizedSpecialNotes = hasSpecialNotes && specialNotes.trim() 
+        ? sanitizeHtmlForFirebase(specialNotes) 
+        : null;
+      
       // Update the client with audits, inventory flow, and special notes
       const payload = {
-        Audits: auditsText,
-        Inv_Flow: finalInventoryFlow,
+        Audits: sanitizedAudits,
+        Inv_Flow: sanitizedInventoryFlow,
         Has_Special_Notes: !!hasSpecialNotes,
         updatedAt: new Date(),
       };
-      if (hasSpecialNotes && specialNotes.trim()) {
-        payload.Special_Notes = specialNotes.trim();
+      if (sanitizedSpecialNotes) {
+        payload.Special_Notes = sanitizedSpecialNotes;
       } else {
         payload.Special_Notes = deleteField();
       }

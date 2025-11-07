@@ -14,6 +14,7 @@ import {
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
 import RichTextEditor from './RichTextEditor';
+import { sanitizeHtmlForFirebase } from '../utils/sanitizeHtmlForFirebase';
 
 const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
@@ -220,9 +221,12 @@ const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
       };
       const departmentsString = showDepartments ? buildDepartmentsString() : (clientData.Departments || '');
 
+      // Sanitize HTML before saving to Firebase - remove all inline styles and unnecessary attributes
+      const sanitizedInvProc = sanitizeHtmlForFirebase(combinedProcedures);
+      
       // Update the client with inventory procedures
       await updateDoc(clientRef, {
-        Inv_Proc: combinedProcedures,
+        Inv_Proc: sanitizedInvProc,
         Departments: departmentsString,
         updatedAt: new Date(),
       });

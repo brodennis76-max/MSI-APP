@@ -14,6 +14,7 @@ import {
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
 import RichTextEditor from './RichTextEditor';
+import { sanitizeHtmlForFirebase } from '../utils/sanitizeHtmlForFirebase';
 
 const FinalizingCountForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
@@ -116,9 +117,12 @@ Review the following reports with the store manager/DM and determine if 3 more r
     try {
       const clientRef = doc(db, 'clients', clientData.id);
       
+      // Sanitize HTML before saving to Firebase - remove all inline styles and unnecessary attributes
+      const sanitizedFinalize = sanitizeHtmlForFirebase(finalizeText);
+      
       // Update the client with finalizing count data
       await updateDoc(clientRef, {
-        Finalize: finalizeText,
+        Finalize: sanitizedFinalize,
         updatedAt: new Date(),
       });
 

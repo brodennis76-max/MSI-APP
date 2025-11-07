@@ -49,11 +49,11 @@ function sanitizeHtmlSubset(input) {
         node.remove();
         return;
       }
-      [...node.attributes].forEach(attr => {
-        const name = attr.name.toLowerCase();
-        const okImg = tag === 'img' && name === 'src' && /^data:image\//i.test(attr.value);
-        if (!okImg) node.removeAttribute(attr.name);
-      });
+      // Remove ALL attributes (style, class, id, etc.) - keep only the tag
+      // This prevents inline styles from causing extra spacing
+      while (node.attributes.length > 0) {
+        node.removeAttribute(node.attributes[0].name);
+      }
       if (tag === 'img') {
         const src = node.getAttribute('src') || '';
         if (!/^data:image\//i.test(src)) {
@@ -77,6 +77,7 @@ function sanitizeHtmlSubset(input) {
         if (!/^data:image\//i.test(src)) return '';
         return `<img src="${src}" style="max-width:100%; height:auto;">`;
       }
+      // Return tag without any attributes to prevent styling issues
       return `<${t}>`;
     })
     .replace(/<\/(?!b|strong|i|em|u|p|div|ul|ol|li)\w+>/gi, '');

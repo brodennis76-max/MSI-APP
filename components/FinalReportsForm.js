@@ -14,6 +14,7 @@ import {
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
 import RichTextEditor from './RichTextEditor';
+import { sanitizeHtmlForFirebase } from '../utils/sanitizeHtmlForFirebase';
 
 const FinalReportsForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
@@ -59,9 +60,12 @@ const FinalReportsForm = ({ clientData, onBack, onComplete }) => {
     try {
       const clientRef = doc(db, 'clients', clientData.id);
       
+      // Sanitize HTML before saving to Firebase - remove all inline styles and unnecessary attributes
+      const sanitizedFinRep = sanitizeHtmlForFirebase(finRepText);
+      
       // Update the client with final reports
       await updateDoc(clientRef, {
-        Fin_Rep: finRepText,
+        Fin_Rep: sanitizedFinRep,
         updatedAt: new Date(),
       });
 

@@ -14,6 +14,7 @@ import {
 import { db } from '../firebase-config';
 import { doc, updateDoc } from 'firebase/firestore';
 import RichTextEditor from './RichTextEditor';
+import { sanitizeHtmlForFirebase } from '../utils/sanitizeHtmlForFirebase';
 
 const PreInventoryForm = ({ clientData, onBack, onComplete }) => {
   console.log('PreInventoryForm: Received clientData:', clientData);
@@ -338,24 +339,30 @@ ALL LOCATIONS MUST HAVE A DESCRIPTION. BE EXTRA DESCRIPTIVE IN THE CHECKOUT AREA
       // Check if general instructions changed
       const originalGeneralInstructions = clientData.preInventory || '';
       if (formData.generalInstructions !== originalGeneralInstructions) {
-        updateData.preInventory = formData.generalInstructions;
+        // Sanitize HTML before saving to Firebase - remove all inline styles and unnecessary attributes
+        updateData.preInventory = sanitizeHtmlForFirebase(formData.generalInstructions);
       }
 
       // Check if area mapping changed
       const originalAreaMapping = clientData.sections?.[0]?.subsections?.[0]?.content || '';
       if (formData.areaMapping !== originalAreaMapping) {
+        // Sanitize HTML before saving to Firebase
+        const sanitizedGeneral = sanitizeHtmlForFirebase(formData.generalInstructions);
+        const sanitizedAreaMapping = sanitizeHtmlForFirebase(formData.areaMapping || "No area mapping instructions provided.");
+        const sanitizedStorePrep = sanitizeHtmlForFirebase(formData.storePrepInstructions || "No store prep instructions provided.");
+        
         updateData.sections = [
           {
             sectionName: "Pre-Inventory",
-            content: formData.generalInstructions,
+            content: sanitizedGeneral,
             subsections: [
               {
                 sectionName: "Area Mapping",
-                content: formData.areaMapping || "No area mapping instructions provided."
+                content: sanitizedAreaMapping
               },
               {
                 sectionName: "Store Prep Instructions",
-                content: formData.storePrepInstructions || "No store prep instructions provided."
+                content: sanitizedStorePrep
               }
             ]
           }
@@ -366,22 +373,32 @@ ALL LOCATIONS MUST HAVE A DESCRIPTION. BE EXTRA DESCRIPTIVE IN THE CHECKOUT AREA
       const originalStorePrep = clientData.sections?.[0]?.subsections?.[1]?.content || '';
       if (formData.storePrepInstructions !== originalStorePrep) {
         if (!updateData.sections) {
+          // Sanitize HTML before saving to Firebase
+          const sanitizedGeneral = sanitizeHtmlForFirebase(formData.generalInstructions);
+          const sanitizedAreaMapping = sanitizeHtmlForFirebase(formData.areaMapping || "No area mapping instructions provided.");
+          const sanitizedStorePrep = sanitizeHtmlForFirebase(formData.storePrepInstructions || "No store prep instructions provided.");
+          
           updateData.sections = [
             {
               sectionName: "Pre-Inventory",
-              content: formData.generalInstructions,
+              content: sanitizedGeneral,
               subsections: [
                 {
                   sectionName: "Area Mapping",
-                  content: formData.areaMapping || "No area mapping instructions provided."
+                  content: sanitizedAreaMapping
                 },
                 {
                   sectionName: "Store Prep Instructions",
-                  content: formData.storePrepInstructions || "No store prep instructions provided."
+                  content: sanitizedStorePrep
                 }
               ]
             }
           ];
+        } else {
+          // Update existing sections with sanitized store prep
+          if (updateData.sections[0] && updateData.sections[0].subsections) {
+            updateData.sections[0].subsections[1].content = sanitizeHtmlForFirebase(formData.storePrepInstructions || "No store prep instructions provided.");
+          }
         }
       }
 

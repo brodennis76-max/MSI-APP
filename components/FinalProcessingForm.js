@@ -14,6 +14,7 @@ import {
 import { db } from '../firebase-config';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import RichTextEditor from './RichTextEditor';
+import { sanitizeHtmlForFirebase } from '../utils/sanitizeHtmlForFirebase';
 // PDF generation moved to CompletionScreen
 // Removed PDF-related imports
 
@@ -62,10 +63,13 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
       console.log('Starting save to device process...');
       const clientRef = doc(db, 'clients', clientData.id);
 
+      // Sanitize HTML before saving to Firebase - remove all inline styles and unnecessary attributes
+      const sanitizedProcessing = sanitizeHtmlForFirebase(processingText);
+      
       // Update the client with final processing data
       console.log('Updating client data...');
       await updateDoc(clientRef, {
-        Processing: processingText,
+        Processing: sanitizedProcessing,
         updatedAt: new Date(),
       });
 
@@ -100,10 +104,13 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
       console.log('Starting email to client process (PDF removed)...');
       const clientRef = doc(db, 'clients', clientData.id);
 
+      // Sanitize HTML before saving to Firebase - remove all inline styles and unnecessary attributes
+      const sanitizedProcessing = sanitizeHtmlForFirebase(processingText);
+      
       // Update the client with final processing data
       console.log('Updating client data...');
       await updateDoc(clientRef, {
-        Processing: processingText,
+        Processing: sanitizedProcessing,
         updatedAt: new Date(),
       });
 
