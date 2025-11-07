@@ -47,6 +47,12 @@ export async function uploadQrToGitHub(base64Data, fileName, accountId, githubTo
   const content = btoa(String.fromCharCode(...bytes));
 
   try {
+    // Support both "token" and "Bearer" authorization formats
+    // Classic tokens use "token", fine-grained tokens use "Bearer"
+    const authHeader = githubToken.startsWith('ghp_') || githubToken.startsWith('github_pat_')
+      ? `Bearer ${githubToken}`
+      : `token ${githubToken}`;
+
     // Check if file already exists
     let sha = null;
     try {
@@ -55,7 +61,7 @@ export async function uploadQrToGitHub(base64Data, fileName, accountId, githubTo
         {
           method: 'GET',
           headers: {
-            'Authorization': `token ${githubToken}`,
+            'Authorization': authHeader,
             'Accept': 'application/vnd.github.v3+json',
           },
         }
@@ -64,6 +70,10 @@ export async function uploadQrToGitHub(base64Data, fileName, accountId, githubTo
       if (getResponse.ok) {
         const fileData = await getResponse.json();
         sha = fileData.sha; // Need SHA for update
+      } else if (getResponse.status !== 404) {
+        // If it's not a 404, there's an error
+        const errorData = await getResponse.json().catch(() => ({}));
+        console.error('Error checking file existence:', errorData);
       }
     } catch (e) {
       // File doesn't exist, will create new
@@ -76,7 +86,7 @@ export async function uploadQrToGitHub(base64Data, fileName, accountId, githubTo
       {
         method: 'PUT',
         headers: {
-          'Authorization': `token ${githubToken}`,
+          'Authorization': authHeader,
           'Accept': 'application/vnd.github.v3+json',
           'Content-Type': 'application/json',
         },
@@ -90,8 +100,14 @@ export async function uploadQrToGitHub(base64Data, fileName, accountId, githubTo
     );
 
     if (!uploadResponse.ok) {
-      const errorData = await uploadResponse.json();
-      throw new Error(`GitHub API error: ${errorData.message || uploadResponse.statusText}`);
+      const errorData = await uploadResponse.json().catch(() => ({}));
+      const errorMessage = errorData.message || errorData.error || uploadResponse.statusText;
+      console.error('GitHub API error details:', {
+        status: uploadResponse.status,
+        statusText: uploadResponse.statusText,
+        error: errorData
+      });
+      throw new Error(`GitHub API error (${uploadResponse.status}): ${errorMessage}`);
     }
 
     const result = await uploadResponse.json();

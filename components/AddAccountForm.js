@@ -370,7 +370,16 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
         const mimeType = asset.mimeType || 'image/png';
         const base64 = `data:${mimeType};base64,${asset.base64}`;
         // Preserve original filename or extract from URI
-        const fileName = asset.fileName || asset.uri.split('/').pop() || 'qr-code.png';
+        // Ensure filename has .png extension for consistency
+        let fileName = asset.fileName || asset.uri.split('/').pop() || 'qr-code.png';
+        // If filename doesn't have an extension, add .png
+        if (!fileName.includes('.')) {
+          fileName = `${fileName}.png`;
+        }
+        // Ensure it ends with .png (replace any extension with .png)
+        if (!fileName.toLowerCase().endsWith('.png')) {
+          fileName = fileName.replace(/\.[^.]*$/, '') + '.png';
+        }
         setQrImageBase64(base64);
         setQrImageFileName(fileName);
       }
@@ -386,7 +395,13 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
   };
 
   const uploadQrCode = async (clientId) => {
-    if (!qrImageBase64 || !qrImageFileName || !clientId) return;
+    if (!qrImageBase64 || !clientId) {
+      Alert.alert('Error', 'Please select a QR code image first.');
+      return;
+    }
+    
+    // Ensure filename is set - use a default if not provided
+    const fileName = qrImageFileName || `qr-code-${clientId}.png`;
     
     setUploadingQr(true);
     try {
@@ -402,14 +417,14 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
         return;
       }
 
-      const qrUrl = await uploadQrToGitHub(qrImageBase64, qrImageFileName, clientId, githubToken);
-      const qrPath = getAccountQrPath(qrImageFileName);
+      const qrUrl = await uploadQrToGitHub(qrImageBase64, fileName, clientId, githubToken);
+      const qrPath = getAccountQrPath(fileName);
       
       // Update client with QR code path and filename
       const clientRef = doc(db, 'clients', clientId);
       await updateDoc(clientRef, {
         qrPath: qrPath, // Full path for backward compatibility
-        qrFileName: qrImageFileName, // Just the filename for PDF generation
+        qrFileName: fileName, // Just the filename for PDF generation
         updatedAt: new Date(),
       });
       
