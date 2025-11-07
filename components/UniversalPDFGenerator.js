@@ -1,13 +1,16 @@
-// UniversalPDFGenerator.js
+// UniversalPDFGenerator.js - FIXED VERSION
 
 import { Platform } from 'react-native';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase-config';
 
-// Page metrics in points
-const MARGIN_PT = 72;
+// FIXED: Page metrics in points - 0.75 inch borders
+const MARGIN_PT = 54; // 72 * 0.75 = 0.75 inch
 const PAGE_WIDTH_PT = 612;
 const PAGE_HEIGHT_PT = 792;
+
+// FIXED: Line height for 12pt font with 1.25 spacing
+const LINE_HEIGHT = 15; // 12 * 1.25 = 15pt
 
 // DOM guards
 const HAS_DOM = typeof window !== 'undefined' && typeof document !== 'undefined';
@@ -137,7 +140,7 @@ function createHtmlRenderer(pdf, opts) {
     pageWidth = PAGE_WIDTH_PT,
     pageHeight = PAGE_HEIGHT_PT,
     margin = MARGIN_PT,
-    lineHeight = 14,
+    lineHeight = LINE_HEIGHT, // FIXED: Use correct line height
     bulletIndent = 14,
     listIndent = 18,
     underlineOffset = 2,
@@ -215,7 +218,10 @@ function createHtmlRenderer(pdf, opts) {
     lines.forEach((raw, idx) => {
       let cleaned = raw.replace(/(\S)•/g, '$1\n•');
       cleaned = cleaned.replace(/[ \t]+/g, ' ').trim();
-      if (idx > 0) { checkPage(lineHeight); y += lineHeight; }
+      if (idx > 0) { 
+        checkPage(lineHeight); 
+        y += lineHeight; 
+      }
       if (!cleaned) {
         // Empty line - still advance y to maintain spacing
         checkPage(lineHeight);
@@ -387,7 +393,7 @@ function extractPreInventoryBundle(sections) {
   return empty;
 }
 
-// ---------- Native HTML builder (with 2-line spacing) ----------
+// ---------- Native HTML builder (with corrected spacing) ----------
 
 function buildHtml(client, assets) {
   const safeName = client.name || client.id || 'Unknown Client';
@@ -410,13 +416,14 @@ function buildHtml(client, assets) {
   const qrDataUrl = assets?.qrDataUrl && /^data:image\//i.test(assets.qrDataUrl) ? assets.qrDataUrl : '';
   const rich = (h) => sanitizeHtmlSubset(h);
 
-  const sectionStyle = 'margin-top:28pt;';
-  const subsectionStyle = 'margin-top:28pt;';
+  // FIXED: Reduced spacing for better control
+  const sectionStyle = 'margin-top:20pt;';
+  const subsectionStyle = 'margin-top:15pt;';
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Account Instructions - ${escapeHtml(safeName)}</title>
   <style>
-    @page { size: letter; margin: 0.5in; }
-    body { font-family: Helvetica, Arial, sans-serif; color: #000; line-height: 1.4; }
+    @page { size: letter; margin: 0.75in; }
+    body { font-family: Helvetica, Arial, sans-serif; color: #000; line-height: 1.25; font-size: 12pt; }
     .header { text-align: center; margin-bottom: 24pt; }
     .header h1 { font-size: 20px; margin: 0 0 8px 0; }
     .header h2 { font-size: 18px; margin: 0 0 8px 0; }
@@ -430,7 +437,7 @@ function buildHtml(client, assets) {
     .subsection-title { font-size: 14px; font-weight: bold; margin: 0 0 14px 0; }
     .info { font-size: 12px; }
     .notice { border: 1px solid #000; padding: 8px; margin-top: 8px; font-size: 12px; }
-    .rich p, .rich div { margin: 0 0 7px 0; }
+    .rich p, .rich div { margin: 0 0 14px 0; }
     .rich ul, .rich ol { margin: 4px 0 8px 1.2em; padding: 0; }
     .rich li { margin: 2px 0; }
   </style></head><body>
@@ -488,10 +495,18 @@ export async function generateAccountInstructionsPDF(options) {
     const { default: jsPDF } = await import('jspdf');
     const pdf = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
     let y = MARGIN_PT;
-    const LINE_HEIGHT = 14;
+    
+    // FIXED: Use the corrected line height constant
     const checkPageBreak = (advance) => { if (y + advance > PAGE_HEIGHT_PT - MARGIN_PT) { pdf.addPage(); y = MARGIN_PT; } };
 
-    const htmlRenderer = createHtmlRenderer(pdf, { pageWidth: PAGE_WIDTH_PT, pageHeight: PAGE_HEIGHT_PT, margin: MARGIN_PT, lineHeight: LINE_HEIGHT, baseFontSize: 12 });
+    // FIXED: Pass correct spacing parameters to renderer
+    const htmlRenderer = createHtmlRenderer(pdf, { 
+      pageWidth: PAGE_WIDTH_PT, 
+      pageHeight: PAGE_HEIGHT_PT, 
+      margin: MARGIN_PT, 
+      lineHeight: LINE_HEIGHT, // Now 15pt instead of 14pt
+      baseFontSize: 12 
+    });
 
     // Images
     if (logoDataUrl) {
@@ -526,25 +541,28 @@ export async function generateAccountInstructionsPDF(options) {
 
     const contentWidth = PAGE_WIDTH_PT - (2 * MARGIN_PT);
 
-    // === UNIFORM 2-LINE SPACING FOR ALL HEADINGS ===
+    // === FIXED: PROPER HEADER SPACING ===
+    
+    // h1 headers - DOUBLE space before (2 * LINE_HEIGHT)
     const sectionHeader = (title) => {
-      y += LINE_HEIGHT * 2;
+      y += LINE_HEIGHT * 2; // Double space before h1
       checkPageBreak(LINE_HEIGHT);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
       pdf.text(title, MARGIN_PT, y);
-      y += LINE_HEIGHT; // Advance to next line for content
+      y += LINE_HEIGHT; // Only single advance after
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
     };
 
+    // h2/h3 headers - SINGLE space before (1 * LINE_HEIGHT)
     const subSectionHeader = (title) => {
-      y += LINE_HEIGHT * 2;
+      y += LINE_HEIGHT; // Single space before h2/h3
       checkPageBreak(LINE_HEIGHT);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
       pdf.text(title, MARGIN_PT, y);
-      y += LINE_HEIGHT; // Advance to next line for content
+      y += LINE_HEIGHT; // Only single advance after
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
     };
