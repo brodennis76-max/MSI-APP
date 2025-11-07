@@ -31,6 +31,10 @@ const RAW_BASE = `https://raw.githubusercontent.com/${ORG}/${REPO}/${BRANCH_TAG}
 
 function sanitizeHtmlSubset(input) {
   const html = String(input || '');
+  // If the input doesn't contain any HTML tags, return it as-is to preserve all characters
+  if (!/<[^>]+>/.test(html)) {
+    return html;
+  }
   if (HAS_DOM) {
     const root = document.createElement('div');
     root.innerHTML = html;
@@ -40,6 +44,7 @@ function sanitizeHtmlSubset(input) {
     nodes.forEach(node => {
       const tag = node.tagName.toLowerCase();
       if (!ALLOWED_TAGS.includes(tag)) {
+        // Preserve text content when removing disallowed tags
         while (node.firstChild) node.parentNode.insertBefore(node.firstChild, node);
         node.remove();
         return;
@@ -246,8 +251,14 @@ function createHtmlRenderer(pdf, opts) {
     if (!text) return;
     const lines = text.replace(/\r\n/g, '\n').split('\n');
     lines.forEach((raw, idx) => {
-      let cleaned = raw.replace(/(\S)•/g, '$1\n•');
-      cleaned = cleaned.replace(/[ \	]+/g, ' ').trim();
+      // Only normalize bullet characters if they exist in the text
+      // This prevents issues with plain text that doesn't contain bullets
+      let cleaned = raw;
+      if (raw.includes('•') || raw.includes('\u2022')) {
+        cleaned = raw.replace(/(\S)•/g, '$1\n•').replace(/(\S)\u2022/g, '$1\n\u2022');
+      }
+      // Normalize whitespace but preserve all characters
+      cleaned = cleaned.replace(/[ \t]+/g, ' ').trim();
       if (idx > 0) { 
         checkPage(lineHeight); 
         y += lineHeight; 
@@ -686,27 +697,35 @@ Counters to number each display with a yellow tag to match posting sheet locatio
       sectionHeader('Pre-Inventory');
 
       if (combinedPre) {
-        htmlRenderer.setY(y);
-        await htmlRenderer.renderHtmlString(combinedPre);
-        y = htmlRenderer.getY();
+        const text = String(combinedPre).trim();
+        if (text) {
+          htmlRenderer.setY(y);
+          await htmlRenderer.renderHtmlString(text);
+          y = htmlRenderer.getY();
+        }
       }
 
-      if (String(areaMappingRaw).trim()) {
+      const areaMappingText = String(areaMappingRaw || '').trim();
+      if (areaMappingText) {
         subSectionHeader('Area Mapping');
         htmlRenderer.setY(y);
-        await htmlRenderer.renderHtmlString(String(areaMappingRaw));
+        await htmlRenderer.renderHtmlString(areaMappingText);
         y = htmlRenderer.getY();
       } else {
         subSectionHeader('Area Mapping');
-        htmlRenderer.setY(y);
-        await htmlRenderer.renderHtmlString(storeMappingText);
-        y = htmlRenderer.getY();
+        const defaultText = String(storeMappingText).trim();
+        if (defaultText) {
+          htmlRenderer.setY(y);
+          await htmlRenderer.renderHtmlString(defaultText);
+          y = htmlRenderer.getY();
+        }
       }
 
-      if (String(storePrepRaw).trim()) {
+      const storePrepText = String(storePrepRaw || '').trim();
+      if (storePrepText) {
         subSectionHeader('Store Prep/Instructions');
         htmlRenderer.setY(y);
-        await htmlRenderer.renderHtmlString(String(storePrepRaw));
+        await htmlRenderer.renderHtmlString(storePrepText);
         y = htmlRenderer.getY();
       }
     }
@@ -736,15 +755,47 @@ Counters to number each display with a yellow tag to match posting sheet locatio
 
     if (progRep || finalize || finRep || processing) {
       sectionHeader('REPORTS');
-      if (progRep) { subSectionHeader('Progressives:'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(progRep); y = htmlRenderer.getY(); }
-      if (finalize) { subSectionHeader('Finalizing the Count:'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(finalize); y = htmlRenderer.getY(); }
-      if (finRep) { subSectionHeader('Final Reports:'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(finRep); y = htmlRenderer.getY(); }
+      
+      if (progRep) {
+        subSectionHeader('Progressives:');
+        const text = String(progRep).trim();
+        if (text) {
+          htmlRenderer.setY(y);
+          await htmlRenderer.renderHtmlString(text);
+          y = htmlRenderer.getY();
+        }
+      }
+      
+      if (finalize) {
+        subSectionHeader('Finalizing the Count:');
+        const text = String(finalize).trim();
+        if (text) {
+          htmlRenderer.setY(y);
+          await htmlRenderer.renderHtmlString(text);
+          y = htmlRenderer.getY();
+        }
+      }
+      
+      if (finRep) {
+        subSectionHeader('Final Reports:');
+        const text = String(finRep).trim();
+        if (text) {
+          htmlRenderer.setY(y);
+          await htmlRenderer.renderHtmlString(text);
+          y = htmlRenderer.getY();
+        }
+      }
+      
       if (processing) {
         subSectionHeader('Final Processing:');
-        const cleanProcessing = processing.replace(/^MSI Inventory Reports/gi, '\nMSI Inventory Reports');
-        htmlRenderer.setY(y);
-        await htmlRenderer.renderHtmlString(cleanProcessing);
-        y = htmlRenderer.getY();
+        const text = String(processing).trim();
+        if (text) {
+          // Add newline before "MSI Inventory Reports" if it starts the text
+          const cleanProcessing = text.replace(/^MSI Inventory Reports/gi, '\nMSI Inventory Reports');
+          htmlRenderer.setY(y);
+          await htmlRenderer.renderHtmlString(cleanProcessing);
+          y = htmlRenderer.getY();
+        }
       }
     }
 
