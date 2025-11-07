@@ -395,20 +395,31 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
   };
 
   const uploadQrCode = async (clientId) => {
+    // Immediate feedback to confirm button was pressed
+    Alert.alert('Upload Started', 'Beginning upload process...');
+    
+    console.log('Upload QR Code button pressed');
+    console.log('qrImageBase64:', qrImageBase64 ? 'exists' : 'missing');
+    console.log('clientId:', clientId || 'missing');
+    
     if (!qrImageBase64 || !clientId) {
+      console.log('Validation failed - missing image or clientId');
       Alert.alert('Error', 'Please select a QR code image first.');
       return;
     }
     
     // Ensure filename is set - use a default if not provided
     const fileName = qrImageFileName || `qr-code-${clientId}.png`;
+    console.log('Using filename:', fileName);
     
     setUploadingQr(true);
     try {
       // Get GitHub token from config
       const githubToken = getGitHubToken();
+      console.log('GitHub token:', githubToken ? 'exists' : 'missing');
       
       if (!githubToken) {
+        console.log('GitHub token is missing');
         Alert.alert(
           'GitHub Token Required',
           'Please set your GitHub token in config/github-config.js to upload QR codes to GitHub.'
@@ -417,10 +428,13 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
         return;
       }
 
+      console.log('Starting upload to GitHub...');
       const qrUrl = await uploadQrToGitHub(qrImageBase64, fileName, clientId, githubToken);
+      console.log('Upload successful, URL:', qrUrl);
       const qrPath = getAccountQrPath(fileName);
       
       // Update client with QR code path and filename
+      console.log('Updating Firestore with QR path:', qrPath);
       const clientRef = doc(db, 'clients', clientId);
       await updateDoc(clientRef, {
         qrPath: qrPath, // Full path for backward compatibility
@@ -430,9 +444,11 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
       
       setQrImageBase64(null);
       setQrImageFileName(null);
+      console.log('Upload complete!');
       Alert.alert('Success', 'QR code uploaded to GitHub successfully!');
     } catch (error) {
       console.error('Error uploading QR code:', error);
+      console.error('Error stack:', error.stack);
       Alert.alert('Error', `Failed to upload QR code: ${error.message}`);
     } finally {
       setUploadingQr(false);
@@ -704,7 +720,6 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
                 </>
               )}
               <Text style={styles.label}>Store Type</Text>
-              <Text style={{color: 'red', fontSize: 16, marginBottom: 10}}>DEBUG: Store Type dropdown should appear here</Text>
               <View style={styles.pickerContainer}>
                 <Picker
                   selectedValue={clientAction === 'new' ? newClientData.storeType : formData.storeType}
@@ -719,6 +734,62 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
                   <Picker.Item label="Other" value="Other" />
                 </Picker>
               </View>
+
+              <Text style={styles.label}>Scanner QR Code</Text>
+              <Text style={styles.helperText}>
+                {clientAction === 'edit' && selectedClient?.qrPath 
+                  ? `Using account-specific QR code: ${selectedClient.qrPath}`
+                  : 'Using default QR code (qr-codes/1450 Scanner Program.png)'}
+              </Text>
+              
+              {qrImageBase64 && (
+                <View style={styles.qrPreviewContainer}>
+                  <Image source={{ uri: qrImageBase64 }} style={styles.qrPreview} />
+                  <TouchableOpacity style={styles.removeButton} onPress={removeQrImage}>
+                    <Text style={styles.removeButtonText}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              
+              <TouchableOpacity 
+                style={styles.uploadButton} 
+                onPress={pickQrImage}
+                disabled={uploadingQr}
+              >
+                <Text style={styles.uploadButtonText}>
+                  {qrImageBase64 ? 'Change QR Code Image' : 'Select QR Code Image'}
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[
+                  styles.uploadButton, 
+                  styles.uploadToGitHubButton, 
+                  (!qrImageBase64 || uploadingQr) && styles.disabled
+                ]} 
+                onPress={async () => {
+                  console.log('Upload button pressed - starting upload');
+                  Alert.alert('Test', 'Button was pressed!');
+                  try {
+                    const clientId = clientAction === 'new' 
+                      ? newClientData.name.replace(/[^a-zA-Z0-9]/g, '_')
+                      : selectedClientId;
+                    if (clientId) {
+                      await uploadQrCode(clientId);
+                    } else {
+                      Alert.alert('Error', 'Please save the client first before uploading QR code.');
+                    }
+                  } catch (error) {
+                    console.error('Error in upload button handler:', error);
+                    Alert.alert('Error', `Upload failed: ${error.message}`);
+                  }
+                }}
+                disabled={!qrImageBase64 || uploadingQr}
+              >
+                <Text style={styles.uploadButtonText}>
+                  {uploadingQr ? 'Uploading to GitHub...' : 'Upload to GitHub'}
+                </Text>
+              </TouchableOpacity>
 
               <Text style={styles.label}>Inventory Type (Select all that apply)</Text>
               <View style={styles.inventoryTypeContainer}>
@@ -830,53 +901,6 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
                 numberOfLines={4}
                 returnKeyType="done"
               />
-
-              <Text style={styles.label}>Scanner QR Code</Text>
-              <Text style={styles.helperText}>
-                {clientAction === 'edit' && selectedClient?.qrPath 
-                  ? `Using account-specific QR code: ${selectedClient.qrPath}`
-                  : 'Using default QR code (qr-codes/1450 Scanner Program.png)'}
-              </Text>
-              
-              {qrImageBase64 && (
-                <View style={styles.qrPreviewContainer}>
-                  <Image source={{ uri: qrImageBase64 }} style={styles.qrPreview} />
-                  <TouchableOpacity style={styles.removeButton} onPress={removeQrImage}>
-                    <Text style={styles.removeButtonText}>Remove</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-              
-              <TouchableOpacity 
-                style={styles.uploadButton} 
-                onPress={pickQrImage}
-                disabled={uploadingQr}
-              >
-                <Text style={styles.uploadButtonText}>
-                  {qrImageBase64 ? 'Change QR Code Image' : 'Select QR Code Image'}
-                </Text>
-              </TouchableOpacity>
-              
-              {qrImageBase64 && (
-                <TouchableOpacity 
-                  style={[styles.uploadButton, styles.uploadToGitHubButton, uploadingQr && styles.disabled]} 
-                  onPress={() => {
-                    const clientId = clientAction === 'new' 
-                      ? newClientData.name.replace(/[^a-zA-Z0-9]/g, '_')
-                      : selectedClientId;
-                    if (clientId) {
-                      uploadQrCode(clientId);
-                    } else {
-                      Alert.alert('Error', 'Please save the client first before uploading QR code.');
-                    }
-                  }}
-                  disabled={uploadingQr}
-                >
-                  <Text style={styles.uploadButtonText}>
-                    {uploadingQr ? 'Uploading to GitHub...' : 'Upload to GitHub'}
-                  </Text>
-                </TouchableOpacity>
-              )}
             </View>
           </>
         )}

@@ -112,20 +112,31 @@ const EditAccountFlow = ({ onBack }) => {
   };
 
   const uploadQrCode = async () => {
+    // Immediate feedback to confirm button was pressed
+    Alert.alert('Upload Started', 'Beginning upload process...');
+    
+    console.log('Upload QR Code button pressed');
+    console.log('qrImageBase64:', qrImageBase64 ? 'exists' : 'missing');
+    console.log('activeClient:', activeClient ? activeClient.id : 'missing');
+    
     if (!qrImageBase64 || !activeClient) {
+      console.log('Validation failed - missing image or client');
       Alert.alert('Error', 'Please select a QR code image first.');
       return;
     }
     
     // Ensure filename is set - use a default if not provided
     const fileName = qrImageFileName || `qr-code-${activeClient.id}.png`;
+    console.log('Using filename:', fileName);
     
     setUploadingQr(true);
     try {
       // Get GitHub token from config
       const githubToken = getGitHubToken();
+      console.log('GitHub token:', githubToken ? 'exists' : 'missing');
       
       if (!githubToken) {
+        console.log('GitHub token is missing');
         Alert.alert(
           'GitHub Token Required',
           'Please set your GitHub token in config/github-config.js to upload QR codes to GitHub.'
@@ -134,10 +145,13 @@ const EditAccountFlow = ({ onBack }) => {
         return;
       }
 
+      console.log('Starting upload to GitHub...');
       const qrUrl = await uploadQrToGitHub(qrImageBase64, fileName, activeClient.id, githubToken);
+      console.log('Upload successful, URL:', qrUrl);
       const qrPath = getAccountQrPath(fileName);
       
       // Update client with QR code path and filename
+      console.log('Updating Firestore with QR path:', qrPath);
       const clientRef = doc(db, 'clients', activeClient.id);
       await updateDoc(clientRef, {
         qrPath: qrPath, // Full path for backward compatibility
@@ -148,9 +162,11 @@ const EditAccountFlow = ({ onBack }) => {
       setActiveClient({ ...activeClient, qrPath: qrPath, qrFileName: fileName });
       setQrImageBase64(null);
       setQrImageFileName(null);
+      console.log('Upload complete!');
       Alert.alert('Success', 'QR code uploaded to GitHub successfully!');
     } catch (error) {
       console.error('Error uploading QR code:', error);
+      console.error('Error stack:', error.stack);
       Alert.alert('Error', `Failed to upload QR code: ${error.message}`);
     } finally {
       setUploadingQr(false);
@@ -362,17 +378,28 @@ const EditAccountFlow = ({ onBack }) => {
                 </Text>
               </TouchableOpacity>
               
-              {qrImageBase64 && (
-                <TouchableOpacity 
-                  style={[styles.uploadButton, styles.uploadToGitHubButton, uploadingQr && styles.disabled]} 
-                  onPress={uploadQrCode}
-                  disabled={uploadingQr}
-                >
-                  <Text style={styles.uploadButtonText}>
-                    {uploadingQr ? 'Uploading to GitHub...' : 'Upload to GitHub'}
-                  </Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity 
+                style={[
+                  styles.uploadButton, 
+                  styles.uploadToGitHubButton, 
+                  (!qrImageBase64 || uploadingQr) && styles.disabled
+                ]} 
+                onPress={async () => {
+                  console.log('Upload button pressed - starting upload');
+                  Alert.alert('Test', 'Button was pressed!');
+                  try {
+                    await uploadQrCode();
+                  } catch (error) {
+                    console.error('Error in upload button handler:', error);
+                    Alert.alert('Error', `Upload failed: ${error.message}`);
+                  }
+                }}
+                disabled={!qrImageBase64 || uploadingQr}
+              >
+                <Text style={styles.uploadButtonText}>
+                  {uploadingQr ? 'Uploading to GitHub...' : 'Upload to GitHub'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
 
