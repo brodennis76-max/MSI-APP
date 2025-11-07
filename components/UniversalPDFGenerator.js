@@ -118,27 +118,17 @@ function htmlToPlainInline(html) {
   if (!html) return '';
   let s = String(html);
   s = s
-    .replace(/<\s*br\s*\/?\s*>/gi, '\
-')
-    .replace(/<\s*\/p\s*>/gi, '\
-')
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/<\s*\/p\s*>/gi, '\n')
     .replace(/<\s*p[^>]*>/gi, '')
-    .replace(/<\s*\/div\s*>/gi, '\
-')
+    .replace(/<\s*\/div\s*>/gi, '\n')
     .replace(/<\s*div[^>]*>/gi, '')
-    .replace(/<\s*li[^>]*>/gi, '\u2022 ')
-    .replace(/<\s*\/li\s*>/gi, '\
-')
-    .replace(/<\s*\/?(ul|ol)[^>]*>/gi, '\
-');
+    .replace(/<\s*li[^>]*>/gi, '• ')
+    .replace(/<\s*\/li\s*>/gi, '\n')
+    .replace(/<\s*\/?(ul|ol)[^>]*>/gi, '\n');
   s = s.replace(/<[^>]+>/g, '');
-  s = s.replace(/\
-/g, '\
-')
-       .replace(/\
-{3,}/g, '\
-\
-')
+  s = s.replace(/\r\n/g, '\n')
+       .replace(/\n{3,}/g, '\n\n')
        .replace(/[ \	]+/g, ' ')
        .replace(/^\s+|\s+$/gm, '');
   return s.trim();
@@ -225,13 +215,9 @@ function createHtmlRenderer(pdf, opts) {
 
   const drawWrappedText = (ctx, text, indent) => {
     if (!text) return;
-    const lines = text.replace(/\
-/g, '\
-').split('\
-');
+    const lines = text.replace(/\r\n/g, '\n').split('\n');
     lines.forEach((raw, idx) => {
-      let cleaned = raw.replace(/(\S)\u2022/g, '$1\
-\u2022');
+      let cleaned = raw.replace(/(\S)•/g, '$1\n•');
       cleaned = cleaned.replace(/[ \	]+/g, ' ').trim();
       if (idx > 0) { 
         checkPage(lineHeight); 
@@ -243,8 +229,7 @@ function createHtmlRenderer(pdf, opts) {
         y += lineHeight;
         return;
       }
-      const pieces = cleaned.split('\
-');
+      const pieces = cleaned.split('\n');
       pieces.forEach((piece, pi) => {
         if (pi > 0) { checkPage(lineHeight); y += lineHeight; }
         const wrapped = wrapMeasureLines(ctx, piece, indent);
@@ -360,8 +345,7 @@ function createHtmlRenderer(pdf, opts) {
     setY: v => { y = v; },
     async renderHtmlString(html, indentPx = 0) {
       if (!HAS_DOM) return;
-      const normalized = String(html).replace(/(\S)\u2022/g, '$1\
-\u2022');
+      const normalized = String(html).replace(/(\S)•/g, '$1\n•');
       const clean = sanitizeHtmlSubset(normalized);
       const container = document.createElement('div');
       container.innerHTML = clean;
@@ -628,33 +612,32 @@ export async function generateAccountInstructionsPDF(options) {
     const { generalText, areaMappingRaw, storePrepRaw } = extractPreInventoryBundle(client.sections);
     const alrIntro = client.ALR ? `\u2022 ALR disk is ${client.ALR}.` : '';
 
-    const storeMappingText = `STANDARD STORE MAPPING APPLIES.\
-\
-Map as Follows:\
-DO NOT ADD ADDITIONAL AREA NUMBERS\
-\
-1. 1#21, 1#61 gondolas. The last two digits of each number identify left or right side of gondola (from front of store). For example 1021 would be first right side of the gondola going right to left in the store. The left side of the gondola would be 1061. The next gondola right side would be 1121, then 1161 right side.\
-2. Front end caps are 3801 (sub location 01, 02 etc. for each end cap)\
-3. Back end caps are 3901 (sub location 01, 02 etc. for each end cap)\
-4. Front wall 4001.\
-5. Left wall 4101.\
-6. Rear wall 4201.\
-7. Right wall 4301.\
-8. Check stand. Each checkstand will have it's own location.\
-9. Displays 6001, 6101, 6201, etc.\
-10. Office 7001\
-11. Backroom use 9000 series\
-\
-NOTE: Stores are to be counted in 4' sections or by door.\
-Use the map from the prior.\
-In all areas: Location 01 will be J-hooks, 02 will be floor displays, and 03 will be tops.\
-\
-* All locations must have a description. Utilize the location description utility as needed.\
-\
+    const storeMappingText = `STANDARD STORE MAPPING APPLIES.
+
+Map as Follows:
+DO NOT ADD ADDITIONAL AREA NUMBERS
+
+1. 1#21, 1#61 gondolas. The last two digits of each number identify left or right side of gondola (from front of store). For example 1021 would be first right side of the gondola going right to left in the store. The left side of the gondola would be 1061. The next gondola right side would be 1121, then 1161 right side.
+2. Front end caps are 3801 (sub location 01, 02 etc. for each end cap)
+3. Back end caps are 3901 (sub location 01, 02 etc. for each end cap)
+4. Front wall 4001.
+5. Left wall 4101.
+6. Rear wall 4201.
+7. Right wall 4301.
+8. Check stand. Each checkstand will have it's own location.
+9. Displays 6001, 6101, 6201, etc.
+10. Office 7001
+11. Backroom use 9000 series
+
+NOTE: Stores are to be counted in 4' sections or by door.
+Use the map from the prior.
+In all areas: Location 01 will be J-hooks, 02 will be floor displays, and 03 will be tops.
+
+* All locations must have a description. Utilize the location description utility as needed.
+
 Counters to number each display with a yellow tag to match posting sheet locations.`;
 
-    const combinedPre = [alrIntro, String(generalText || client.preInventory || '').trim()].filter(Boolean).join('\
-');
+    const combinedPre = [alrIntro, String(generalText || client.preInventory || '').trim()].filter(Boolean).join('\n');
 
     if (combinedPre || areaMappingRaw || storePrepRaw || true) {
       sectionHeader('Pre-Inventory');
@@ -715,8 +698,7 @@ Counters to number each display with a yellow tag to match posting sheet locatio
       if (finRep) { subSectionHeader('Final Reports:'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(finRep); y = htmlRenderer.getY(); }
       if (processing) {
         subSectionHeader('Final Processing:');
-        const cleanProcessing = processing.replace(/^MSI Inventory Reports/gi, '\
-MSI Inventory Reports');
+        const cleanProcessing = processing.replace(/^MSI Inventory Reports/gi, '\nMSI Inventory Reports');
         htmlRenderer.setY(y);
         await htmlRenderer.renderHtmlString(cleanProcessing);
         y = htmlRenderer.getY();
