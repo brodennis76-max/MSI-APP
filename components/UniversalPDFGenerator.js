@@ -650,9 +650,18 @@ export async function generateAccountInstructionsPDF(options) {
     console.log('📱 Scan account detected - loading QR code for:', client.name || client.id);
     console.log('📋 Client QR code fields:', {
       qrFileName: client.qrFileName || '(not set)',
+      qrFileNameType: typeof client.qrFileName,
+      qrFileNameValue: JSON.stringify(client.qrFileName),
       qrPath: client.qrPath || '(not set)',
       qrUrl: client.qrUrl ? client.qrUrl.substring(0, 80) + '...' : '(not set)'
     });
+    
+    // Verify storage is initialized
+    if (!storage) {
+      console.error('❌ ERROR: Firebase Storage is not initialized!');
+      throw new Error('Firebase Storage is not initialized');
+    }
+    console.log('✅ Firebase Storage initialized, bucket:', storage._delegate?.bucket || 'unknown');
     
     // Priority 1: Use qrFileName first (most reliable - gets current file from Firebase Storage)
     if (client.qrFileName) {
@@ -667,15 +676,25 @@ export async function generateAccountInstructionsPDF(options) {
       });
       try {
         qrDataUrl = await getFirebaseStorageImageDataUrl(qrPath);
-        console.log('✅ Loaded QR code from Firebase Storage using qrFileName:', qrPath);
+        if (qrDataUrl && /^data:image\//i.test(qrDataUrl)) {
+          console.log('✅ Loaded QR code from Firebase Storage using qrFileName:', qrPath);
+          console.log('   Data URL length:', qrDataUrl.length, 'chars');
+        } else {
+          console.error('❌ ERROR: Loaded data is not a valid image data URL!');
+          qrDataUrl = ''; // Clear invalid data
+        }
       } catch (error) {
-        console.warn('⚠️ Failed to load QR code from Firebase Storage (qrFileName):', {
+        console.error('❌ FAILED to load QR code from Firebase Storage (qrFileName):', {
           path: qrPath,
           errorCode: error.code,
-          errorMessage: error.message
+          errorMessage: error.message,
+          errorName: error.name,
+          errorStack: error.stack?.substring(0, 500)
         });
         // Continue to try other methods
       }
+    } else {
+      console.warn('⚠️ No qrFileName set - will try other methods');
     }
     
     // Priority 2: Use qrUrl as fallback (direct download URL from Firebase Storage)
