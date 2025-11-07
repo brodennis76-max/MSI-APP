@@ -128,23 +128,33 @@ async function getRepoImageDataUrl(relPath, assetBase) {
 async function getFirebaseStorageImageDataUrl(storagePath) {
   try {
     // Create a reference to the file in Firebase Storage
+    // Firebase Storage handles spaces in paths correctly - no need to encode
     const storageRef = ref(storage, storagePath);
     console.log('🔍 Attempting to load from Firebase Storage path:', storagePath);
+    console.log('   Storage bucket:', storage._delegate?.bucket || 'unknown');
     
     // Get the download URL
     const downloadURL = await getDownloadURL(storageRef);
     console.log('✅ Firebase Storage download URL obtained:', downloadURL.substring(0, 80) + '...');
     
     // Fetch the image and convert to data URL
+    console.log('   Fetching image from download URL...');
     const dataUrl = await fetchAsDataURL(downloadURL);
     console.log('✅ Successfully converted to data URL (length:', dataUrl.length, 'chars)');
+    
+    // Validate it's a proper image data URL
+    if (!/^data:image\//i.test(dataUrl)) {
+      throw new Error('Fetched data is not a valid image data URL');
+    }
+    
     return dataUrl;
   } catch (error) {
     console.error('❌ Error fetching from Firebase Storage:', {
       path: storagePath,
       errorCode: error.code,
       errorMessage: error.message,
-      errorName: error.name
+      errorName: error.name,
+      errorStack: error.stack
     });
     throw error;
   }
@@ -598,6 +608,25 @@ export async function generateAccountInstructionsPDF(options) {
     const snap = await getDoc(ref);
     if (!snap.exists()) throw new Error('Client not found');
     client = { id: snap.id, ...snap.data() };
+    console.log('📥 Loaded client data from Firestore:', {
+      id: client.id,
+      name: client.name,
+      inventoryType: client.inventoryType,
+      inventoryTypes: client.inventoryTypes,
+      qrFileName: client.qrFileName || '(not set)',
+      qrPath: client.qrPath || '(not set)',
+      qrUrl: client.qrUrl ? client.qrUrl.substring(0, 50) + '...' : '(not set)'
+    });
+  } else if (client) {
+    console.log('📥 Using provided client data:', {
+      id: client.id,
+      name: client.name,
+      inventoryType: client.inventoryType,
+      inventoryTypes: client.inventoryTypes,
+      qrFileName: client.qrFileName || '(not set)',
+      qrPath: client.qrPath || '(not set)',
+      qrUrl: client.qrUrl ? client.qrUrl.substring(0, 50) + '...' : '(not set)'
+    });
   }
   if (!client) throw new Error('Missing client data');
 
@@ -619,6 +648,11 @@ export async function generateAccountInstructionsPDF(options) {
   
   if (isScanAccount) {
     console.log('📱 Scan account detected - loading QR code for:', client.name || client.id);
+    console.log('📋 Client QR code fields:', {
+      qrFileName: client.qrFileName || '(not set)',
+      qrPath: client.qrPath || '(not set)',
+      qrUrl: client.qrUrl ? client.qrUrl.substring(0, 80) + '...' : '(not set)'
+    });
     
     // Priority 1: Use qrFileName first (most reliable - gets current file from Firebase Storage)
     if (client.qrFileName) {
