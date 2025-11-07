@@ -332,7 +332,7 @@ const RichTextEditor = ({ value, onChange }) => {
           <style>{`
             .rich-editor * {
               font-size: 16px !important;
-              line-height: 1.25 !important;
+              line-height: 1.0 !important;
               font-family: Arial, sans-serif !important;
             }
             .rich-editor h1 {
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
       minHeight: 120,
       maxHeight: 300,
       fontSize: '16px',
-      lineHeight: '1.5',
+      lineHeight: '1.0',
       fontFamily: 'Arial, sans-serif',
       overflowY: 'auto',
       overflowX: 'hidden',

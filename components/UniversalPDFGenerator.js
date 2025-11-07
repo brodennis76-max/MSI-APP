@@ -10,8 +10,8 @@ const MARGIN_PT = 54; // 72 * 0.75 = 0.75 inch
 const PAGE_WIDTH_PT = 612;
 const PAGE_HEIGHT_PT = 792;
 
-// FIXED: Line height for 12pt font with 1.25 spacing
-const LINE_HEIGHT = 15; // 12 * 1.25 = 15pt
+// FIXED: Line height for 12pt font with single spacing (1.0)
+const LINE_HEIGHT = 12; // 12 * 1.0 = 12pt (single spacing)
 
 // DOM guards
 const HAS_DOM = typeof window !== 'undefined' && typeof document !== 'undefined';
@@ -330,8 +330,26 @@ function createHtmlRenderer(pdf, opts) {
     if (tag === 'i' || tag === 'em') ctx.italic = true;
     if (tag === 'u') ctx.underline = true;
 
+    // Handle p and div tags - they are block elements but don't add extra spacing
+    // drawWrappedText handles all spacing internally
+    if (tag === 'p' || tag === 'div') {
+      // Process child nodes - drawWrappedText will handle spacing
+      for (const child of node.childNodes) {
+        if (child.nodeType === 3) {
+          const text = child.nodeValue || '';
+          if (!text.trim()) continue;
+          drawWrappedText(ctx, text, indent);
+        } else if (child.nodeType === 1) {
+          const snap = { ...ctx };
+          await renderNode(child, snap, indent);
+        }
+      }
+      // No extra spacing after p/div - drawWrappedText already advanced y
+      return;
+    }
+
     if (tag === 'ul' || tag === 'ol') {
-      // FINAL FIX: Minimal spacing before list - only check page, don't add extra spacing
+      // Minimal spacing before list - only check page, don't add extra spacing
       checkPage(lineHeight);
       let index = 1;
       const items = Array.from(node.children).filter(el => el.tagName.toLowerCase() === 'li');
@@ -362,7 +380,7 @@ function createHtmlRenderer(pdf, opts) {
         // No extra spacing needed between list items
         index += 1;
       }
-      // FINAL FIX: Minimal spacing after list - only check page, don't add extra spacing
+      // Minimal spacing after list - only check page, don't add extra spacing
       checkPage(lineHeight);
       return;
     }
@@ -387,7 +405,7 @@ function createHtmlRenderer(pdf, opts) {
       await renderNode(child, snap, indent);
     }
 
-    // No spacing after paragraphs/divs - drawWrappedText already advances y after the last line
+    // No spacing after other elements - drawWrappedText already advances y after the last line
   };
 
   return {
@@ -404,7 +422,22 @@ function createHtmlRenderer(pdf, opts) {
       const clean = sanitizeHtmlSubset(normalized);
       const container = document.createElement('div');
       container.innerHTML = clean;
+      let prevWasBlockElement = false;
       for (const n of container.childNodes) {
+        // Skip whitespace-only text nodes
+        if (n.nodeType === 3) {
+          const text = n.nodeValue || '';
+          if (!text.trim()) continue;
+        }
+        // If previous element was a block element (p, div) and current is also block, don't add extra spacing
+        // drawWrappedText already handles spacing
+        if (n.nodeType === 1) {
+          const tag = n.tagName.toLowerCase();
+          if (prevWasBlockElement && (tag === 'p' || tag === 'div')) {
+            // Don't add spacing - drawWrappedText will handle it
+          }
+          prevWasBlockElement = (tag === 'p' || tag === 'div');
+        }
         await renderNode(n, { bold: false, italic: false, underline: false }, indentPx);
       }
       floatRegion = null;
@@ -470,15 +503,15 @@ function buildHtml(client, assets) {
   const qrDataUrl = assets?.qrDataUrl && /^data:image\//i.test(assets.qrDataUrl) ? assets.qrDataUrl : '';
   const rich = (h) => sanitizeHtmlSubset(h);
 
-  // ALL SPACING IS SINGLE LINE_HEIGHT (15pt)
+  // ALL SPACING IS SINGLE LINE_HEIGHT (12pt)
   const sectionStyle = 'margin-top: 0;';
   const subsectionStyle = 'margin-top: 0;';
-  const LINE_HEIGHT_PT = 15; // Single line height in points
+  const LINE_HEIGHT_PT = 12; // Single line height in points (1.0 spacing)
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Account Instructions - ${escapeHtml(safeName)}</title>
   <style>
     @page { size: letter; margin: 0.75in; }
-    body { font-family: Helvetica, Arial, sans-serif; color: #000; line-height: 1.25; font-size: 12pt; }
+    body { font-family: Helvetica, Arial, sans-serif; color: #000; line-height: 1.0; font-size: 12pt; }
     .header { text-align: center; margin-bottom: ${LINE_HEIGHT_PT}pt; }
     .header h1 { font-size: 20px; margin: 0 0 8px 0; }
     .header h2 { font-size: 18px; margin: 0 0 8px 0; }
@@ -576,7 +609,7 @@ export async function generateAccountInstructionsPDF(options) {
       pageWidth: PAGE_WIDTH_PT, 
       pageHeight: PAGE_HEIGHT_PT, 
       margin: MARGIN_PT, 
-      lineHeight: LINE_HEIGHT, // Now 15pt instead of 14pt
+      lineHeight: LINE_HEIGHT, // Single spacing: 12pt (1.0 line height)
       baseFontSize: 12 
     });
 
