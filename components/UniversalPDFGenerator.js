@@ -276,7 +276,10 @@ function createHtmlRenderer(pdf, opts) {
 
   const renderNode = async (node, ctx, indent) => {
     if (node.nodeType === 3) {
-      drawWrappedText(ctx, node.nodeValue, indent);
+      // Skip whitespace-only text nodes to prevent extra spacing
+      const text = node.nodeValue || '';
+      if (!text.trim()) return;
+      drawWrappedText(ctx, text, indent);
       return;
     }
     if (node.nodeType !== 1) return;
@@ -332,7 +335,13 @@ function createHtmlRenderer(pdf, opts) {
       return;
     }
 
+    // Process child nodes, skipping whitespace-only text nodes
     for (const child of node.childNodes) {
+      // Skip whitespace-only text nodes to prevent extra spacing between elements
+      if (child.nodeType === 3) {
+        const text = child.nodeValue || '';
+        if (!text.trim()) continue;
+      }
       const snap = { ...ctx };
       await renderNode(child, snap, indent);
     }
