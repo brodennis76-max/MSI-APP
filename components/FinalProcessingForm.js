@@ -138,9 +138,12 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
       console.log('Saving data to server...');
       const clientRef = doc(db, 'clients', clientData.id);
 
+      // Sanitize HTML before saving to Firebase - remove all inline styles and unnecessary attributes
+      const sanitizedProcessing = sanitizeHtmlForFirebase(processingText);
+      
       // Update the client with final processing data
       await updateDoc(clientRef, {
-        Processing: processingText,
+        Processing: sanitizedProcessing,
         updatedAt: new Date(),
       });
 
@@ -172,10 +175,13 @@ const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
       console.log('🔥 handlePrintReports: PDF generation removed');
       const clientRef = doc(db, 'clients', clientData.id);
 
+      // Sanitize HTML before saving to Firebase - remove all inline styles and unnecessary attributes
+      const sanitizedProcessing = sanitizeHtmlForFirebase(processingText);
+      
       // Update the client with final processing data first
       console.log('🔥 handlePrintReports: Updating client data...');
       await updateDoc(clientRef, {
-        Processing: processingText,
+        Processing: sanitizedProcessing,
         updatedAt: new Date(),
       });
 

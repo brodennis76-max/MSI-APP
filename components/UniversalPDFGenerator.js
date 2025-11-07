@@ -470,34 +470,35 @@ function buildHtml(client, assets) {
   const qrDataUrl = assets?.qrDataUrl && /^data:image\//i.test(assets.qrDataUrl) ? assets.qrDataUrl : '';
   const rich = (h) => sanitizeHtmlSubset(h);
 
-  // FINAL FIX: Remove container spacing to prevent double spacing
-  const sectionStyle = 'margin-top: 0;';          // REMOVED: 30pt to prevent double spacing
-  const subsectionStyle = 'margin-top: 0;';      // REMOVED: 15pt to prevent double spacing
+  // ALL SPACING IS SINGLE LINE_HEIGHT (15pt)
+  const sectionStyle = 'margin-top: 0;';
+  const subsectionStyle = 'margin-top: 0;';
+  const LINE_HEIGHT_PT = 15; // Single line height in points
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Account Instructions - ${escapeHtml(safeName)}</title>
   <style>
     @page { size: letter; margin: 0.75in; }
     body { font-family: Helvetica, Arial, sans-serif; color: #000; line-height: 1.25; font-size: 12pt; }
-    .header { text-align: center; margin-bottom: 30pt; }
+    .header { text-align: center; margin-bottom: ${LINE_HEIGHT_PT}pt; }
     .header h1 { font-size: 20px; margin: 0 0 8px 0; }
     .header h2 { font-size: 18px; margin: 0 0 8px 0; }
     .header h3 { font-size: 14px; font-weight: normal; color: #666; margin: 0 0 12px 0; }
     .row { display: flex; justify-content: center; gap: 16px; align-items: center; margin-bottom: 6px; }
     .logo { width: 180px; height: auto; }
     .qr { width: 120px; height: auto; }
-    /* FINAL FIX: No container spacing - let titles handle spacing */
+    /* ALL SPACING IS SINGLE LINE_HEIGHT */
     .section { ${sectionStyle} }
     .subsection { ${subsectionStyle} }
-    /* FINAL FIX: Title spacing matches web exactly */
-    .section-title { font-size: 16px; font-weight: bold; margin: 30pt 0 15pt 0; }
-    .subsection-title { font-size: 14px; font-weight: bold; margin: 15pt 0 15pt 0; }
+    /* Single LINE_HEIGHT spacing for all titles */
+    .section-title { font-size: 16px; font-weight: bold; margin: ${LINE_HEIGHT_PT}pt 0 ${LINE_HEIGHT_PT}pt 0; }
+    .subsection-title { font-size: 14px; font-weight: bold; margin: ${LINE_HEIGHT_PT}pt 0 ${LINE_HEIGHT_PT}pt 0; }
     .info { font-size: 12px; }
-    .notice { border: 1px solid #000; padding: 12pt; margin-top: 15pt; font-size: 12px; }
-    /* FINAL FIX: Content spacing matches web exactly */
-    .rich p, .rich div { margin: 0 0 15pt 0; }
-    /* FINAL FIX: List containers have minimal spacing to match web */
-    .rich ul, .rich ol { margin: 0 0 0 1.2em; padding: 0; }  // REMOVED top/bottom margins
-    .rich li { margin: 0 0 15pt 0; }
+    .notice { border: 1px solid #000; padding: 12pt; margin-top: ${LINE_HEIGHT_PT}pt; font-size: 12px; }
+    /* Single LINE_HEIGHT spacing for all content */
+    .rich p, .rich div { margin: 0 0 ${LINE_HEIGHT_PT}pt 0; }
+    /* Single LINE_HEIGHT spacing for lists */
+    .rich ul, .rich ol { margin: 0 0 0 1.2em; padding: 0; }
+    .rich li { margin: 0 0 ${LINE_HEIGHT_PT}pt 0; }
   </style></head><body>
   <div class="header"><div class="row">${logoDataUrl ? `<img class="logo" src="${logoDataUrl}" />` : ''}${qrDataUrl ? `<img class="qr" src="${qrDataUrl}" />` : ''}</div>
   <h1>MSI Inventory</h1><h2>Account Instructions:</h2><h3>${escapeHtml(safeName)}</h3></div>
@@ -604,36 +605,36 @@ export async function generateAccountInstructionsPDF(options) {
       pdf.setFontSize(fontSize);
       const textWidth = pdf.getTextWidth(text);
       const x = (PAGE_WIDTH_PT - textWidth) / 2;
-      checkPageBreak(20);
+      checkPageBreak(LINE_HEIGHT);
       pdf.text(text, x, y);
       if (i === 2) pdf.setTextColor(0, 0, 0);
-      y += i === 2 ? 30 : 20;
+      y += LINE_HEIGHT; // Single LINE_HEIGHT for all header lines
     });
 
     const contentWidth = PAGE_WIDTH_PT - (2 * MARGIN_PT);
 
-    // === FIXED: PROPER HEADER SPACING ===
+    // === FIXED: ALL SPACING IS SINGLE LINE_HEIGHT ===
     
-    // h1 headers - DOUBLE space before (2 * LINE_HEIGHT)
+    // h1 headers - SINGLE space before and after
     const sectionHeader = (title) => {
-      y += LINE_HEIGHT * 2; // Double space before h1
+      y += LINE_HEIGHT; // Single space before h1
       checkPageBreak(LINE_HEIGHT);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
       pdf.text(title, MARGIN_PT, y);
-      y += LINE_HEIGHT; // Only single advance after
+      y += LINE_HEIGHT; // Single advance after
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
     };
 
-    // h2/h3 headers - SINGLE space before (1 * LINE_HEIGHT)
+    // h2/h3 headers - SINGLE space before and after
     const subSectionHeader = (title) => {
       y += LINE_HEIGHT; // Single space before h2/h3
       checkPageBreak(LINE_HEIGHT);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
       pdf.text(title, MARGIN_PT, y);
-      y += LINE_HEIGHT; // Only single advance after
+      y += LINE_HEIGHT; // Single advance after
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
     };
@@ -664,7 +665,7 @@ export async function generateAccountInstructionsPDF(options) {
     if (client.PIC) renderKV('PIC', client.PIC);
     if (client.verification) renderKV('Verification', client.verification);
     if (client.startTime) renderKV('Start Time', client.startTime);
-    y += 8;
+    y += LINE_HEIGHT; // Single LINE_HEIGHT spacing
 
     // Notice
     const notice = '"If you are going to be more than 5 minutes late to a store you must contact the store BEFORE you are late. NO EXCEPTIONS!!!"';
@@ -674,7 +675,7 @@ export async function generateAccountInstructionsPDF(options) {
     pdf.rect(MARGIN_PT, y, contentWidth, boxHeight);
     let ty = y + 12;
     wrapped.forEach(w => { pdf.text(w, MARGIN_PT + 8, ty); ty += LINE_HEIGHT; });
-    y += boxHeight + 20;
+    y += boxHeight + LINE_HEIGHT; // Single LINE_HEIGHT spacing after notice
 
     // === PRE-INVENTORY \u2013 FIXED OVERLAPS ===
     const { generalText, areaMappingRaw, storePrepRaw } = extractPreInventoryBundle(client.sections);
