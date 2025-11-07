@@ -197,12 +197,41 @@ function createHtmlRenderer(pdf, opts) {
     for (let i = 0; i < words.length; i++) {
       clearFloatIfPassed();
       const { x, w } = lineBox(indent);
-      const candidate = line ? line + ' ' + words[i] : words[i];
-      if (measure(candidate) <= w) {
+      const word = words[i];
+      const candidate = line ? line + ' ' + word : word;
+      
+      // If the word itself is too long, split it character by character
+      if (measure(word) > w) {
+        if (line) {
+          out.push({ x, text: line });
+          line = '';
+        }
+        // Split long word character by character
+        let wordLine = '';
+        for (let j = 0; j < word.length; j++) {
+          const char = word[j];
+          const charCandidate = wordLine + char;
+          if (measure(charCandidate) <= w) {
+            wordLine = charCandidate;
+          } else {
+            if (wordLine) {
+              clearFloatIfPassed();
+              const { x: charX } = lineBox(indent);
+              out.push({ x: charX, text: wordLine });
+            }
+            wordLine = char;
+          }
+        }
+        if (wordLine) {
+          clearFloatIfPassed();
+          const { x: charX } = lineBox(indent);
+          line = wordLine;
+        }
+      } else if (measure(candidate) <= w) {
         line = candidate;
       } else {
         if (line) out.push({ x, text: line });
-        line = words[i];
+        line = word;
       }
     }
     if (line) {
@@ -354,7 +383,12 @@ function createHtmlRenderer(pdf, opts) {
     setY: v => { y = v; },
     async renderHtmlString(html, indentPx = 0) {
       if (!HAS_DOM) return;
-      const normalized = String(html).replace(/(\S)•/g, '$1\n•');
+      // Only normalize bullet characters if they exist in the text
+      // This prevents issues with plain text that doesn't contain bullets
+      const htmlStr = String(html);
+      const normalized = htmlStr.includes('•') || htmlStr.includes('\u2022') 
+        ? htmlStr.replace(/(\S)•/g, '$1\n•').replace(/(\S)\u2022/g, '$1\n\u2022')
+        : htmlStr;
       const clean = sanitizeHtmlSubset(normalized);
       const container = document.createElement('div');
       container.innerHTML = clean;
