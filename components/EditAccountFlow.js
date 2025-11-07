@@ -82,6 +82,22 @@ const EditAccountFlow = ({ onBack }) => {
 
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
+        
+        // Check file size (1MB limit)
+        const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
+        if (asset.base64) {
+          // Estimate file size from base64 (base64 is ~33% larger than binary)
+          const estimatedSize = (asset.base64.length * 3) / 4;
+          if (estimatedSize > MAX_FILE_SIZE) {
+            const sizeMB = (estimatedSize / (1024 * 1024)).toFixed(2);
+            Alert.alert(
+              'File Too Large',
+              `The selected image is ${sizeMB}MB, which exceeds the maximum allowed size of 1MB. Please select a smaller image.`
+            );
+            return;
+          }
+        }
+        
         // Preserve original image format from URI or use PNG as default
         const mimeType = asset.mimeType || 'image/png';
         const base64 = `data:${mimeType};base64,${asset.base64}`;
@@ -133,13 +149,19 @@ const EditAccountFlow = ({ onBack }) => {
     
     setUploadingQr(true);
     try {
-      console.log('Starting upload to Firebase Storage...');
+      console.log('=== Starting Firebase Storage upload ===');
+      console.log('Client ID:', activeClient.id);
+      console.log('File name:', fileName);
+      console.log('Base64 data length:', qrImageBase64.length);
+      
       const qrUrl = await uploadQrToFirebase(qrImageBase64, fileName, activeClient.id);
-      console.log('Upload successful, URL:', qrUrl);
+      console.log('Upload successful! URL:', qrUrl);
+      
       const qrPath = getAccountQrPath(fileName);
+      console.log('QR path:', qrPath);
       
       // Update client with QR code path, filename, and Firebase Storage URL
-      console.log('Updating Firestore with QR path:', qrPath);
+      console.log('Updating Firestore...');
       const clientRef = doc(db, 'clients', activeClient.id);
       await updateDoc(clientRef, {
         qrPath: qrPath, // Firebase Storage path (e.g., 'qr-codes/filename.png')
@@ -147,16 +169,26 @@ const EditAccountFlow = ({ onBack }) => {
         qrUrl: qrUrl, // Full Firebase Storage download URL
         updatedAt: new Date(),
       });
+      console.log('Firestore updated successfully');
       
       setActiveClient({ ...activeClient, qrPath: qrPath, qrFileName: fileName, qrUrl: qrUrl });
       setQrImageBase64(null);
       setQrImageFileName(null);
       console.log('Upload complete!');
-      Alert.alert('Success', 'QR code uploaded to Firebase Storage successfully!');
+      Alert.alert('Success', `QR code uploaded to Firebase Storage successfully!\n\nURL: ${qrUrl.substring(0, 50)}...`);
     } catch (error) {
-      console.error('Error uploading QR code:', error);
+      console.error('=== Upload Error ===');
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      console.error('Error code:', error.code);
       console.error('Error stack:', error.stack);
-      Alert.alert('Error', `Failed to upload QR code: ${error.message}`);
+      
+      let errorMsg = error.message;
+      if (error.code === 'storage/unauthorized') {
+        errorMsg = 'Permission denied. Please check Firebase Storage security rules. See FIREBASE_STORAGE_RULES.md for setup instructions.';
+      }
+      
+      Alert.alert('Upload Failed', errorMsg);
     } finally {
       setUploadingQr(false);
     }

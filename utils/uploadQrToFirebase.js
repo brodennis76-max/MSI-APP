@@ -19,6 +19,8 @@ const QR_CODES_DIR = 'qr-codes';
  * @param {string} accountId - Account/client ID (for logging)
  * @returns {Promise<string>} - Firebase Storage download URL
  */
+const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB in bytes
+
 export async function uploadQrToFirebase(base64Data, fileName, accountId) {
   console.log('=== uploadQrToFirebase called ===');
   console.log('fileName:', fileName);
@@ -41,6 +43,18 @@ export async function uploadQrToFirebase(base64Data, fileName, accountId) {
   }
   console.log('Base64 content length:', base64Content.length);
 
+  // Calculate approximate file size from base64
+  // Base64 encoding increases size by ~33%, so we estimate the binary size
+  const estimatedBinarySize = (base64Content.length * 3) / 4;
+  console.log('Estimated binary file size:', estimatedBinarySize, 'bytes (', (estimatedBinarySize / 1024).toFixed(2), 'KB)');
+  
+  // Check file size limit (1MB)
+  if (estimatedBinarySize > MAX_FILE_SIZE) {
+    const sizeMB = (estimatedBinarySize / (1024 * 1024)).toFixed(2);
+    const maxMB = (MAX_FILE_SIZE / (1024 * 1024)).toFixed(2);
+    throw new Error(`File size (${sizeMB}MB) exceeds the maximum allowed size of ${maxMB}MB. Please use a smaller image.`);
+  }
+
   // Decode base64 to binary
   let binaryString;
   try {
@@ -56,18 +70,40 @@ export async function uploadQrToFirebase(base64Data, fileName, accountId) {
     bytes[i] = binaryString.charCodeAt(i);
   }
 
+  // Verify actual file size after decoding
+  const actualFileSize = bytes.length;
+  console.log('Actual file size after decoding:', actualFileSize, 'bytes (', (actualFileSize / 1024).toFixed(2), 'KB)');
+  
+  // Check file size limit again with actual size (1MB)
+  if (actualFileSize > MAX_FILE_SIZE) {
+    const sizeMB = (actualFileSize / (1024 * 1024)).toFixed(2);
+    const maxMB = (MAX_FILE_SIZE / (1024 * 1024)).toFixed(2);
+    throw new Error(`File size (${sizeMB}MB) exceeds the maximum allowed size of ${maxMB}MB. Please use a smaller image.`);
+  }
+
   // Use original filename as-is (preserve original name and extension)
   const filename = fileName;
-  const filePath = `${QR_CODES_DIR}/${filename}`;
-  console.log('File path:', filePath);
+  // Ensure we're uploading to the qr-codes folder
+  const filePath = `qr-codes/${filename}`;
+  console.log('=== Upload Path Verification ===');
+  console.log('QR_CODES_DIR constant:', QR_CODES_DIR);
+  console.log('Filename:', filename);
+  console.log('Full file path:', filePath);
+  console.log('Expected location: qr-codes/' + filename);
+  console.log('File size check passed:', actualFileSize, 'bytes <', MAX_FILE_SIZE, 'bytes');
 
   try {
     // Create a reference to the file location in Firebase Storage
     const storageRef = ref(storage, filePath);
     console.log('Storage reference created:', filePath);
+    console.log('Storage bucket:', storage._delegate?.bucket || 'unknown');
+    console.log('Bytes to upload:', bytes.length);
 
     // Upload the file
     console.log('Uploading to Firebase Storage...');
+    console.log('File path:', filePath);
+    console.log('Content type: image/png');
+    
     const uploadResult = await uploadBytes(storageRef, bytes, {
       contentType: 'image/png',
       customMetadata: {
@@ -75,7 +111,11 @@ export async function uploadQrToFirebase(base64Data, fileName, accountId) {
         uploadedAt: new Date().toISOString(),
       }
     });
-    console.log('Upload successful!', uploadResult.metadata.fullPath);
+    
+    console.log('Upload successful!');
+    console.log('Full path:', uploadResult.metadata.fullPath);
+    console.log('Bucket:', uploadResult.metadata.bucket);
+    console.log('Size:', uploadResult.metadata.size);
 
     // Get the download URL
     console.log('Getting download URL...');
@@ -84,11 +124,23 @@ export async function uploadQrToFirebase(base64Data, fileName, accountId) {
 
     return downloadURL;
   } catch (error) {
-    console.error('Error uploading QR code to Firebase Storage:', error);
+    console.error('=== Firebase Storage Upload Error ===');
+    console.error('Error code:', error.code);
     console.error('Error name:', error.name);
     console.error('Error message:', error.message);
     console.error('Error stack:', error.stack);
-    throw error;
+    
+    // Provide more helpful error messages
+    let errorMessage = error.message;
+    if (error.code === 'storage/unauthorized') {
+      errorMessage = 'Firebase Storage: Permission denied. Please check your Firebase Storage security rules.';
+    } else if (error.code === 'storage/canceled') {
+      errorMessage = 'Firebase Storage: Upload was canceled.';
+    } else if (error.code === 'storage/unknown') {
+      errorMessage = 'Firebase Storage: Unknown error occurred. Please check your Firebase configuration and Storage rules.';
+    }
+    
+    throw new Error(errorMessage);
   }
 }
 
