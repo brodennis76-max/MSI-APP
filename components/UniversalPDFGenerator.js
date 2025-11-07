@@ -134,7 +134,7 @@ function htmlToPlainInline(html) {
     .replace(/<\s*\/?(ul|ol)[^>]*>/gi, '\n');
   s = s.replace(/<[^>]+>/g, '');
   s = s.replace(/\r\n/g, '\n')
-       .replace(/\n{3,}/g, '\n\n')
+       .replace(/\n{2,}/g, '\n')  // Normalize multiple newlines to single for consistent spacing
        .replace(/[ \	]+/g, ' ')
        .replace(/^\s+|\s+$/gm, '');
   return s.trim();
@@ -503,10 +503,10 @@ function buildHtml(client, assets) {
   const qrDataUrl = assets?.qrDataUrl && /^data:image\//i.test(assets.qrDataUrl) ? assets.qrDataUrl : '';
   const rich = (h) => sanitizeHtmlSubset(h);
 
-  // ALL SPACING IS SINGLE LINE_HEIGHT (12pt)
+  // ALL SPACING MATCHES TEXT SIZE (12pt font = 12pt line height), DOUBLE SPACE BEFORE H1
   const sectionStyle = 'margin-top: 0;';
   const subsectionStyle = 'margin-top: 0;';
-  const LINE_HEIGHT_PT = 12; // Single line height in points (1.0 spacing)
+  const LINE_HEIGHT_PT = 12; // Line height matches font size (12pt font = 12pt line height)
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Account Instructions - ${escapeHtml(safeName)}</title>
   <style>
@@ -519,11 +519,11 @@ function buildHtml(client, assets) {
     .row { display: flex; justify-content: center; gap: 16px; align-items: center; margin-bottom: 6px; }
     .logo { width: 180px; height: auto; }
     .qr { width: 120px; height: auto; }
-    /* ALL SPACING IS SINGLE LINE_HEIGHT */
+    /* ALL SPACING MATCHES TEXT SIZE (12pt font = 12pt line height), DOUBLE SPACE BEFORE H1 */
     .section { ${sectionStyle} }
     .subsection { ${subsectionStyle} }
-    /* Single LINE_HEIGHT spacing for all titles */
-    .section-title { font-size: 16px; font-weight: bold; margin: ${LINE_HEIGHT_PT}pt 0 ${LINE_HEIGHT_PT}pt 0; }
+    /* Double spacing before H1 headers, single spacing after */
+    .section-title { font-size: 16px; font-weight: bold; margin: ${LINE_HEIGHT_PT * 2}pt 0 ${LINE_HEIGHT_PT}pt 0; }
     .subsection-title { font-size: 14px; font-weight: bold; margin: ${LINE_HEIGHT_PT}pt 0 ${LINE_HEIGHT_PT}pt 0; }
     .info { font-size: 12px; }
     .notice { border: 1px solid #000; padding: 12pt; margin-top: ${LINE_HEIGHT_PT}pt; font-size: 12px; }
@@ -646,12 +646,12 @@ export async function generateAccountInstructionsPDF(options) {
 
     const contentWidth = PAGE_WIDTH_PT - (2 * MARGIN_PT);
 
-    // === FIXED: ALL SPACING IS SINGLE LINE_HEIGHT ===
+    // === FIXED: ALL SPACING MATCHES TEXT SIZE (12pt font = 12pt line height), DOUBLE SPACE BEFORE H1 ===
     
-    // h1 headers - SINGLE space before and after
+    // h1 headers - DOUBLE space before, SINGLE space after
     const sectionHeader = (title) => {
-      y += LINE_HEIGHT; // Single space before h1
-      checkPageBreak(LINE_HEIGHT);
+      y += LINE_HEIGHT * 2; // Double space before h1
+      checkPageBreak(LINE_HEIGHT * 2);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
       pdf.text(title, MARGIN_PT, y);
@@ -808,8 +808,10 @@ Counters to number each display with a yellow tag to match posting sheet locatio
         subSectionHeader('Progressives:');
         const text = String(progRep).trim();
         if (text) {
+          // Normalize multiple newlines to single newlines to prevent extra spacing
+          const cleanText = text.replace(/\n{2,}/g, '\n');
           htmlRenderer.setY(y);
-          await htmlRenderer.renderHtmlString(text);
+          await htmlRenderer.renderHtmlString(cleanText);
           y = htmlRenderer.getY();
         }
       }
@@ -818,8 +820,10 @@ Counters to number each display with a yellow tag to match posting sheet locatio
         subSectionHeader('Finalizing the Count:');
         const text = String(finalize).trim();
         if (text) {
+          // Normalize multiple newlines to single newlines to prevent extra spacing
+          const cleanText = text.replace(/\n{2,}/g, '\n');
           htmlRenderer.setY(y);
-          await htmlRenderer.renderHtmlString(text);
+          await htmlRenderer.renderHtmlString(cleanText);
           y = htmlRenderer.getY();
         }
       }
@@ -828,8 +832,10 @@ Counters to number each display with a yellow tag to match posting sheet locatio
         subSectionHeader('Final Reports:');
         const text = String(finRep).trim();
         if (text) {
+          // Normalize multiple newlines to single newlines to prevent extra spacing
+          const cleanText = text.replace(/\n{2,}/g, '\n');
           htmlRenderer.setY(y);
-          await htmlRenderer.renderHtmlString(text);
+          await htmlRenderer.renderHtmlString(cleanText);
           y = htmlRenderer.getY();
         }
       }
@@ -838,8 +844,8 @@ Counters to number each display with a yellow tag to match posting sheet locatio
         subSectionHeader('Final Processing:');
         const text = String(processing).trim();
         if (text) {
-          // Add newline before "MSI Inventory Reports" if it starts the text
-          const cleanProcessing = text.replace(/^MSI Inventory Reports/gi, '\nMSI Inventory Reports');
+          // Normalize multiple newlines to single newlines to prevent extra spacing
+          const cleanProcessing = text.replace(/\n{2,}/g, '\n');
           htmlRenderer.setY(y);
           await htmlRenderer.renderHtmlString(cleanProcessing);
           y = htmlRenderer.getY();

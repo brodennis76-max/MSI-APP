@@ -109,8 +109,8 @@ All posting sheets must be reviewed by the inventory manager before they can be 
     try {
       const clientRef = doc(db, 'clients', clientData.id);
       
-      // Combine posting sheets and utility reports
-      const combinedText = `${postingSheetsText}\n\nUTILITY REPORTS\n${utilityReportsText}`;
+      // Combine posting sheets and utility reports with single newline
+      const combinedText = `${postingSheetsText}\nUTILITY REPORTS\n${utilityReportsText}`;
       
       // Sanitize HTML before saving to Firebase - remove all inline styles and unnecessary attributes
       const sanitizedProgRep = sanitizeHtmlForFirebase(combinedText);

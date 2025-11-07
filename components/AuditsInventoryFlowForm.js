@@ -118,7 +118,7 @@ Audit trails will be provided as requested based on posting sheet results, withi
       const complianceStatement = "Be flexible! If the store would like a different flow be compliant.";
       const hasComplianceStatement = inventoryFlowText.includes(complianceStatement);
       const finalInventoryFlow = inventoryFlowText.trim() && !hasComplianceStatement
-        ? `${inventoryFlowText}\n\n${complianceStatement}`
+        ? `${inventoryFlowText}\n${complianceStatement}`
         : inventoryFlowText;
       
       // Sanitize HTML before saving to Firebase - remove all inline styles and unnecessary attributes

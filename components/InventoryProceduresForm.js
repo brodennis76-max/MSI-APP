@@ -193,11 +193,11 @@ const InventoryProceduresForm = ({ clientData, onBack, onComplete }) => {
     try {
       const clientRef = doc(db, 'clients', clientData.id);
       
-      // Combine permanent procedures with additional procedures
+      // Combine permanent procedures with additional procedures with single newline
       const combinedProcedures = [
         ...permanentProcedures,
         ...(additionalProcedures.trim() ? [additionalProcedures] : [])
-      ].join('\n\n');
+      ].join('\n');
       
       // Build Departments string if any selection present
       const buildDepartmentsString = () => {
