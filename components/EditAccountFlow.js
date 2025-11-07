@@ -122,14 +122,15 @@ const EditAccountFlow = ({ onBack }) => {
       const qrUrl = await uploadQrToGitHub(qrImageBase64, qrImageFileName, activeClient.id, githubToken);
       const qrPath = getAccountQrPath(qrImageFileName);
       
-      // Update client with QR code path
+      // Update client with QR code path and filename
       const clientRef = doc(db, 'clients', activeClient.id);
       await updateDoc(clientRef, {
-        qrPath: qrPath,
+        qrPath: qrPath, // Full path for backward compatibility
+        qrFileName: qrImageFileName, // Just the filename for PDF generation
         updatedAt: new Date(),
       });
       
-      setActiveClient({ ...activeClient, qrPath: qrPath });
+      setActiveClient({ ...activeClient, qrPath: qrPath, qrFileName: qrImageFileName });
       setQrImageBase64(null);
       setQrImageFileName(null);
       Alert.alert('Success', 'QR code uploaded to GitHub successfully!');
@@ -155,9 +156,12 @@ const EditAccountFlow = ({ onBack }) => {
         updatedAt: new Date(),
       };
       
-      // If QR code was uploaded, include qrPath
+      // If QR code was uploaded, include qrPath and qrFileName
       if (activeClient.qrPath) {
         updateData.qrPath = activeClient.qrPath;
+      }
+      if (activeClient.qrFileName) {
+        updateData.qrFileName = activeClient.qrFileName;
       }
       
       await updateDoc(clientRef, updateData);

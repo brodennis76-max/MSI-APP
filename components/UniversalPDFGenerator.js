@@ -544,7 +544,20 @@ export async function generateAccountInstructionsPDF(options) {
   } else if (client.logoUrl) {
     try { logoDataUrl = await fetchAsDataURL(client.logoUrl); } catch {}
   }
-  const qrPath = client.qrPath || 'qr-codes/1450 Scanner Program.png';
+  
+  // Get QR code path: use qrFileName if available, otherwise fall back to qrPath, then default
+  let qrPath = '';
+  if (client.qrFileName) {
+    // If qrFileName exists, construct the path
+    qrPath = `qr-codes/${client.qrFileName}`;
+  } else if (client.qrPath) {
+    // Fall back to existing qrPath field
+    qrPath = client.qrPath;
+  } else {
+    // Default QR code
+    qrPath = 'qr-codes/1450 Scanner Program.png';
+  }
+  
   let qrDataUrl = '';
   try { qrDataUrl = await getRepoImageDataUrl(qrPath, assetBase); } catch {}
 

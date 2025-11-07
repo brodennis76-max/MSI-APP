@@ -405,10 +405,11 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
       const qrUrl = await uploadQrToGitHub(qrImageBase64, qrImageFileName, clientId, githubToken);
       const qrPath = getAccountQrPath(qrImageFileName);
       
-      // Update client with QR code path
+      // Update client with QR code path and filename
       const clientRef = doc(db, 'clients', clientId);
       await updateDoc(clientRef, {
-        qrPath: qrPath,
+        qrPath: qrPath, // Full path for backward compatibility
+        qrFileName: qrImageFileName, // Just the filename for PDF generation
         updatedAt: new Date(),
       });
       
