@@ -649,25 +649,29 @@ export async function generateAccountInstructionsPDF(options) {
     // === FIXED: ALL SPACING MATCHES TEXT SIZE (12pt font = 12pt line height), DOUBLE SPACE BEFORE H1 ===
     
     // h1 headers - DOUBLE space before, SINGLE space after
+    // Use line height that matches font size (16pt font = 16pt line height)
     const sectionHeader = (title) => {
       y += LINE_HEIGHT * 2; // Double space before h1
-      checkPageBreak(LINE_HEIGHT * 2);
+      checkPageBreak(LINE_HEIGHT * 2 + 16); // Account for 16pt font height
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(16);
       pdf.text(title, MARGIN_PT, y);
-      y += LINE_HEIGHT; // Single advance after
+      // Advance by line height matching font size (16pt)
+      y += 16; // 16pt line height for 16pt font
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
     };
 
     // h2/h3 headers - SINGLE space before and after
+    // Use line height that matches font size (14pt font = 14pt line height)
     const subSectionHeader = (title) => {
       y += LINE_HEIGHT; // Single space before h2/h3
-      checkPageBreak(LINE_HEIGHT);
+      checkPageBreak(LINE_HEIGHT + 14); // Account for 14pt font height
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
       pdf.text(title, MARGIN_PT, y);
-      y += LINE_HEIGHT; // Single advance after
+      // Advance by line height matching font size (14pt)
+      y += 14; // 14pt line height for 14pt font
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(12);
     };
@@ -755,12 +759,33 @@ Counters to number each display with a yellow tag to match posting sheet locatio
 
       const areaMappingText = String(areaMappingRaw || '').trim();
       if (areaMappingText) {
-        subSectionHeader('Area Mapping');
+        // Reduce spacing before subsection if it comes right after content
+        // Only add minimal spacing if there's already content above
+        if (y > MARGIN_PT + LINE_HEIGHT * 2) {
+          y += LINE_HEIGHT; // Single space before subsection
+        }
+        checkPageBreak(LINE_HEIGHT + 14);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(14);
+        pdf.text('Area Mapping', MARGIN_PT, y);
+        y += 14; // 14pt line height for 14pt font
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(12);
         htmlRenderer.setY(y);
         await htmlRenderer.renderHtmlString(areaMappingText);
         y = htmlRenderer.getY();
       } else {
-        subSectionHeader('Area Mapping');
+        // Reduce spacing before subsection if it comes right after content
+        if (y > MARGIN_PT + LINE_HEIGHT * 2) {
+          y += LINE_HEIGHT; // Single space before subsection
+        }
+        checkPageBreak(LINE_HEIGHT + 14);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(14);
+        pdf.text('Area Mapping', MARGIN_PT, y);
+        y += 14; // 14pt line height for 14pt font
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(12);
         const defaultText = String(storeMappingText).trim();
         if (defaultText) {
           htmlRenderer.setY(y);
