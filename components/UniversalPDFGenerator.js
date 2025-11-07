@@ -129,15 +129,23 @@ async function getFirebaseStorageImageDataUrl(storagePath) {
   try {
     // Create a reference to the file in Firebase Storage
     const storageRef = ref(storage, storagePath);
+    console.log('🔍 Attempting to load from Firebase Storage path:', storagePath);
     
     // Get the download URL
     const downloadURL = await getDownloadURL(storageRef);
-    console.log('Firebase Storage download URL:', downloadURL);
+    console.log('✅ Firebase Storage download URL obtained:', downloadURL.substring(0, 80) + '...');
     
     // Fetch the image and convert to data URL
-    return await fetchAsDataURL(downloadURL);
+    const dataUrl = await fetchAsDataURL(downloadURL);
+    console.log('✅ Successfully converted to data URL (length:', dataUrl.length, 'chars)');
+    return dataUrl;
   } catch (error) {
-    console.error('Error fetching from Firebase Storage:', error);
+    console.error('❌ Error fetching from Firebase Storage:', {
+      path: storagePath,
+      errorCode: error.code,
+      errorMessage: error.message,
+      errorName: error.name
+    });
     throw error;
   }
 }
@@ -615,12 +623,23 @@ export async function generateAccountInstructionsPDF(options) {
     // Priority 1: Use qrFileName first (most reliable - gets current file from Firebase Storage)
     if (client.qrFileName) {
       // If qrFileName exists, use Firebase Storage path to get the current file
+      // Path format: qr-codes/filename.png (relative to bucket root)
+      // Full gs:// path would be: gs://msi-account-instructions.firebasestorage.app/qr-codes/filename.png
       qrPath = `qr-codes/${client.qrFileName}`;
+      console.log('🔍 Attempting to load QR code using qrFileName:', {
+        qrFileName: client.qrFileName,
+        constructedPath: qrPath,
+        expectedFullPath: `gs://msi-account-instructions.firebasestorage.app/${qrPath}`
+      });
       try {
         qrDataUrl = await getFirebaseStorageImageDataUrl(qrPath);
         console.log('✅ Loaded QR code from Firebase Storage using qrFileName:', qrPath);
       } catch (error) {
-        console.warn('⚠️ Failed to load QR code from Firebase Storage (qrFileName):', error.message);
+        console.warn('⚠️ Failed to load QR code from Firebase Storage (qrFileName):', {
+          path: qrPath,
+          errorCode: error.code,
+          errorMessage: error.message
+        });
         // Continue to try other methods
       }
     }
@@ -649,13 +668,36 @@ export async function generateAccountInstructionsPDF(options) {
           console.warn('⚠️ Failed to load QR code from Firebase Storage (qrPath):', error.message);
           // Continue to try default
         }
-      } else if (client.qrPath.startsWith('gs://') || client.qrPath.startsWith('https://firebasestorage')) {
-        // Full Firebase Storage URL - use directly
+      } else if (client.qrPath.startsWith('gs://')) {
+        // Extract path from gs:// URL (format: gs://bucket/path/to/file)
+        // Example: gs://msi-account-instructions.firebasestorage.app/qr-codes/filename.png
+        const gsMatch = client.qrPath.match(/gs:\/\/[^\/]+\/(.+)/);
+        if (gsMatch) {
+          qrPath = gsMatch[1]; // Extract path after bucket name
+          try {
+            qrDataUrl = await getFirebaseStorageImageDataUrl(qrPath);
+            console.log('✅ Loaded QR code from Firebase Storage using gs:// path:', qrPath);
+          } catch (error) {
+            console.warn('⚠️ Failed to load QR code from Firebase Storage (gs:// path):', error.message);
+            // Try using the gs:// URL directly as fallback
+            try {
+              qrDataUrl = await fetchAsDataURL(client.qrPath);
+              console.log('✅ Loaded QR code from gs:// URL directly:', client.qrPath.substring(0, 80) + '...');
+            } catch (urlError) {
+              console.warn('❌ Failed to load QR code from gs:// URL:', urlError.message);
+              // Continue to try default
+            }
+          }
+        } else {
+          console.warn('⚠️ Invalid gs:// URL format:', client.qrPath);
+        }
+      } else if (client.qrPath.startsWith('https://firebasestorage')) {
+        // Full Firebase Storage HTTPS URL - use directly
         try {
           qrDataUrl = await fetchAsDataURL(client.qrPath);
-          console.log('✅ Loaded QR code from Firebase Storage URL (qrPath):', client.qrPath.substring(0, 80) + '...');
+          console.log('✅ Loaded QR code from Firebase Storage HTTPS URL (qrPath):', client.qrPath.substring(0, 80) + '...');
         } catch (error) {
-          console.warn('❌ Failed to load QR code from Firebase Storage URL (qrPath):', error.message);
+          console.warn('❌ Failed to load QR code from Firebase Storage HTTPS URL (qrPath):', error.message);
           // Continue to try default
         }
       } else {
@@ -666,15 +708,22 @@ export async function generateAccountInstructionsPDF(options) {
     
     // Priority 4: Default QR code from Firebase Storage if nothing else worked
     if (!qrDataUrl) {
-      // Default QR code - ONLY from Firebase Storage (no GitHub fallback)
+      // Default QR code - try Firebase Storage first, then GitHub as fallback
       qrPath = 'qr-codes/1450 Scanner Program.png';
       try {
         qrDataUrl = await getFirebaseStorageImageDataUrl(qrPath);
         console.log('✅ Loaded default QR code from Firebase Storage:', qrPath);
       } catch (error) {
-        console.error('❌ Failed to load default QR code from Firebase Storage:', error.message);
-        console.error('   Path attempted:', qrPath);
-        console.error('   Make sure the default QR code file exists in Firebase Storage at:', qrPath);
+        console.warn('⚠️ Default QR code not in Firebase Storage, trying GitHub fallback:', error.message);
+        // Fallback to GitHub ONLY for default QR code (not for specific account QR codes)
+        try {
+          qrDataUrl = await getRepoImageDataUrl(qrPath, assetBase);
+          console.log('✅ Loaded default QR code from GitHub fallback:', qrPath);
+        } catch (gitError) {
+          console.error('❌ Failed to load default QR code from both Firebase Storage and GitHub:', gitError.message);
+          console.error('   Path attempted:', qrPath);
+          console.error('   Make sure the default QR code file exists in Firebase Storage or GitHub at:', qrPath);
+        }
       }
     }
     
@@ -682,7 +731,15 @@ export async function generateAccountInstructionsPDF(options) {
       console.error('❌ WARNING: No QR code could be loaded for scan account:', client.name || client.id);
       console.error('   All methods failed. Check Firebase Storage configuration and file existence.');
     } else {
-      console.log('✅ QR code successfully loaded for:', client.name || client.id);
+      // Validate that qrDataUrl is a proper data URL
+      if (!/^data:image\//i.test(qrDataUrl)) {
+        console.error('❌ ERROR: QR code data URL is not a valid image data URL:', qrDataUrl.substring(0, 100));
+        qrDataUrl = ''; // Clear invalid data URL
+      } else {
+        console.log('✅ QR code successfully loaded for:', client.name || client.id);
+        console.log('   Data URL length:', qrDataUrl.length, 'chars');
+        console.log('   Data URL type:', qrDataUrl.substring(5, qrDataUrl.indexOf(';')));
+      }
     }
   } else {
     console.log('ℹ️  Non-scan account - skipping QR code for:', client.name || client.id);
@@ -710,15 +767,36 @@ export async function generateAccountInstructionsPDF(options) {
       try {
         const type = /^data:image\/jpeg/i.test(logoDataUrl) ? 'JPEG' : 'PNG';
         pdf.addImage(logoDataUrl, type, MARGIN_PT, y - 44, 120, 36);
-      } catch {}
+        console.log('✅ Logo image added to PDF');
+      } catch (error) {
+        console.error('❌ Failed to add logo image to PDF:', error.message);
+      }
     }
     if (qrDataUrl) {
       try {
         const type = /^data:image\/jpeg/i.test(qrDataUrl) ? 'JPEG' : 'PNG';
         const size = 120;
         const x = PAGE_WIDTH_PT - MARGIN_PT - size;
+        console.log('📸 Adding QR code to PDF:', {
+          type,
+          size,
+          x,
+          y: MARGIN_PT - 8,
+          dataUrlLength: qrDataUrl.length,
+          dataUrlPrefix: qrDataUrl.substring(0, 50)
+        });
         pdf.addImage(qrDataUrl, type, x, MARGIN_PT - 8, size, size);
-      } catch {}
+        console.log('✅ QR code image added to PDF successfully');
+      } catch (error) {
+        console.error('❌ Failed to add QR code image to PDF:', {
+          errorMessage: error.message,
+          errorName: error.name,
+          qrDataUrlLength: qrDataUrl?.length || 0,
+          qrDataUrlPrefix: qrDataUrl?.substring(0, 50) || 'N/A'
+        });
+      }
+    } else {
+      console.warn('⚠️ No QR code data URL available - QR code will not be added to PDF');
     }
 
     // Header text - spacing based on font size
