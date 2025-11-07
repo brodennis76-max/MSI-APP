@@ -620,25 +620,19 @@ export async function generateAccountInstructionsPDF(options) {
         qrDataUrl = await getFirebaseStorageImageDataUrl(qrPath);
         console.log('✅ Loaded QR code from Firebase Storage using qrFileName:', qrPath);
       } catch (error) {
-        console.warn('⚠️ Failed to load QR code from Firebase Storage (qrFileName), trying GitHub fallback:', error.message);
-        // Fallback to GitHub if Firebase Storage fails
-        try {
-          qrDataUrl = await getRepoImageDataUrl(qrPath, assetBase);
-          console.log('✅ Loaded QR code from GitHub fallback:', qrPath);
-        } catch (gitError) {
-          console.warn('❌ Failed to load QR code from GitHub fallback:', gitError.message);
-        }
+        console.warn('⚠️ Failed to load QR code from Firebase Storage (qrFileName):', error.message);
+        // Continue to try other methods
       }
     }
     
-    // Priority 2: Use qrUrl as fallback (may point to old file, so use after qrFileName)
+    // Priority 2: Use qrUrl as fallback (direct download URL from Firebase Storage)
     if (!qrDataUrl && client.qrUrl && (client.qrUrl.startsWith('https://') || client.qrUrl.startsWith('gs://'))) {
       try {
         qrDataUrl = await fetchAsDataURL(client.qrUrl);
-        console.log('✅ Loaded QR code from qrUrl (fallback):', client.qrUrl.substring(0, 80) + '...');
+        console.log('✅ Loaded QR code from qrUrl (Firebase Storage URL):', client.qrUrl.substring(0, 80) + '...');
       } catch (error) {
-        console.warn('⚠️ Failed to load QR code from qrUrl, trying other methods:', error.message);
-        // Fall through to try other methods
+        console.warn('⚠️ Failed to load QR code from qrUrl:', error.message);
+        // Continue to try other methods
       }
     }
     
@@ -652,55 +646,43 @@ export async function generateAccountInstructionsPDF(options) {
           qrDataUrl = await getFirebaseStorageImageDataUrl(qrPath);
           console.log('✅ Loaded QR code from Firebase Storage using qrPath:', qrPath);
         } catch (error) {
-          console.warn('⚠️ Failed to load QR code from Firebase Storage (qrPath), trying GitHub fallback:', error.message);
-          // Fallback to GitHub if Firebase Storage fails
-          try {
-            qrDataUrl = await getRepoImageDataUrl(qrPath, assetBase);
-            console.log('✅ Loaded QR code from GitHub fallback:', qrPath);
-          } catch (gitError) {
-            console.warn('❌ Failed to load QR code from GitHub fallback:', gitError.message);
-          }
+          console.warn('⚠️ Failed to load QR code from Firebase Storage (qrPath):', error.message);
+          // Continue to try default
         }
       } else if (client.qrPath.startsWith('gs://') || client.qrPath.startsWith('https://firebasestorage')) {
-        // Full Firebase Storage URL - extract path or use directly
+        // Full Firebase Storage URL - use directly
         try {
           qrDataUrl = await fetchAsDataURL(client.qrPath);
           console.log('✅ Loaded QR code from Firebase Storage URL (qrPath):', client.qrPath.substring(0, 80) + '...');
         } catch (error) {
           console.warn('❌ Failed to load QR code from Firebase Storage URL (qrPath):', error.message);
+          // Continue to try default
         }
       } else {
-        // Assume it's a GitHub path (backward compatibility)
-        qrPath = client.qrPath;
-        try {
-          qrDataUrl = await getRepoImageDataUrl(qrPath, assetBase);
-          console.log('✅ Loaded QR code from GitHub (qrPath):', qrPath);
-        } catch (error) {
-          console.warn('❌ Failed to load QR code from GitHub (qrPath):', error.message);
-        }
+        // Invalid qrPath format - log warning and continue to default
+        console.warn('⚠️ qrPath has invalid format (not Firebase Storage path or URL):', client.qrPath);
       }
     }
     
-    // Priority 4: Default QR code if nothing else worked
+    // Priority 4: Default QR code from Firebase Storage if nothing else worked
     if (!qrDataUrl) {
-      // Default QR code - try Firebase Storage first, then GitHub
+      // Default QR code - ONLY from Firebase Storage (no GitHub fallback)
       qrPath = 'qr-codes/1450 Scanner Program.png';
       try {
         qrDataUrl = await getFirebaseStorageImageDataUrl(qrPath);
-        console.log('✅ Loaded default QR code from Firebase Storage');
+        console.log('✅ Loaded default QR code from Firebase Storage:', qrPath);
       } catch (error) {
-        console.warn('⚠️ Default QR code not in Firebase Storage, trying GitHub:', error.message);
-        try {
-          qrDataUrl = await getRepoImageDataUrl(qrPath, assetBase);
-          console.log('✅ Loaded default QR code from GitHub');
-        } catch (gitError) {
-          console.error('❌ Failed to load default QR code from both Firebase Storage and GitHub:', gitError.message);
-        }
+        console.error('❌ Failed to load default QR code from Firebase Storage:', error.message);
+        console.error('   Path attempted:', qrPath);
+        console.error('   Make sure the default QR code file exists in Firebase Storage at:', qrPath);
       }
     }
     
     if (!qrDataUrl) {
       console.error('❌ WARNING: No QR code could be loaded for scan account:', client.name || client.id);
+      console.error('   All methods failed. Check Firebase Storage configuration and file existence.');
+    } else {
+      console.log('✅ QR code successfully loaded for:', client.name || client.id);
     }
   } else {
     console.log('ℹ️  Non-scan account - skipping QR code for:', client.name || client.id);
