@@ -612,20 +612,9 @@ export async function generateAccountInstructionsPDF(options) {
   if (isScanAccount) {
     console.log('📱 Scan account detected - loading QR code for:', client.name || client.id);
     
-    // Priority 1: Use qrUrl if available (most reliable - direct download URL)
-    if (client.qrUrl && (client.qrUrl.startsWith('https://') || client.qrUrl.startsWith('gs://'))) {
-      try {
-        qrDataUrl = await fetchAsDataURL(client.qrUrl);
-        console.log('✅ Loaded QR code from qrUrl:', client.qrUrl.substring(0, 80) + '...');
-      } catch (error) {
-        console.warn('⚠️ Failed to load QR code from qrUrl, trying other methods:', error.message);
-        // Fall through to try other methods
-      }
-    }
-    
-    // Priority 2: Use qrFileName if qrUrl didn't work or doesn't exist
-    if (!qrDataUrl && client.qrFileName) {
-      // If qrFileName exists, use Firebase Storage path
+    // Priority 1: Use qrFileName first (most reliable - gets current file from Firebase Storage)
+    if (client.qrFileName) {
+      // If qrFileName exists, use Firebase Storage path to get the current file
       qrPath = `qr-codes/${client.qrFileName}`;
       try {
         qrDataUrl = await getFirebaseStorageImageDataUrl(qrPath);
@@ -639,6 +628,17 @@ export async function generateAccountInstructionsPDF(options) {
         } catch (gitError) {
           console.warn('❌ Failed to load QR code from GitHub fallback:', gitError.message);
         }
+      }
+    }
+    
+    // Priority 2: Use qrUrl as fallback (may point to old file, so use after qrFileName)
+    if (!qrDataUrl && client.qrUrl && (client.qrUrl.startsWith('https://') || client.qrUrl.startsWith('gs://'))) {
+      try {
+        qrDataUrl = await fetchAsDataURL(client.qrUrl);
+        console.log('✅ Loaded QR code from qrUrl (fallback):', client.qrUrl.substring(0, 80) + '...');
+      } catch (error) {
+        console.warn('⚠️ Failed to load QR code from qrUrl, trying other methods:', error.message);
+        // Fall through to try other methods
       }
     }
     
