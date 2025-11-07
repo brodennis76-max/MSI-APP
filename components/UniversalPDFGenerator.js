@@ -1,4 +1,5 @@
-// UniversalPDFGenerator.js - FIXED VERSION
+
+// UniversalPDFGenerator.js - FINAL SPACING FIX VERSION
 
 import { Platform } from 'react-native';
 import { doc, getDoc } from 'firebase/firestore';
@@ -117,18 +118,28 @@ function htmlToPlainInline(html) {
   if (!html) return '';
   let s = String(html);
   s = s
-    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
-    .replace(/<\s*\/p\s*>/gi, '\n')
+    .replace(/<\s*br\s*\/?\s*>/gi, '\
+')
+    .replace(/<\s*\/p\s*>/gi, '\
+')
     .replace(/<\s*p[^>]*>/gi, '')
-    .replace(/<\s*\/div\s*>/gi, '\n')
+    .replace(/<\s*\/div\s*>/gi, '\
+')
     .replace(/<\s*div[^>]*>/gi, '')
-    .replace(/<\s*li[^>]*>/gi, '• ')
-    .replace(/<\s*\/li\s*>/gi, '\n')
-    .replace(/<\s*\/?(ul|ol)[^>]*>/gi, '\n');
+    .replace(/<\s*li[^>]*>/gi, '\u2022 ')
+    .replace(/<\s*\/li\s*>/gi, '\
+')
+    .replace(/<\s*\/?(ul|ol)[^>]*>/gi, '\
+');
   s = s.replace(/<[^>]+>/g, '');
-  s = s.replace(/\r\n/g, '\n')
-       .replace(/\n{3,}/g, '\n\n')
-       .replace(/[ \t]+/g, ' ')
+  s = s.replace(/\
+/g, '\
+')
+       .replace(/\
+{3,}/g, '\
+\
+')
+       .replace(/[ \	]+/g, ' ')
        .replace(/^\s+|\s+$/gm, '');
   return s.trim();
 }
@@ -214,10 +225,14 @@ function createHtmlRenderer(pdf, opts) {
 
   const drawWrappedText = (ctx, text, indent) => {
     if (!text) return;
-    const lines = text.replace(/\r\n/g, '\n').split('\n');
+    const lines = text.replace(/\
+/g, '\
+').split('\
+');
     lines.forEach((raw, idx) => {
-      let cleaned = raw.replace(/(\S)•/g, '$1\n•');
-      cleaned = cleaned.replace(/[ \t]+/g, ' ').trim();
+      let cleaned = raw.replace(/(\S)\u2022/g, '$1\
+\u2022');
+      cleaned = cleaned.replace(/[ \	]+/g, ' ').trim();
       if (idx > 0) { 
         checkPage(lineHeight); 
         y += lineHeight; 
@@ -228,7 +243,8 @@ function createHtmlRenderer(pdf, opts) {
         y += lineHeight;
         return;
       }
-      const pieces = cleaned.split('\n');
+      const pieces = cleaned.split('\
+');
       pieces.forEach((piece, pi) => {
         if (pi > 0) { checkPage(lineHeight); y += lineHeight; }
         const wrapped = wrapMeasureLines(ctx, piece, indent);
@@ -286,21 +302,20 @@ function createHtmlRenderer(pdf, opts) {
     if (tag === 'u') ctx.underline = true;
 
     if (tag === 'ul' || tag === 'ol') {
-      // Minimal spacing before list (just ensure page break check)
+      // FINAL FIX: Minimal spacing before list - only check page, don't add extra spacing
       checkPage(lineHeight);
       let index = 1;
       const items = Array.from(node.children).filter(el => el.tagName.toLowerCase() === 'li');
       for (const li of items) {
-        // Each list item starts on a new line - drawWrappedText already advanced y from previous item
+        // Each list item starts on a new line - let drawWrappedText handle spacing
         checkPage(lineHeight);
 
         const { x } = lineBox(indent);
-        const marker = tag === 'ul' ? '•' : `${index}.`;
+        const marker = tag === 'ul' ? '\u2022' : `${index}.`;
         setFontFor({});
         pdf.text(marker, x, y);
 
         // Render all child nodes in order (text and elements together)
-        // This ensures proper ordering and prevents overlap
         for (const child of li.childNodes) {
           if (child.nodeType === 3) {
             // Text node - render it with proper indentation
@@ -315,10 +330,10 @@ function createHtmlRenderer(pdf, opts) {
         }
         
         // drawWrappedText already advanced y after the last line
-        // This provides single lineHeight spacing between list items
+        // No extra spacing needed between list items
         index += 1;
       }
-      // Minimal spacing after list (just ensure page break check)
+      // FINAL FIX: Minimal spacing after list - only check page, don't add extra spacing
       checkPage(lineHeight);
       return;
     }
@@ -338,7 +353,6 @@ function createHtmlRenderer(pdf, opts) {
     }
 
     // No spacing after paragraphs/divs - drawWrappedText already advances y after the last line
-    // Adding extra spacing here causes double spacing between paragraphs
   };
 
   return {
@@ -346,7 +360,8 @@ function createHtmlRenderer(pdf, opts) {
     setY: v => { y = v; },
     async renderHtmlString(html, indentPx = 0) {
       if (!HAS_DOM) return;
-      const normalized = String(html).replace(/(\S)•/g, '$1\n•');
+      const normalized = String(html).replace(/(\S)\u2022/g, '$1\
+\u2022');
       const clean = sanitizeHtmlSubset(normalized);
       const container = document.createElement('div');
       container.innerHTML = clean;
@@ -393,7 +408,7 @@ function extractPreInventoryBundle(sections) {
   return empty;
 }
 
-// ---------- Native HTML builder (with corrected spacing) ----------
+// ---------- Native HTML builder (FINAL SPACING FIX) ----------
 
 function buildHtml(client, assets) {
   const safeName = client.name || client.id || 'Unknown Client';
@@ -416,30 +431,34 @@ function buildHtml(client, assets) {
   const qrDataUrl = assets?.qrDataUrl && /^data:image\//i.test(assets.qrDataUrl) ? assets.qrDataUrl : '';
   const rich = (h) => sanitizeHtmlSubset(h);
 
-  // FIXED: Reduced spacing for better control
-  const sectionStyle = 'margin-top:20pt;';
-  const subsectionStyle = 'margin-top:15pt;';
+  // FINAL FIX: Remove container spacing to prevent double spacing
+  const sectionStyle = 'margin-top: 0;';          // REMOVED: 30pt to prevent double spacing
+  const subsectionStyle = 'margin-top: 0;';      // REMOVED: 15pt to prevent double spacing
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Account Instructions - ${escapeHtml(safeName)}</title>
   <style>
     @page { size: letter; margin: 0.75in; }
     body { font-family: Helvetica, Arial, sans-serif; color: #000; line-height: 1.25; font-size: 12pt; }
-    .header { text-align: center; margin-bottom: 24pt; }
+    .header { text-align: center; margin-bottom: 30pt; }
     .header h1 { font-size: 20px; margin: 0 0 8px 0; }
     .header h2 { font-size: 18px; margin: 0 0 8px 0; }
     .header h3 { font-size: 14px; font-weight: normal; color: #666; margin: 0 0 12px 0; }
     .row { display: flex; justify-content: center; gap: 16px; align-items: center; margin-bottom: 6px; }
     .logo { width: 180px; height: auto; }
     .qr { width: 120px; height: auto; }
+    /* FINAL FIX: No container spacing - let titles handle spacing */
     .section { ${sectionStyle} }
     .subsection { ${subsectionStyle} }
-    .section-title { font-size: 16px; font-weight: bold; margin: 0 0 14px 0; }
-    .subsection-title { font-size: 14px; font-weight: bold; margin: 0 0 14px 0; }
+    /* FINAL FIX: Title spacing matches web exactly */
+    .section-title { font-size: 16px; font-weight: bold; margin: 30pt 0 15pt 0; }
+    .subsection-title { font-size: 14px; font-weight: bold; margin: 15pt 0 15pt 0; }
     .info { font-size: 12px; }
-    .notice { border: 1px solid #000; padding: 8px; margin-top: 8px; font-size: 12px; }
-    .rich p, .rich div { margin: 0 0 14px 0; }
-    .rich ul, .rich ol { margin: 4px 0 8px 1.2em; padding: 0; }
-    .rich li { margin: 2px 0; }
+    .notice { border: 1px solid #000; padding: 12pt; margin-top: 15pt; font-size: 12px; }
+    /* FINAL FIX: Content spacing matches web exactly */
+    .rich p, .rich div { margin: 0 0 15pt 0; }
+    /* FINAL FIX: List containers have minimal spacing to match web */
+    .rich ul, .rich ol { margin: 0 0 0 1.2em; padding: 0; }  // REMOVED top/bottom margins
+    .rich li { margin: 0 0 15pt 0; }
   </style></head><body>
   <div class="header"><div class="row">${logoDataUrl ? `<img class="logo" src="${logoDataUrl}" />` : ''}${qrDataUrl ? `<img class="qr" src="${qrDataUrl}" />` : ''}</div>
   <h1>MSI Inventory</h1><h2>Account Instructions:</h2><h3>${escapeHtml(safeName)}</h3></div>
@@ -605,13 +624,37 @@ export async function generateAccountInstructionsPDF(options) {
     wrapped.forEach(w => { pdf.text(w, MARGIN_PT + 8, ty); ty += LINE_HEIGHT; });
     y += boxHeight + 20;
 
-    // === PRE-INVENTORY – FIXED OVERLAPS ===
+    // === PRE-INVENTORY \u2013 FIXED OVERLAPS ===
     const { generalText, areaMappingRaw, storePrepRaw } = extractPreInventoryBundle(client.sections);
-    const alrIntro = client.ALR ? `• ALR disk is ${client.ALR}.` : '';
+    const alrIntro = client.ALR ? `\u2022 ALR disk is ${client.ALR}.` : '';
 
-    const storeMappingText = `STANDARD STORE MAPPING APPLIES.\n\nMap as Follows:\nDO NOT ADD ADDITIONAL AREA NUMBERS\n\n1. 1#21, 1#61 gondolas. The last two digits of each number identify left or right side of gondola (from front of store). For example 1021 would be first right side of the gondola going right to left in the store. The left side of the gondola would be 1061. The next gondola right side would be 1121, then 1161 right side.\n2. Front end caps are 3801 (sub location 01, 02 etc. for each end cap)\n3. Back end caps are 3901 (sub location 01, 02 etc. for each end cap)\n4. Front wall 4001.\n5. Left wall 4101.\n6. Rear wall 4201.\n7. Right wall 4301.\n8. Check stand. Each checkstand will have it's own location.\n9. Displays 6001, 6101, 6201, etc.\n10. Office 7001\n11. Backroom use 9000 series\n\nNOTE: Stores are to be counted in 4' sections or by door.\nUse the map from the prior.\nIn all areas: Location 01 will be J-hooks, 02 will be floor displays, and 03 will be tops.\n\n* All locations must have a description. Utilize the location description utility as needed.\n\nCounters to number each display with a yellow tag to match posting sheet locations.`;
+    const storeMappingText = `STANDARD STORE MAPPING APPLIES.\
+\
+Map as Follows:\
+DO NOT ADD ADDITIONAL AREA NUMBERS\
+\
+1. 1#21, 1#61 gondolas. The last two digits of each number identify left or right side of gondola (from front of store). For example 1021 would be first right side of the gondola going right to left in the store. The left side of the gondola would be 1061. The next gondola right side would be 1121, then 1161 right side.\
+2. Front end caps are 3801 (sub location 01, 02 etc. for each end cap)\
+3. Back end caps are 3901 (sub location 01, 02 etc. for each end cap)\
+4. Front wall 4001.\
+5. Left wall 4101.\
+6. Rear wall 4201.\
+7. Right wall 4301.\
+8. Check stand. Each checkstand will have it's own location.\
+9. Displays 6001, 6101, 6201, etc.\
+10. Office 7001\
+11. Backroom use 9000 series\
+\
+NOTE: Stores are to be counted in 4' sections or by door.\
+Use the map from the prior.\
+In all areas: Location 01 will be J-hooks, 02 will be floor displays, and 03 will be tops.\
+\
+* All locations must have a description. Utilize the location description utility as needed.\
+\
+Counters to number each display with a yellow tag to match posting sheet locations.`;
 
-    const combinedPre = [alrIntro, String(generalText || client.preInventory || '').trim()].filter(Boolean).join('\n');
+    const combinedPre = [alrIntro, String(generalText || client.preInventory || '').trim()].filter(Boolean).join('\
+');
 
     if (combinedPre || areaMappingRaw || storePrepRaw || true) {
       sectionHeader('Pre-Inventory');
@@ -672,7 +715,8 @@ export async function generateAccountInstructionsPDF(options) {
       if (finRep) { subSectionHeader('Final Reports:'); htmlRenderer.setY(y); await htmlRenderer.renderHtmlString(finRep); y = htmlRenderer.getY(); }
       if (processing) {
         subSectionHeader('Final Processing:');
-        const cleanProcessing = processing.replace(/^MSI Inventory Reports/gi, '\nMSI Inventory Reports');
+        const cleanProcessing = processing.replace(/^MSI Inventory Reports/gi, '\
+MSI Inventory Reports');
         htmlRenderer.setY(y);
         await htmlRenderer.renderHtmlString(cleanProcessing);
         y = htmlRenderer.getY();
@@ -684,7 +728,7 @@ export async function generateAccountInstructionsPDF(options) {
     return filename;
   }
 
-  // Native: expo-print
+  // Native: expo-print - FINAL SPACING FIX APPLIED
   const { printToFileAsync } = await import('expo-print');
   const html = buildHtml(client, { logoDataUrl, qrDataUrl });
   const result = await printToFileAsync({ html, base64: false, width: PAGE_WIDTH_PT, height: PAGE_HEIGHT_PT });
