@@ -236,8 +236,13 @@ const EditAccountFlow = ({ onBack }) => {
       
       await updateDoc(clientRef, updateData);
       console.log('Client information saved successfully');
-      Alert.alert('Success', 'Client information updated successfully!');
+      console.log('QR code info saved:', selectedQRCode ? 'Yes' : 'No (will use default)');
+      
+      // Navigate to next step immediately
       setStep('preInventory');
+      
+      // Show success message after navigation
+      Alert.alert('Success', 'Client information updated successfully!');
     } catch (error) {
       console.error('Error saving client info:', error);
       Alert.alert('Error', 'Failed to save client information.');
