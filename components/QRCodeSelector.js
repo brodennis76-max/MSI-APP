@@ -149,26 +149,34 @@ const QRCodeSelector = ({
               </View>
             ) : (
               <ScrollView style={styles.qrCodeList}>
-                {qrCodes.map((qrCode, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.qrCodeItem}
-                    onPress={() => handleSelectQRCode(qrCode)}
-                  >
-                    <View style={styles.qrCodeInfo}>
-                      <Text style={styles.qrCodeName}>{qrCode.name}</Text>
-                      <Text style={styles.qrCodeSize}>
-                        {(qrCode.size / 1024).toFixed(1)} KB
-                      </Text>
-                    </View>
+                {qrCodes.map((qrCode, index) => {
+                  const isDefault = qrCode.name === '1450 Scanner Program.png';
+                  return (
                     <TouchableOpacity
-                      style={styles.previewButton}
-                      onPress={() => handlePreview(qrCode)}
+                      key={index}
+                      style={styles.qrCodeItem}
+                      onPress={() => handleSelectQRCode(qrCode)}
                     >
-                      <Text style={styles.previewButtonText}>Preview</Text>
+                      <View style={styles.qrCodeInfo}>
+                        <View style={styles.qrCodeNameRow}>
+                          <Text style={styles.qrCodeName}>{qrCode.name}</Text>
+                          {isDefault && (
+                            <Text style={styles.defaultLabel}>(default)</Text>
+                          )}
+                        </View>
+                        <Text style={styles.qrCodeSize}>
+                          {(qrCode.size / 1024).toFixed(1)} KB
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.previewButton}
+                        onPress={() => handlePreview(qrCode)}
+                      >
+                        <Text style={styles.previewButtonText}>Preview</Text>
+                      </TouchableOpacity>
                     </TouchableOpacity>
-                  </TouchableOpacity>
-                ))}
+                  );
+                })}
               </ScrollView>
             )}
           </View>
@@ -338,10 +346,21 @@ const styles = StyleSheet.create({
   qrCodeInfo: {
     flex: 1,
   },
+  qrCodeNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   qrCodeName: {
     fontSize: 16,
     color: '#333',
-    marginBottom: 4,
+  },
+  defaultLabel: {
+    fontSize: 12,
+    color: '#007AFF',
+    fontWeight: '600',
+    marginLeft: 8,
+    fontStyle: 'italic',
   },
   qrCodeSize: {
     fontSize: 12,
