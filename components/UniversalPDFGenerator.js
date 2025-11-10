@@ -816,6 +816,20 @@ export async function generateAccountInstructionsPDF(options) {
       baseFontSize: 12 
     });
 
+    // Helper function to preload image and get dimensions
+    const preloadImage = (dataUrl) => {
+      return new Promise((resolve, reject) => {
+        if (!HAS_DOM || typeof Image === 'undefined') {
+          reject(new Error('Image preloading not available in this environment'));
+          return;
+        }
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = (err) => reject(new Error('Failed to load image: ' + err));
+        img.src = dataUrl;
+      });
+    };
+
     // Images
     if (logoDataUrl) {
       try {
@@ -828,27 +842,93 @@ export async function generateAccountInstructionsPDF(options) {
     }
     if (qrDataUrl) {
       try {
+        // Validate data URL format
+        if (!qrDataUrl || !/^data:image\//i.test(qrDataUrl)) {
+          throw new Error('Invalid QR code data URL format');
+        }
+
+        // Preload image to ensure it's valid and get dimensions
+        let img;
+        try {
+          img = await preloadImage(qrDataUrl);
+          console.log('✅ QR code image preloaded successfully:', {
+            width: img.width,
+            height: img.height,
+            naturalWidth: img.naturalWidth,
+            naturalHeight: img.naturalHeight
+          });
+        } catch (preloadError) {
+          console.error('❌ Failed to preload QR code image:', preloadError.message);
+          throw preloadError;
+        }
+
         // Detect image type more accurately
         let type = 'PNG'; // Default to PNG for QR codes
-        if (/^data:image\/jpeg/i.test(qrDataUrl) || /^data:image\/jpg/i.test(qrDataUrl)) {
-          type = 'JPEG';
-        } else if (/^data:image\/png/i.test(qrDataUrl)) {
-          type = 'PNG';
+        const mimeMatch = qrDataUrl.match(/^data:image\/([^;]+)/i);
+        if (mimeMatch) {
+          const mimeType = mimeMatch[1].toLowerCase();
+          if (mimeType === 'jpeg' || mimeType === 'jpg') {
+            type = 'JPEG';
+          } else if (mimeType === 'png') {
+            type = 'PNG';
+          }
         }
-        const size = 120;
-        const x = PAGE_WIDTH_PT - MARGIN_PT - size;
-        const qrY = y - 44; // Match logo vertical position
+
+        // Calculate size maintaining aspect ratio
+        const maxSize = 120;
+        let qrWidth = maxSize;
+        let qrHeight = maxSize;
+        
+        // Maintain aspect ratio if image is not square
+        if (img.width && img.height) {
+          const aspectRatio = img.width / img.height;
+          if (aspectRatio > 1) {
+            // Wider than tall
+            qrHeight = maxSize / aspectRatio;
+          } else if (aspectRatio < 1) {
+            // Taller than wide
+            qrWidth = maxSize * aspectRatio;
+          }
+        }
+        
+        const x = PAGE_WIDTH_PT - MARGIN_PT - qrWidth;
+        const qrY = Math.max(10, y - 44); // Ensure it's at least 10pt from top, match logo vertical position
+        
         console.log('📸 Adding QR code to PDF:', {
           type,
-          size,
+          width: qrWidth,
+          height: qrHeight,
           x,
           y: qrY,
+          imageWidth: img.width,
+          imageHeight: img.height,
+          aspectRatio: img.width / img.height,
           dataUrlLength: qrDataUrl.length,
           dataUrlPrefix: qrDataUrl.substring(0, 50),
-          dataUrlType: qrDataUrl.substring(5, qrDataUrl.indexOf(';'))
+          dataUrlType: mimeMatch ? mimeMatch[1] : 'unknown'
         });
-        pdf.addImage(qrDataUrl, type, x, qrY, size, size);
-        console.log('✅ QR code image added to PDF successfully');
+
+        // Add image to PDF - try multiple methods for compatibility
+        try {
+          // Method 1: Direct data URL (preferred)
+          pdf.addImage(qrDataUrl, type, x, qrY, qrWidth, qrHeight);
+          console.log('✅ QR code image added to PDF successfully (method 1)');
+        } catch (method1Error) {
+          console.warn('⚠️ Method 1 failed, trying alternative approach:', method1Error.message);
+          try {
+            // Method 2: Try with image object if available
+            if (img && img.complete) {
+              pdf.addImage(img, type, x, qrY, qrWidth, qrHeight);
+              console.log('✅ QR code image added to PDF successfully (method 2)');
+            } else {
+              throw new Error('Image not ready for method 2');
+            }
+          } catch (method2Error) {
+            // Method 3: Try with data URL and format, but without type checking
+            pdf.addImage(qrDataUrl, 'PNG', x, qrY, qrWidth, qrHeight);
+            console.log('✅ QR code image added to PDF successfully (method 3)');
+          }
+        }
       } catch (error) {
         console.error('❌ Failed to add QR code image to PDF:', {
           errorMessage: error.message,
@@ -856,7 +936,7 @@ export async function generateAccountInstructionsPDF(options) {
           errorStack: error.stack,
           qrDataUrlLength: qrDataUrl?.length || 0,
           qrDataUrlPrefix: qrDataUrl?.substring(0, 50) || 'N/A',
-          qrDataUrlType: qrDataUrl ? qrDataUrl.substring(5, qrDataUrl.indexOf(';')) : 'N/A'
+          qrDataUrlType: qrDataUrl ? (qrDataUrl.match(/^data:image\/([^;]+)/i)?.[1] || 'unknown') : 'N/A'
         });
       }
     } else {
