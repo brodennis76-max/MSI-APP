@@ -662,35 +662,48 @@ export async function generateAccountInstructionsPDF(options) {
       if (isScanAccount) {
         console.log('📱 Scan account detected - loading QR code from GitHub for:', client.name || client.id);
         
-        // Determine QR code path from client data
+        // Determine QR code path from client data (all QR codes come from GitHub)
+        // Database fields:
+        //   - qrFileName: Just the filename (e.g., "Redeemer QR Code.png")
+        //   - qrPath: Full path (e.g., "qr-codes/Redeemer QR Code.png")
         // Priority: qrFileName > qrPath > default
         if (client.qrFileName) {
+          // qrFileName is just the filename, construct full path
           qrPath = `qr-codes/${client.qrFileName}`;
-          console.log('🔍 Using qrFileName:', client.qrFileName);
+          console.log('🔍 Using qrFileName from database:', client.qrFileName);
+          console.log('   Constructed GitHub path:', qrPath);
         } else if (client.qrPath) {
-          // If qrPath is already a full path, use it; otherwise assume it's relative to qr-codes/
+          // qrPath should already be in format "qr-codes/filename.png" from database
+          // But handle edge cases where it might not have the prefix
           if (client.qrPath.startsWith('qr-codes/')) {
             qrPath = client.qrPath;
           } else {
+            // If qrPath doesn't start with qr-codes/, prepend it
             qrPath = `qr-codes/${client.qrPath}`;
           }
-          console.log('🔍 Using qrPath:', qrPath);
+          console.log('🔍 Using qrPath from database:', client.qrPath);
+          console.log('   Final GitHub path:', qrPath);
         } else {
-          // Default QR code
+          // Default QR code (fallback if no specific QR code is configured)
           qrPath = 'qr-codes/1450 Scanner Program.png';
-          console.log('🔍 Using default QR code:', qrPath);
+          console.log('🔍 Using default QR code from GitHub:', qrPath);
         }
         
-        // Load QR code from GitHub
+        // Load QR code from GitHub repository
+        // This will try both jsDelivr CDN and raw.githubusercontent.com
         try {
+          console.log('📥 Loading QR code from GitHub:', qrPath);
           qrDataUrl = await getRepoImageDataUrl(qrPath, assetBase);
-          console.log('✅ Loaded QR code from GitHub:', qrPath);
+          console.log('✅ Successfully loaded QR code from GitHub:', qrPath);
           console.log('   Data URL length:', qrDataUrl.length, 'chars');
+          console.log('   GitHub URL:', `${RAW_BASE}/${encodePathPreserveSlashes(qrPath)}`);
         } catch (error) {
           console.error('❌ Failed to load QR code from GitHub:', {
             path: qrPath,
-            errorMessage: error.message
+            errorMessage: error.message,
+            githubUrl: `${RAW_BASE}/${encodePathPreserveSlashes(qrPath)}`
           });
+          console.error('   Make sure the QR code file exists in GitHub at:', qrPath);
           console.warn('⚠️ PDF will be generated without QR code');
           qrDataUrl = '';
         }
