@@ -3,8 +3,7 @@
 
 import { Platform } from 'react-native';
 import { doc, getDoc } from 'firebase/firestore';
-import { db, storage } from '../firebase-config';
-import { ref, getDownloadURL, getBytes } from 'firebase/storage';
+import { db } from '../firebase-config';
 
 // FIXED: Page metrics in points - 0.75 inch borders
 const MARGIN_PT = 54; // 72 * 0.75 = 0.75 inch
@@ -93,133 +92,8 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
-/**
- * Extract storage path from Firebase Storage download URL
- * @param {string} downloadURL - Firebase Storage download URL
- * @returns {string|null} - Storage path (e.g., 'qr-codes/filename.png') or null if not a Firebase Storage URL
- */
-function extractStoragePathFromURL(downloadURL) {
-  // Firebase Storage download URLs have format:
-  // https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{encodedPath}?alt=media&token=...
-  // OR: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{encodedPath}?alt=media (no token)
-  const match = downloadURL.match(/firebasestorage\.googleapis\.com\/v0\/b\/[^/]+\/o\/([^?&]+)/);
-  if (match) {
-    try {
-      const encodedPath = match[1];
-      // Decode the path (it's URL-encoded in the Firebase Storage URL)
-      const decodedPath = decodeURIComponent(encodedPath);
-      console.log('   Extracted storage path from URL:', decodedPath);
-      return decodedPath;
-    } catch (e) {
-      console.warn('Failed to decode storage path from URL:', e);
-      return null;
-    }
-  }
-  return null;
-}
-
-/**
- * Fetch image as data URL using Firebase Storage SDK (bypasses CORS)
- * @param {string} storagePath - Path in Firebase Storage (e.g., 'qr-codes/filename.png')
- * @returns {Promise<string>} - Data URL of the image
- */
-async function fetchFromFirebaseStorageAsDataURL(storagePath) {
-  try {
-    // Check if SDK is available
-    if (!storage || typeof getBytes !== 'function') {
-      throw new Error('Firebase Storage SDK is not available');
-    }
-    
-    console.log('📥 Fetching from Firebase Storage using SDK (bypasses CORS):', storagePath);
-    const storageRef = ref(storage, storagePath);
-    
-    // Add timeout to prevent hanging (30 seconds)
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Firebase Storage SDK fetch timeout after 30 seconds')), 30000);
-    });
-    
-    // Race between getBytes and timeout
-    const bytes = await Promise.race([
-      getBytes(storageRef),
-      timeoutPromise
-    ]);
-    
-    console.log('📦 Bytes received from Firebase Storage:', {
-      size: bytes.byteLength,
-      path: storagePath
-    });
-    
-    // Convert bytes to blob
-    const blob = new Blob([bytes], { type: 'image/png' });
-    
-    // Convert blob to data URL
-    return await new Promise((resolve, reject) => {
-      const fr = new FileReader();
-      fr.onload = () => {
-        const dataUrl = fr.result;
-        console.log('✅ Data URL created from Firebase Storage SDK:', {
-          length: dataUrl.length,
-          prefix: dataUrl.substring(0, 50),
-          hasImagePrefix: /^data:image\//i.test(dataUrl)
-        });
-        resolve(dataUrl);
-      };
-      fr.onerror = (err) => {
-        console.error('❌ FileReader error:', err);
-        reject(new Error('Failed to read blob as data URL'));
-      };
-      fr.readAsDataURL(blob);
-    });
-  } catch (error) {
-    console.error('❌ Error fetching from Firebase Storage using SDK:', {
-      path: storagePath,
-      errorCode: error.code,
-      errorMessage: error.message,
-      errorName: error.name,
-      errorStack: error.stack?.substring(0, 500)
-    });
-    
-    // Check if it's a CORS error (check both error message and common CORS error patterns)
-    const isCorsError = error.message && (
-      error.message.includes('CORS') || 
-      error.message.includes('Access-Control-Allow-Origin') ||
-      error.message.includes('blocked by CORS') ||
-      error.code === 'storage/unauthorized'
-    );
-    
-    if (isCorsError) {
-      console.error('⚠️ CORS ERROR: Firebase Storage SDK is being blocked by CORS policy');
-      console.error('   The SDK uses XMLHttpRequest internally, which requires CORS headers');
-      console.error('   Solution: Apply CORS configuration to Firebase Storage bucket');
-      console.error('   Run: ./complete-cors-setup.sh after authenticating with gcloud auth login');
-    }
-    
-    throw error;
-  }
-}
-
 async function fetchAsDataURL(url) {
-  // Check if this is a Firebase Storage URL - if so, use SDK to bypass CORS
-  const storagePath = extractStoragePathFromURL(url);
-  if (storagePath) {
-    console.log('🔍 Detected Firebase Storage URL, using SDK instead of direct fetch to bypass CORS');
-    try {
-      // Try SDK first (bypasses CORS)
-      return await fetchFromFirebaseStorageAsDataURL(storagePath);
-    } catch (sdkError) {
-      // If SDK fails, log the error but don't break PDF generation
-      // The calling code will handle the error and continue without the image
-      console.error('⚠️ Firebase Storage SDK fetch failed, but continuing PDF generation:', {
-        path: storagePath,
-        errorCode: sdkError.code,
-        errorMessage: sdkError.message
-      });
-      // Re-throw the error so calling code can handle it gracefully
-      throw sdkError;
-    }
-  }
-  
-  // For non-Firebase Storage URLs, use direct fetch
+  // Direct fetch for any URL (GitHub, etc.)
   const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) {
     throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
@@ -280,74 +154,6 @@ async function getRepoImageDataUrl(relPath, assetBase) {
   throw new Error('All repo image fetch attempts failed');
 }
 
-/**
- * Get image data URL from Firebase Storage using SDK (bypasses CORS)
- * @param {string} storagePath - Path in Firebase Storage (e.g., 'qr-codes/filename.png')
- * @returns {Promise<string>} - Data URL of the image
- */
-async function getFirebaseStorageImageDataUrl(storagePath) {
-  try {
-    // Create a reference to the file in Firebase Storage
-    // Firebase Storage handles spaces in paths correctly - no need to encode
-    const storageRef = ref(storage, storagePath);
-    console.log('🔍 Attempting to load from Firebase Storage path (using SDK to bypass CORS):', storagePath);
-    console.log('   Storage bucket:', storage._delegate?.bucket || 'unknown');
-    console.log('   Storage ref path:', storageRef.fullPath || storageRef._delegate?.fullPath || 'unknown');
-    
-    // Use getBytes() directly instead of getDownloadURL + fetch to bypass CORS
-    console.log('   Fetching bytes using Firebase Storage SDK...');
-    const bytes = await getBytes(storageRef);
-    console.log('✅ Bytes received from Firebase Storage:', {
-      size: bytes.byteLength,
-      path: storagePath
-    });
-    
-    // Convert bytes to blob
-    const blob = new Blob([bytes], { type: 'image/png' });
-    
-    // Convert blob to data URL
-    const dataUrl = await new Promise((resolve, reject) => {
-      const fr = new FileReader();
-      fr.onload = () => {
-        const result = fr.result;
-        console.log('✅ Successfully converted to data URL (length:', result.length, 'chars)');
-        console.log('   Data URL type:', result.substring(5, result.indexOf(';')));
-        resolve(result);
-      };
-      fr.onerror = (err) => {
-        console.error('❌ FileReader error:', err);
-        reject(new Error('Failed to read blob as data URL'));
-      };
-      fr.readAsDataURL(blob);
-    });
-    
-    // Validate it's a proper image data URL
-    if (!/^data:image\//i.test(dataUrl)) {
-      console.error('❌ Invalid data URL format:', dataUrl.substring(0, 100));
-      throw new Error('Fetched data is not a valid image data URL');
-    }
-    
-    return dataUrl;
-  } catch (error) {
-    console.error('❌ Error fetching from Firebase Storage:', {
-      path: storagePath,
-      errorCode: error.code,
-      errorMessage: error.message,
-      errorName: error.name,
-      errorStack: error.stack?.substring(0, 500)
-    });
-    
-    // Provide more specific error messages
-    if (error.code === 'storage/object-not-found') {
-      console.error(`   File not found at path: ${storagePath}`);
-      console.error('   Check if the file exists in Firebase Storage with this exact path');
-    } else if (error.code === 'storage/unauthorized') {
-      console.error('   Permission denied - check Firebase Storage security rules');
-    }
-    
-    throw error;
-  }
-}
 
 // Strip HTML for inline KV fields
 function htmlToPlainInline(html) {
@@ -855,285 +661,40 @@ export async function generateAccountInstructionsPDF(options) {
     // Wrap QR code loading in try-catch to ensure PDF generation continues even if QR code loading fails
     try {
       if (isScanAccount) {
-        console.log('📱 Scan account detected - loading QR code for:', client.name || client.id);
-    console.log('📋 Client QR code fields:', {
-      qrFileName: client.qrFileName || '(not set)',
-      qrFileNameType: typeof client.qrFileName,
-      qrFileNameValue: JSON.stringify(client.qrFileName),
-      qrPath: client.qrPath || '(not set)',
-      qrUrl: client.qrUrl ? client.qrUrl.substring(0, 80) + '...' : '(not set)'
-    });
-    
-    // Verify storage is initialized
-    if (!storage) {
-      console.error('❌ ERROR: Firebase Storage is not initialized!');
-      throw new Error('Firebase Storage is not initialized');
-    }
-    console.log('✅ Firebase Storage initialized, bucket:', storage._delegate?.bucket || 'unknown');
-    
-    // Test Firebase Storage accessibility by trying to list files
-    let firebaseStorageAccessible = false;
-    try {
-      const testRef = ref(storage, 'qr-codes');
-      // Just check if we can create a reference - actual access will be tested when fetching
-      firebaseStorageAccessible = true;
-      console.log('✅ Firebase Storage reference can be created');
-    } catch (storageTestError) {
-      console.error('❌ ERROR: Cannot create Firebase Storage reference:', storageTestError.message);
-      console.error('   Firebase Storage may not be accessible in this environment');
-      firebaseStorageAccessible = false;
-    }
-    
-    // Priority 1: Use qrUrl FIRST (direct download URL - most reliable, works even if SDK fails)
-    // This bypasses Firebase Storage SDK and uses direct HTTP fetch, which should work in browser
-    if (client.qrUrl) {
-      console.log('🔍 Priority 1: qrUrl is set, attempting to load QR code from direct download URL');
-      console.log('   qrUrl:', client.qrUrl.substring(0, 100) + '...');
-      
-      // Accept any URL that starts with http/https or gs://
-      if (client.qrUrl.startsWith('https://') || client.qrUrl.startsWith('http://') || client.qrUrl.startsWith('gs://')) {
-        console.log('   URL format is valid (https/http/gs://)');
-        try {
-          console.log('   Fetching image from qrUrl...');
-          qrDataUrl = await fetchAsDataURL(client.qrUrl);
-          
-          if (qrDataUrl && /^data:image\//i.test(qrDataUrl)) {
-            console.log('✅ SUCCESS: Loaded QR code from qrUrl (Firebase Storage URL):', client.qrUrl.substring(0, 80) + '...');
-            console.log('   Data URL length:', qrDataUrl.length, 'chars');
-            console.log('   Data URL type:', qrDataUrl.substring(5, qrDataUrl.indexOf(';')));
-            console.log('   First 100 chars:', qrDataUrl.substring(0, 100));
+        console.log('📱 Scan account detected - loading QR code from GitHub for:', client.name || client.id);
+        
+        // Determine QR code path from client data
+        // Priority: qrFileName > qrPath > default
+        if (client.qrFileName) {
+          qrPath = `qr-codes/${client.qrFileName}`;
+          console.log('🔍 Using qrFileName:', client.qrFileName);
+        } else if (client.qrPath) {
+          // If qrPath is already a full path, use it; otherwise assume it's relative to qr-codes/
+          if (client.qrPath.startsWith('qr-codes/')) {
+            qrPath = client.qrPath;
           } else {
-            console.error('❌ ERROR: qrUrl did not return a valid image data URL!');
-            console.error('   Data received:', qrDataUrl ? qrDataUrl.substring(0, 100) : 'null/undefined');
-            qrDataUrl = ''; // Clear invalid data
+            qrPath = `qr-codes/${client.qrPath}`;
           }
-        } catch (error) {
-          console.error('❌ FAILED to load QR code from qrUrl:', {
-            url: client.qrUrl.substring(0, 100) + '...',
-            errorMessage: error.message,
-            errorName: error.name,
-            errorStack: error.stack?.substring(0, 500)
-          });
-          console.error('   This is a critical failure - qrUrl should work!');
-          console.error('   Possible causes:');
-          console.error('   1. CORS issue with Firebase Storage');
-          console.error('   2. Network connectivity problem');
-          console.error('   3. Invalid or expired download URL');
-          qrDataUrl = ''; // Ensure it's cleared
-          // Continue to try other methods
-        }
-      } else {
-        console.warn('⚠️ qrUrl has invalid format (not http/https/gs://):', client.qrUrl.substring(0, 50) + '...');
-        console.warn('   qrUrl value:', client.qrUrl);
-      }
-    } else {
-      console.log('⚠️ Priority 1: qrUrl is NOT set - will try other methods');
-    }
-    
-    // Priority 2: Use qrFileName (Firebase Storage SDK - may fail in browser)
-    if (!qrDataUrl && client.qrFileName) {
-      // If qrFileName exists, use Firebase Storage path to get the current file
-      // Path format: qr-codes/filename.png (relative to bucket root)
-      // Full gs:// path would be: gs://msi-account-instructions.firebasestorage.app/qr-codes/filename.png
-      qrPath = `qr-codes/${client.qrFileName}`;
-      console.log('🔍 Priority 2: Attempting to load QR code using qrFileName:', {
-        qrFileName: client.qrFileName,
-        constructedPath: qrPath,
-        expectedFullPath: `gs://msi-account-instructions.firebasestorage.app/${qrPath}`
-      });
-      try {
-        qrDataUrl = await getFirebaseStorageImageDataUrl(qrPath);
-        if (qrDataUrl && /^data:image\//i.test(qrDataUrl)) {
-          console.log('✅ Loaded QR code from Firebase Storage using qrFileName:', qrPath);
-          console.log('   Data URL length:', qrDataUrl.length, 'chars');
-          console.log('   Data URL type:', qrDataUrl.substring(5, qrDataUrl.indexOf(';')));
-          console.log('   First 100 chars:', qrDataUrl.substring(0, 100));
+          console.log('🔍 Using qrPath:', qrPath);
         } else {
-          console.error('❌ ERROR: Loaded data is not a valid image data URL!');
-          console.error('   Data received:', qrDataUrl ? qrDataUrl.substring(0, 100) : 'null/undefined');
-          qrDataUrl = ''; // Clear invalid data
+          // Default QR code
+          qrPath = 'qr-codes/1450 Scanner Program.png';
+          console.log('🔍 Using default QR code:', qrPath);
         }
-      } catch (error) {
-        console.error('❌ FAILED to load QR code from Firebase Storage (qrFileName):', {
-          path: qrPath,
-          errorCode: error.code,
-          errorMessage: error.message,
-          errorName: error.name,
-          errorStack: error.stack?.substring(0, 500)
-        });
-        console.error('   Will try fallback methods (qrPath, default)...');
-        // Continue to try other methods
-      }
-    } else if (!qrDataUrl) {
-      console.warn('⚠️ No qrUrl or qrFileName set - will try other methods');
-    }
-    
-    // Priority 3: Use qrPath if qrFileName didn't work or doesn't exist
-    if (!qrDataUrl && client.qrPath) {
-      // Check if it's a Firebase Storage path (starts with qr-codes/) or a full URL
-      if (client.qrPath.startsWith('qr-codes/')) {
-        // Firebase Storage path
-        qrPath = client.qrPath;
-        try {
-          qrDataUrl = await getFirebaseStorageImageDataUrl(qrPath);
-          console.log('✅ Loaded QR code from Firebase Storage using qrPath:', qrPath);
-        } catch (error) {
-          console.warn('⚠️ Failed to load QR code from Firebase Storage (qrPath):', error.message);
-          // Continue to try default
-        }
-      } else if (client.qrPath.startsWith('gs://')) {
-        // Extract path from gs:// URL (format: gs://bucket/path/to/file)
-        // Example: gs://msi-account-instructions.firebasestorage.app/qr-codes/filename.png
-        const gsMatch = client.qrPath.match(/gs:\/\/[^\/]+\/(.+)/);
-        if (gsMatch) {
-          qrPath = gsMatch[1]; // Extract path after bucket name
-          try {
-            qrDataUrl = await getFirebaseStorageImageDataUrl(qrPath);
-            console.log('✅ Loaded QR code from Firebase Storage using gs:// path:', qrPath);
-          } catch (error) {
-            console.warn('⚠️ Failed to load QR code from Firebase Storage (gs:// path):', error.message);
-            // Try using the gs:// URL directly as fallback
-            try {
-              qrDataUrl = await fetchAsDataURL(client.qrPath);
-              console.log('✅ Loaded QR code from gs:// URL directly:', client.qrPath.substring(0, 80) + '...');
-            } catch (urlError) {
-              console.warn('❌ Failed to load QR code from gs:// URL:', urlError.message);
-              // Continue to try default
-            }
-          }
-        } else {
-          console.warn('⚠️ Invalid gs:// URL format:', client.qrPath);
-        }
-      } else if (client.qrPath.startsWith('https://firebasestorage')) {
-        // Full Firebase Storage HTTPS URL - use directly
-        try {
-          qrDataUrl = await fetchAsDataURL(client.qrPath);
-          console.log('✅ Loaded QR code from Firebase Storage HTTPS URL (qrPath):', client.qrPath.substring(0, 80) + '...');
-        } catch (error) {
-          console.warn('❌ Failed to load QR code from Firebase Storage HTTPS URL (qrPath):', error.message);
-          // Continue to try default
-        }
-      } else {
-        // Invalid qrPath format - log warning and continue to default
-        console.warn('⚠️ qrPath has invalid format (not Firebase Storage path or URL):', client.qrPath);
-      }
-    }
-    
-    // Priority 4: Default QR code - try Firebase Storage first, then GitHub fallback
-    // Use default as last resort if specific QR code methods all failed
-    const hasSpecificQRCode = !!(client.qrFileName || client.qrPath || client.qrUrl);
-    
-    // Final check before default
-    console.log('\n📊 QR Code Loading Summary:');
-    console.log('   qrDataUrl loaded:', qrDataUrl ? 'YES' : 'NO');
-    console.log('   qrDataUrl length:', qrDataUrl ? qrDataUrl.length : 0);
-    console.log('   hasSpecificQRCode:', hasSpecificQRCode);
-    console.log('   qrFileName:', client.qrFileName || '(not set)');
-    console.log('   qrPath:', client.qrPath || '(not set)');
-    console.log('   qrUrl:', client.qrUrl ? 'set' : '(not set)');
-    
-    if (!qrDataUrl) {
-      if (hasSpecificQRCode) {
-        console.error('\n❌ CRITICAL: Failed to load specific QR code for client:', client.name || client.id);
-        console.error('   All specific QR code methods failed:');
-        console.error('   - Priority 1 (qrUrl):', client.qrUrl ? 'FAILED' : 'NOT SET');
-        console.error('   - Priority 2 (qrFileName):', client.qrFileName ? 'FAILED' : 'NOT SET');
-        console.error('   - Priority 3 (qrPath):', client.qrPath ? 'FAILED' : 'NOT SET');
-        console.error('   Using default QR code as last resort');
-        console.error('   ⚠️  This should NOT happen if qrUrl is set and valid!');
-        console.error('   Check browser console for CORS or network errors');
-      } else {
-        console.log('\n⚠️ No specific QR code configured - attempting default QR code');
-      }
-      
-      // Default QR code - try Firebase Storage first, then GitHub
-      qrPath = 'qr-codes/1450 Scanner Program.png';
-      
-      // Only try Firebase Storage if it's accessible
-      if (firebaseStorageAccessible) {
-        try {
-          qrDataUrl = await getFirebaseStorageImageDataUrl(qrPath);
-          console.log('✅ Loaded default QR code from Firebase Storage:', qrPath);
-        } catch (error) {
-          console.error('❌ CRITICAL: Failed to load default QR code from Firebase Storage:', {
-            path: qrPath,
-            errorCode: error.code,
-            errorMessage: error.message,
-            errorName: error.name
-          });
-          console.error('   This suggests Firebase Storage is not accessible!');
-          console.error('   Check:');
-          console.error('   1. Firebase Storage security rules');
-          console.error('   2. Network connectivity');
-          console.error('   3. CORS settings');
-          console.error('   4. Browser console for additional errors');
-          
-          // Fall back to GitHub if Firebase Storage fails
-          console.warn('⚠️ Trying GitHub fallback as last resort...');
-          try {
-            qrDataUrl = await getRepoImageDataUrl(qrPath, assetBase);
-            console.log('✅ Loaded default QR code from GitHub:', qrPath);
-          } catch (githubError) {
-            console.error('❌ Failed to load default QR code from GitHub:', {
-              path: qrPath,
-              errorMessage: githubError.message
-            });
-            console.error('   Path attempted:', qrPath);
-            console.error('   Make sure the default QR code file exists in Firebase Storage or GitHub at:', qrPath);
-          }
-        }
-      } else {
-        // Firebase Storage not accessible - use GitHub
-        console.warn('⚠️ Firebase Storage not accessible - using GitHub fallback for default QR code');
+        
+        // Load QR code from GitHub
         try {
           qrDataUrl = await getRepoImageDataUrl(qrPath, assetBase);
-          console.log('✅ Loaded default QR code from GitHub:', qrPath);
-        } catch (githubError) {
-          console.error('❌ Failed to load default QR code from GitHub:', {
+          console.log('✅ Loaded QR code from GitHub:', qrPath);
+          console.log('   Data URL length:', qrDataUrl.length, 'chars');
+        } catch (error) {
+          console.error('❌ Failed to load QR code from GitHub:', {
             path: qrPath,
-            errorMessage: githubError.message
+            errorMessage: error.message
           });
+          console.warn('⚠️ PDF will be generated without QR code');
+          qrDataUrl = '';
         }
-      }
-    }
-    
-    if (!qrDataUrl) {
-      console.error('❌ WARNING: No QR code could be loaded for scan account:', client.name || client.id);
-      console.error('   All methods failed. Check Firebase Storage configuration and file existence.');
-    } else {
-      // CRITICAL: Validate that qrDataUrl is a proper data URL (not a Firebase Storage URL)
-      // If it's still a Firebase Storage URL, convert it to a data URL
-      if (!/^data:image\//i.test(qrDataUrl)) {
-        console.warn('⚠️ WARNING: QR code is not a data URL, attempting to convert...');
-        console.warn('   Current value:', qrDataUrl.substring(0, 100) + '...');
-        
-        // Check if it's a Firebase Storage URL
-        const storagePath = extractStoragePathFromURL(qrDataUrl);
-        if (storagePath) {
-          console.log('   Detected Firebase Storage URL, converting to data URL using SDK...');
-          try {
-            qrDataUrl = await fetchFromFirebaseStorageAsDataURL(storagePath);
-            console.log('✅ Successfully converted Firebase Storage URL to data URL');
-          } catch (error) {
-            console.error('❌ ERROR: Failed to convert Firebase Storage URL to data URL:', error.message);
-            qrDataUrl = ''; // Clear invalid data URL
-          }
-        } else {
-          console.error('❌ ERROR: QR code is not a valid data URL and not a Firebase Storage URL:', qrDataUrl.substring(0, 100));
-          qrDataUrl = ''; // Clear invalid data URL
-        }
-      }
-      
-      // Final validation
-      if (qrDataUrl && /^data:image\//i.test(qrDataUrl)) {
-        console.log('✅ QR code successfully loaded for:', client.name || client.id);
-        console.log('   Data URL length:', qrDataUrl.length, 'chars');
-        console.log('   Data URL type:', qrDataUrl.substring(5, qrDataUrl.indexOf(';')));
-      } else {
-        console.error('❌ ERROR: QR code data URL is still not valid after conversion attempt');
-        qrDataUrl = ''; // Clear invalid data URL
-      }
-    }
       } else {
         console.log('ℹ️  Non-scan account - skipping QR code for:', client.name || client.id);
       }
