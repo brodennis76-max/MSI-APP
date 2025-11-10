@@ -95,12 +95,46 @@ function escapeHtml(str) {
 
 async function fetchAsDataURL(url) {
   const res = await fetch(url, { cache: 'no-store' });
-  if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+  if (!res.ok) {
+    throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
+  }
+  
+  // Get content type from response headers
+  const contentType = res.headers.get('content-type') || 'image/png';
+  console.log('📥 Fetching image:', {
+    url: url.substring(0, 80) + '...',
+    contentType,
+    status: res.status,
+    ok: res.ok
+  });
+  
+  // Get blob with explicit type
   const blob = await res.blob();
-  return await new Promise(resolve => {
+  console.log('📦 Blob received:', {
+    size: blob.size,
+    type: blob.type,
+    expectedType: contentType
+  });
+  
+  // Ensure blob has correct type (sometimes blob.type is empty)
+  const typedBlob = blob.type ? blob : new Blob([blob], { type: contentType });
+  
+  return await new Promise((resolve, reject) => {
     const fr = new FileReader();
-    fr.onload = () => resolve(fr.result);
-    fr.readAsDataURL(blob);
+    fr.onload = () => {
+      const dataUrl = fr.result;
+      console.log('✅ Data URL created:', {
+        length: dataUrl.length,
+        prefix: dataUrl.substring(0, 50),
+        hasImagePrefix: /^data:image\//i.test(dataUrl)
+      });
+      resolve(dataUrl);
+    };
+    fr.onerror = (err) => {
+      console.error('❌ FileReader error:', err);
+      reject(new Error('Failed to read blob as data URL'));
+    };
+    fr.readAsDataURL(typedBlob);
   });
 }
 
