@@ -762,24 +762,31 @@ export async function generateAccountInstructionsPDF(options) {
       }
     }
     
-    // Priority 4: Default QR code from Firebase Storage ONLY (no GitHub fallback)
+    // Priority 4: Default QR code - try Firebase Storage first, then GitHub fallback
     if (!qrDataUrl) {
-      // Default QR code - ONLY from Firebase Storage (no GitHub fallback)
+      // Default QR code - try Firebase Storage first
       qrPath = 'qr-codes/1450 Scanner Program.png';
       try {
         qrDataUrl = await getFirebaseStorageImageDataUrl(qrPath);
         console.log('✅ Loaded default QR code from Firebase Storage:', qrPath);
       } catch (error) {
-        console.error('❌ Failed to load default QR code from Firebase Storage:', {
+        console.warn('⚠️ Failed to load default QR code from Firebase Storage, trying GitHub fallback:', {
           path: qrPath,
           errorCode: error.code,
-          errorMessage: error.message,
-          errorName: error.name
+          errorMessage: error.message
         });
-        console.error('   Path attempted:', qrPath);
-        console.error('   Make sure the default QR code file exists in Firebase Storage at:', qrPath);
-        console.error('   Full gs:// path: gs://msi-account-instructions.firebasestorage.app/' + qrPath);
-        // No GitHub fallback - only Firebase Storage
+        // GitHub fallback
+        try {
+          qrDataUrl = await getRepoImageDataUrl(qrPath, assetBase);
+          console.log('✅ Loaded default QR code from GitHub:', qrPath);
+        } catch (githubError) {
+          console.error('❌ Failed to load default QR code from GitHub:', {
+            path: qrPath,
+            errorMessage: githubError.message
+          });
+          console.error('   Path attempted:', qrPath);
+          console.error('   Make sure the default QR code file exists in Firebase Storage or GitHub at:', qrPath);
+        }
       }
     }
     
@@ -861,103 +868,18 @@ export async function generateAccountInstructionsPDF(options) {
     }
     if (qrDataUrl) {
       try {
-        // Validate data URL format
-        if (!qrDataUrl || !/^data:image\//i.test(qrDataUrl)) {
-          throw new Error('Invalid QR code data URL format');
-        }
-
-        // Preload image to ensure it's valid and get dimensions
-        let img;
-        try {
-          img = await preloadImage(qrDataUrl);
-          console.log('✅ QR code image preloaded successfully:', {
-            width: img.width,
-            height: img.height,
-            naturalWidth: img.naturalWidth,
-            naturalHeight: img.naturalHeight,
-            complete: img.complete
-          });
-        } catch (preloadError) {
-          console.error('❌ Failed to preload QR code image:', preloadError.message);
-          throw preloadError;
-        }
-
-        // Convert image to canvas data URL for better jsPDF compatibility
-        // This ensures proper encoding and handles transparency issues
-        let finalDataUrl = qrDataUrl;
-        try {
-          finalDataUrl = imageToCanvasDataUrl(img);
-          console.log('✅ QR code converted to canvas data URL');
-        } catch (canvasError) {
-          console.warn('⚠️ Canvas conversion failed, using original data URL:', canvasError.message);
-          // Continue with original data URL
-        }
-
-        // Always use PNG format for QR codes (canvas conversion ensures PNG format)
-        const type = 'PNG';
-
-        // Calculate size maintaining aspect ratio
+        // BYPASS Image() entirely — Chrome can't block data URLs this way
+        const type = qrDataUrl.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
         const maxSize = 120;
-        let qrWidth = maxSize;
-        let qrHeight = maxSize;
-        
-        // Maintain aspect ratio if image is not square
-        if (img.width && img.height) {
-          const aspectRatio = img.width / img.height;
-          if (aspectRatio > 1) {
-            // Wider than tall
-            qrHeight = maxSize / aspectRatio;
-          } else if (aspectRatio < 1) {
-            // Taller than wide
-            qrWidth = maxSize * aspectRatio;
-          }
-        }
-        
-        const x = PAGE_WIDTH_PT - MARGIN_PT - qrWidth;
-        const qrY = Math.max(10, y - 44); // Ensure it's at least 10pt from top, match logo vertical position
-        
-        console.log('📸 Adding QR code to PDF:', {
-          type,
-          width: qrWidth,
-          height: qrHeight,
-          x,
-          y: qrY,
-          imageWidth: img.width,
-          imageHeight: img.height,
-          aspectRatio: img.width / img.height,
-          dataUrlLength: finalDataUrl.length,
-          dataUrlPrefix: finalDataUrl.substring(0, 50),
-          usingCanvas: finalDataUrl !== qrDataUrl
-        });
+        const x = PAGE_WIDTH_PT - MARGIN_PT - maxSize;
+        const yPos = MARGIN_PT - 44;
 
-        // Add image to PDF - use canvas-converted data URL for best compatibility
-        try {
-          pdf.addImage(finalDataUrl, type, x, qrY, qrWidth, qrHeight);
-          console.log('✅ QR code image added to PDF successfully');
-        } catch (addImageError) {
-          console.error('❌ CRITICAL: Failed to add QR code image to PDF:', {
-            errorMessage: addImageError.message,
-            errorName: addImageError.name,
-            errorStack: addImageError.stack,
-            type,
-            x,
-            y: qrY,
-            width: qrWidth,
-            height: qrHeight,
-            dataUrlLength: finalDataUrl.length,
-            dataUrlPrefix: finalDataUrl.substring(0, 100)
-          });
-          throw addImageError;
-        }
-      } catch (error) {
-        console.error('❌ Failed to add QR code image to PDF:', {
-          errorMessage: error.message,
-          errorName: error.name,
-          errorStack: error.stack,
-          qrDataUrlLength: qrDataUrl?.length || 0,
-          qrDataUrlPrefix: qrDataUrl?.substring(0, 50) || 'N/A',
-          qrDataUrlType: qrDataUrl ? (qrDataUrl.match(/^data:image\/([^;]+)/i)?.[1] || 'unknown') : 'N/A'
-        });
+        // Direct addImage — NO preload, NO canvas, NO CORS
+        pdf.addImage(qrDataUrl, type, x, yPos, maxSize, maxSize, '', 'FAST');
+        
+        console.log('QR CODE ADDED DIRECTLY — NO PRELOAD', { type, x, yPos });
+      } catch (err) {
+        console.error('Still failed (impossible now):', err);
       }
     } else {
       console.warn('⚠️ No QR code data URL available - QR code will not be added to PDF');
