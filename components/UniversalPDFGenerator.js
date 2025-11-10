@@ -101,10 +101,15 @@ function escapeHtml(str) {
 function extractStoragePathFromURL(downloadURL) {
   // Firebase Storage download URLs have format:
   // https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{encodedPath}?alt=media&token=...
-  const match = downloadURL.match(/firebasestorage\.googleapis\.com\/v0\/b\/[^/]+\/o\/([^?]+)/);
+  // OR: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{encodedPath}?alt=media (no token)
+  const match = downloadURL.match(/firebasestorage\.googleapis\.com\/v0\/b\/[^/]+\/o\/([^?&]+)/);
   if (match) {
     try {
-      return decodeURIComponent(match[1]);
+      const encodedPath = match[1];
+      // Decode the path (it's URL-encoded in the Firebase Storage URL)
+      const decodedPath = decodeURIComponent(encodedPath);
+      console.log('   Extracted storage path from URL:', decodedPath);
+      return decodedPath;
     } catch (e) {
       console.warn('Failed to decode storage path from URL:', e);
       return null;
@@ -165,12 +170,8 @@ async function fetchAsDataURL(url) {
   const storagePath = extractStoragePathFromURL(url);
   if (storagePath) {
     console.log('🔍 Detected Firebase Storage URL, using SDK instead of direct fetch to bypass CORS');
-    try {
-      return await fetchFromFirebaseStorageAsDataURL(storagePath);
-    } catch (error) {
-      console.warn('⚠️ Firebase Storage SDK fetch failed, falling back to direct fetch:', error.message);
-      // Fall through to direct fetch as fallback
-    }
+    // ALWAYS use SDK for Firebase Storage URLs - never fall back to direct fetch (CORS will fail)
+    return await fetchFromFirebaseStorageAsDataURL(storagePath);
   }
   
   // For non-Firebase Storage URLs, use direct fetch
@@ -1039,14 +1040,37 @@ export async function generateAccountInstructionsPDF(options) {
       console.error('❌ WARNING: No QR code could be loaded for scan account:', client.name || client.id);
       console.error('   All methods failed. Check Firebase Storage configuration and file existence.');
     } else {
-      // Validate that qrDataUrl is a proper data URL
+      // CRITICAL: Validate that qrDataUrl is a proper data URL (not a Firebase Storage URL)
+      // If it's still a Firebase Storage URL, convert it to a data URL
       if (!/^data:image\//i.test(qrDataUrl)) {
-        console.error('❌ ERROR: QR code data URL is not a valid image data URL:', qrDataUrl.substring(0, 100));
-        qrDataUrl = ''; // Clear invalid data URL
-      } else {
+        console.warn('⚠️ WARNING: QR code is not a data URL, attempting to convert...');
+        console.warn('   Current value:', qrDataUrl.substring(0, 100) + '...');
+        
+        // Check if it's a Firebase Storage URL
+        const storagePath = extractStoragePathFromURL(qrDataUrl);
+        if (storagePath) {
+          console.log('   Detected Firebase Storage URL, converting to data URL using SDK...');
+          try {
+            qrDataUrl = await fetchFromFirebaseStorageAsDataURL(storagePath);
+            console.log('✅ Successfully converted Firebase Storage URL to data URL');
+          } catch (error) {
+            console.error('❌ ERROR: Failed to convert Firebase Storage URL to data URL:', error.message);
+            qrDataUrl = ''; // Clear invalid data URL
+          }
+        } else {
+          console.error('❌ ERROR: QR code is not a valid data URL and not a Firebase Storage URL:', qrDataUrl.substring(0, 100));
+          qrDataUrl = ''; // Clear invalid data URL
+        }
+      }
+      
+      // Final validation
+      if (qrDataUrl && /^data:image\//i.test(qrDataUrl)) {
         console.log('✅ QR code successfully loaded for:', client.name || client.id);
         console.log('   Data URL length:', qrDataUrl.length, 'chars');
         console.log('   Data URL type:', qrDataUrl.substring(5, qrDataUrl.indexOf(';')));
+      } else {
+        console.error('❌ ERROR: QR code data URL is still not valid after conversion attempt');
+        qrDataUrl = ''; // Clear invalid data URL
       }
     }
   } else {
