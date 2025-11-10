@@ -555,9 +555,10 @@ function buildHtml(client, assets) {
     .header h1 { font-size: 20px; margin: 0 0 8px 0; }
     .header h2 { font-size: 18px; margin: 0 0 8px 0; }
     .header h3 { font-size: 14px; font-weight: normal; color: #666; margin: 0 0 12px 0; }
-    .row { display: flex; justify-content: center; gap: 16px; align-items: center; margin-bottom: 6px; }
-    .logo { width: 180px; height: auto; }
-    .qr { width: 120px; height: auto; }
+    .row { text-align: center; margin-bottom: 6px; }
+    .row img { display: inline-block; vertical-align: middle; margin: 0 8px; }
+    .logo { width: 180px; height: auto; max-width: 180px; }
+    .qr { width: 120px; height: auto; max-width: 120px; }
     /* ALL SPACING MATCHES TEXT SIZE (12pt font = 12pt line height), DOUBLE SPACE BEFORE H1 */
     .section { ${sectionStyle} }
     .subsection { ${subsectionStyle} }
@@ -827,25 +828,35 @@ export async function generateAccountInstructionsPDF(options) {
     }
     if (qrDataUrl) {
       try {
-        const type = /^data:image\/jpeg/i.test(qrDataUrl) ? 'JPEG' : 'PNG';
+        // Detect image type more accurately
+        let type = 'PNG'; // Default to PNG for QR codes
+        if (/^data:image\/jpeg/i.test(qrDataUrl) || /^data:image\/jpg/i.test(qrDataUrl)) {
+          type = 'JPEG';
+        } else if (/^data:image\/png/i.test(qrDataUrl)) {
+          type = 'PNG';
+        }
         const size = 120;
         const x = PAGE_WIDTH_PT - MARGIN_PT - size;
+        const qrY = y - 44; // Match logo vertical position
         console.log('📸 Adding QR code to PDF:', {
           type,
           size,
           x,
-          y: MARGIN_PT - 8,
+          y: qrY,
           dataUrlLength: qrDataUrl.length,
-          dataUrlPrefix: qrDataUrl.substring(0, 50)
+          dataUrlPrefix: qrDataUrl.substring(0, 50),
+          dataUrlType: qrDataUrl.substring(5, qrDataUrl.indexOf(';'))
         });
-        pdf.addImage(qrDataUrl, type, x, MARGIN_PT - 8, size, size);
+        pdf.addImage(qrDataUrl, type, x, qrY, size, size);
         console.log('✅ QR code image added to PDF successfully');
       } catch (error) {
         console.error('❌ Failed to add QR code image to PDF:', {
           errorMessage: error.message,
           errorName: error.name,
+          errorStack: error.stack,
           qrDataUrlLength: qrDataUrl?.length || 0,
-          qrDataUrlPrefix: qrDataUrl?.substring(0, 50) || 'N/A'
+          qrDataUrlPrefix: qrDataUrl?.substring(0, 50) || 'N/A',
+          qrDataUrlType: qrDataUrl ? qrDataUrl.substring(5, qrDataUrl.indexOf(';')) : 'N/A'
         });
       }
     } else {
