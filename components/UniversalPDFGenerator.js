@@ -20,6 +20,12 @@ const SHOW_ELEMENT = typeof NodeFilter !== 'undefined' ? NodeFilter.SHOW_ELEMENT
 // Allowed tags
 const ALLOWED_TAGS = ['b','strong','i','em','u','br','p','div','ul','ol','li','img'];
 
+// --------- Repo asset bases ---------
+const ORG = 'brodennis76-max';
+const REPO = 'MSI-APP';
+const BRANCH_TAG = 'main';
+const DEFAULT_JSDELIVR_BASE = `https://cdn.jsdelivr.net/gh/${ORG}/${REPO}@${BRANCH_TAG}`;
+const RAW_BASE = `https://raw.githubusercontent.com/${ORG}/${REPO}/${BRANCH_TAG}`;
 
 // ---------- Sanitizer ----------
 
@@ -132,7 +138,21 @@ async function fetchAsDataURL(url) {
   });
 }
 
+function encodePathPreserveSlashes(p) {
+  return String(p || '').split('/').map(encodeURIComponent).join('/');
+}
 
+async function getRepoImageDataUrl(relPath, assetBase) {
+  const path = encodePathPreserveSlashes(relPath);
+  const bases = [assetBase || DEFAULT_JSDELIVR_BASE, RAW_BASE];
+  for (const base of bases) {
+    try {
+      const url = `${base}/${path}`;
+      return await fetchAsDataURL(url);
+    } catch {}
+  }
+  throw new Error('All repo image fetch attempts failed');
+}
 
 // Strip HTML for inline KV fields
 function htmlToPlainInline(html) {
@@ -619,6 +639,7 @@ export async function generateAccountInstructionsPDF(options) {
       throw new Error('Missing client data');
     }
 
+    const assetBase = client.assetBase || DEFAULT_JSDELIVR_BASE;
     let logoDataUrl = '';
     if (client.logoDataUrl && /^data:image\//i.test(client.logoDataUrl)) {
       logoDataUrl = client.logoDataUrl;
@@ -626,8 +647,66 @@ export async function generateAccountInstructionsPDF(options) {
       try { logoDataUrl = await fetchAsDataURL(client.logoUrl); } catch {}
     }
     
-    // QR codes will be loaded separately - not loading PNG files here
+    // Get QR code: Only load QR codes for scan accounts
+    // Check if client is a scan account (either inventoryType contains "scan" or inventoryTypes includes "scan")
+    // Uses case-insensitive regex matching to handle variations in data
+    const isScanAccount = 
+      /scan/i.test(String(client.inventoryType || '')) ||
+      (Array.isArray(client.inventoryTypes) && client.inventoryTypes.some(t => /scan/i.test(String(t))));
+    
+    let qrPath = '';
     let qrDataUrl = '';
+    
+    // Wrap QR code loading in try-catch to ensure PDF generation continues even if QR code loading fails
+    try {
+      if (isScanAccount) {
+        console.log('📱 Scan account detected - loading QR code from GitHub for:', client.name || client.id);
+        
+        // Determine QR code path from client data
+        // Priority: qrFileName > qrPath > default
+        if (client.qrFileName) {
+          qrPath = `qr-codes/${client.qrFileName}`;
+          console.log('🔍 Using qrFileName:', client.qrFileName);
+        } else if (client.qrPath) {
+          // If qrPath is already a full path, use it; otherwise assume it's relative to qr-codes/
+          if (client.qrPath.startsWith('qr-codes/')) {
+            qrPath = client.qrPath;
+          } else {
+            qrPath = `qr-codes/${client.qrPath}`;
+          }
+          console.log('🔍 Using qrPath:', qrPath);
+        } else {
+          // Default QR code
+          qrPath = 'qr-codes/1450 Scanner Program.png';
+          console.log('🔍 Using default QR code:', qrPath);
+        }
+        
+        // Load QR code from GitHub
+        try {
+          qrDataUrl = await getRepoImageDataUrl(qrPath, assetBase);
+          console.log('✅ Loaded QR code from GitHub:', qrPath);
+          console.log('   Data URL length:', qrDataUrl.length, 'chars');
+        } catch (error) {
+          console.error('❌ Failed to load QR code from GitHub:', {
+            path: qrPath,
+            errorMessage: error.message
+          });
+          console.warn('⚠️ PDF will be generated without QR code');
+          qrDataUrl = '';
+        }
+      } else {
+        console.log('ℹ️  Non-scan account - skipping QR code for:', client.name || client.id);
+      }
+    } catch (qrError) {
+      // If QR code loading fails completely, log the error but continue PDF generation
+      console.error('❌ CRITICAL: QR code loading failed completely, but continuing PDF generation:', {
+        errorMessage: qrError.message,
+        errorName: qrError.name,
+        errorStack: qrError.stack?.substring(0, 500)
+      });
+      console.warn('⚠️ PDF will be generated without QR code');
+      qrDataUrl = ''; // Ensure qrDataUrl is empty
+    }
 
     if (Platform.OS === 'web') {
       console.log('🌐 Generating PDF for web platform using jsPDF...');
