@@ -6,6 +6,7 @@ import { db } from '../firebase-config';
 import { collection, onSnapshot, doc, getDoc, updateDoc } from 'firebase/firestore';
 import RichTextEditor from './RichTextEditor';
 import { uploadQrToFirebase, getAccountQrPath } from '../utils/uploadQrToFirebase';
+import QRCodeSelector from './QRCodeSelector';
 import PreInventoryForm from './PreInventoryForm';
 import InventoryProceduresForm from './InventoryProceduresForm';
 import AuditsInventoryFlowForm from './AuditsInventoryFlowForm';
@@ -22,9 +23,7 @@ const EditAccountFlow = ({ onBack }) => {
   const [filteredClients, setFilteredClients] = useState([]);
   const [activeClient, setActiveClient] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [qrImageBase64, setQrImageBase64] = useState(null);
-  const [qrImageFileName, setQrImageFileName] = useState(null);
-  const [uploadingQr, setUploadingQr] = useState(false);
+  const [selectedQRCode, setSelectedQRCode] = useState(null);
 
   const [step, setStep] = useState('picker');
 
@@ -62,7 +61,20 @@ const EditAccountFlow = ({ onBack }) => {
         Alert.alert('Error', 'Client not found.');
         return;
       }
-      setActiveClient({ id: snap.id, ...snap.data() });
+      const clientData = { id: snap.id, ...snap.data() };
+      setActiveClient(clientData);
+      
+      // Initialize selected QR code from client data
+      if (clientData.qrFileName || clientData.qrPath) {
+        setSelectedQRCode({
+          qrFileName: clientData.qrFileName,
+          qrPath: clientData.qrPath,
+          qrUrl: clientData.qrUrl
+        });
+      } else {
+        setSelectedQRCode(null);
+      }
+      
       setStep('clientInfo');
     } catch (e) {
       console.error('Failed to load client:', e);
@@ -373,70 +385,12 @@ const EditAccountFlow = ({ onBack }) => {
             </View>
 
             <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>Scanner QR Code</Text>
-              <Text style={styles.fieldSubLabel}>
-                {activeClient.qrPath 
-                  ? `Using account-specific QR code: ${activeClient.qrPath}`
-                  : 'Using default QR code (qr-codes/1450 Scanner Program.png)'}
-              </Text>
-              
-              {qrImageBase64 && (
-                <View style={styles.qrPreviewContainer}>
-                  <Image source={{ uri: qrImageBase64 }} style={styles.qrPreview} />
-                  <TouchableOpacity style={styles.removeButton} onPress={removeQrImage}>
-                    <Text style={styles.removeButtonText}>Remove</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-              
-              <TouchableOpacity 
-                style={styles.uploadButton} 
-                onPress={pickQrImage}
-                disabled={uploadingQr}
-              >
-                <Text style={styles.uploadButtonText}>
-                  {qrImageBase64 ? 'Change QR Code Image' : 'Select QR Code Image'}
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[
-                  styles.uploadButton, 
-                  styles.uploadToGitHubButton, 
-                  uploadingQr && styles.disabled
-                ]} 
-                onPress={() => {
-                  console.log('=== UPLOAD BUTTON PRESSED (EditAccountFlow) ===');
-                  console.log('qrImageBase64 exists:', !!qrImageBase64);
-                  console.log('activeClient:', activeClient ? activeClient.id : 'missing');
-                  
-                  if (!qrImageBase64) {
-                    Alert.alert('No Image', 'Please select a QR code image first.');
-                    return;
-                  }
-                  
-                  if (!activeClient) {
-                    Alert.alert('Error', 'No client selected.');
-                    return;
-                  }
-                  
-                  const handleUpload = async () => {
-                    try {
-                      await uploadQrCode();
-                    } catch (error) {
-                      console.error('Error in upload button handler:', error);
-                      Alert.alert('Error', `Upload failed: ${error.message}`);
-                    }
-                  };
-                  
-                  handleUpload();
-                }}
-                disabled={uploadingQr}
-              >
-                <Text style={styles.uploadButtonText}>
-                  {uploadingQr ? 'Uploading to Firebase Storage...' : 'Upload to Firebase Storage'}
-                </Text>
-              </TouchableOpacity>
+              <QRCodeSelector
+                selectedQRCode={selectedQRCode}
+                onSelectQRCode={setSelectedQRCode}
+                onClearSelection={() => setSelectedQRCode(null)}
+                label="Scanner QR Code"
+              />
             </View>
           </View>
 
