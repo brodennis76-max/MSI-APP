@@ -27,6 +27,12 @@ const EditAccountFlow = ({ onBack }) => {
 
   const [step, setStep] = useState('picker');
 
+  // Debug: Log step changes
+  useEffect(() => {
+    console.log('📊 Step changed to:', step);
+    console.log('   activeClient:', activeClient ? activeClient.name : 'null');
+  }, [step, activeClient]);
+
   useEffect(() => {
     const unsubscribe = onSnapshot(
       collection(db, 'clients'),
@@ -244,11 +250,23 @@ const EditAccountFlow = ({ onBack }) => {
       console.log('✅ Client information saved successfully');
       console.log('   QR code info saved:', selectedQRCode ? 'Yes' : 'No (will use default)');
       
+      // Update activeClient with QR code info before navigation
+      const updatedClient = {
+        ...activeClient,
+        qrFileName: selectedQRCode?.qrFileName || null,
+        qrPath: selectedQRCode?.qrPath || null,
+        qrUrl: selectedQRCode?.qrUrl || null,
+      };
+      setActiveClient(updatedClient);
+      console.log('📝 Updated activeClient with QR code info');
+      
       // Reset saving state first
       setSaving(false);
       
       // Navigate to next step immediately
       console.log('🚀 Navigating to preInventory step...');
+      console.log('   Current step:', step);
+      console.log('   activeClient exists:', !!activeClient);
       setStep('preInventory');
       console.log('✅ Step set to preInventory');
       
