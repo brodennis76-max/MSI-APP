@@ -306,42 +306,12 @@ const EditAccountFlow = ({ onBack }) => {
             </Picker>
           </View>
 
-          {/* Show QR Code Selector when client is selected */}
-          {selectedClientId && (
-            <View style={{ marginTop: 20, marginBottom: 20 }}>
-              <QRCodeSelector
-                selectedQRCode={selectedQRCode}
-                onSelectQRCode={setSelectedQRCode}
-                onClearSelection={() => setSelectedQRCode(null)}
-                label="Scanner QR Code"
-              />
-            </View>
-          )}
-
           <TouchableOpacity 
-            style={[styles.primaryButton, (!selectedClientId || !selectedQRCode) && styles.disabled]}
-            onPress={() => {
-              if (selectedClientId) {
-                // Save QR code selection before proceeding
-                if (selectedQRCode) {
-                  const clientRef = doc(db, 'clients', selectedClientId);
-                  updateDoc(clientRef, {
-                    qrFileName: selectedQRCode.qrFileName,
-                    qrPath: selectedQRCode.qrPath,
-                    qrUrl: selectedQRCode.qrUrl,
-                  }).then(() => {
-                    loadClient(selectedClientId);
-                  });
-                } else {
-                  loadClient(selectedClientId);
-                }
-              }
-            }}
-            disabled={!selectedClientId || !selectedQRCode}
+            style={[styles.primaryButton, !selectedClientId && styles.disabled]}
+            onPress={() => selectedClientId && loadClient(selectedClientId)}
+            disabled={!selectedClientId}
           >
-            <Text style={styles.primaryText}>
-              {selectedQRCode ? 'Start Editing' : 'Select QR Code to Continue'}
-            </Text>
+            <Text style={styles.primaryText}>Start Editing</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -395,6 +365,15 @@ const EditAccountFlow = ({ onBack }) => {
                   </TouchableOpacity>
                 ))}
               </View>
+            </View>
+
+            <View style={styles.fieldContainer}>
+              <QRCodeSelector
+                selectedQRCode={selectedQRCode}
+                onSelectQRCode={setSelectedQRCode}
+                onClearSelection={() => setSelectedQRCode(null)}
+                label="Scanner QR Code"
+              />
             </View>
 
             <View style={styles.fieldContainer}>

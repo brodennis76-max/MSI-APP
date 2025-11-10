@@ -319,8 +319,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
   const handleActionSelect = (action) => {
     setClientAction(action);
     if (action === 'new') {
-      // Don't show form immediately - let user see QR code selector first
-      setShowForm(false);
+      setShowForm(true);
       setSelectedClientId(null);
     } else {
       setShowForm(false);
@@ -330,8 +329,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
 
   const handleClientSelect = (clientId) => {
     setSelectedClientId(clientId);
-    // Don't show form immediately - let user see QR code selector first
-    setShowForm(false);
+    setShowForm(true);
   };
 
   // Load client data when selected for editing
@@ -613,30 +611,6 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
               </>
             )}
 
-            {/* Show QR Code Selector on first screen for both new and edit */}
-            {(clientAction === 'new' || (clientAction === 'edit' && selectedClientId)) && (
-              <View style={{ marginTop: 20, marginBottom: 20 }}>
-                <QRCodeSelector
-                  selectedQRCode={selectedQRCode}
-                  onSelectQRCode={setSelectedQRCode}
-                  onClearSelection={() => setSelectedQRCode(null)}
-                  label="Scanner QR Code"
-                />
-              </View>
-            )}
-
-            {/* Show "Continue" button for new accounts after selecting QR code */}
-            {clientAction === 'new' && (
-              <TouchableOpacity
-                style={[styles.primaryButton, !selectedQRCode && styles.disabled]}
-                onPress={() => setShowForm(true)}
-                disabled={!selectedQRCode}
-              >
-                <Text style={styles.primaryButtonText}>
-                  {selectedQRCode ? 'Continue to Account Details' : 'Select QR Code to Continue'}
-                </Text>
-              </TouchableOpacity>
-            )}
           </>
         ) : (
           <>
@@ -761,6 +735,16 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
                   </View>
                 </View>
               )}
+
+              {/* QR Code Selector - shown for both new and edit accounts */}
+              <View style={{ marginTop: 20, marginBottom: 20 }}>
+                <QRCodeSelector
+                  selectedQRCode={selectedQRCode}
+                  onSelectQRCode={setSelectedQRCode}
+                  onClearSelection={() => setSelectedQRCode(null)}
+                  label="Scanner QR Code"
+                />
+              </View>
 
               <Text style={styles.label}>PIC (Pre Inventory Call)</Text>
               <TextInput
