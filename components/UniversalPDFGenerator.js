@@ -640,9 +640,11 @@ export async function generateAccountInstructionsPDF(options) {
   }
   
   // Get QR code: Only load QR codes for scan accounts
-  // Check if client is a scan account (either inventoryType === "scan" or inventoryTypes includes "scan")
-  const isScanAccount = client.inventoryType === 'scan' || 
-                       (Array.isArray(client.inventoryTypes) && client.inventoryTypes.includes('scan'));
+  // Check if client is a scan account (either inventoryType contains "scan" or inventoryTypes includes "scan")
+  // Uses case-insensitive regex matching to handle variations in data
+  const isScanAccount = 
+    /scan/i.test(String(client.inventoryType || '')) ||
+    (Array.isArray(client.inventoryTypes) && client.inventoryTypes.some(t => /scan/i.test(String(t))));
   
   let qrPath = '';
   let qrDataUrl = '';
