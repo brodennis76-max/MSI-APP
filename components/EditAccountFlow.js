@@ -247,8 +247,10 @@ const EditAccountFlow = ({ onBack }) => {
       // Navigate to next step immediately
       setStep('preInventory');
       
-      // Show success message after navigation
-      Alert.alert('Success', 'Client information updated successfully!');
+      // Show success message non-blocking (after a short delay to allow navigation)
+      setTimeout(() => {
+        Alert.alert('Success', 'Client information updated successfully!');
+      }, 100);
     } catch (error) {
       console.error('Error saving client info:', error);
       Alert.alert('Error', 'Failed to save client information.');
