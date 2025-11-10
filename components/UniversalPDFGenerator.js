@@ -167,6 +167,14 @@ async function fetchFromFirebaseStorageAsDataURL(storagePath) {
       errorName: error.name,
       errorStack: error.stack?.substring(0, 500)
     });
+    
+    // Check if it's a CORS error
+    if (error.message && (error.message.includes('CORS') || error.message.includes('Access-Control-Allow-Origin'))) {
+      console.error('⚠️ CORS ERROR: Firebase Storage SDK is being blocked by CORS policy');
+      console.error('   Solution: Apply CORS configuration to Firebase Storage bucket');
+      console.error('   Run: ./complete-cors-setup.sh after authenticating with gcloud auth login');
+    }
+    
     throw error;
   }
 }
