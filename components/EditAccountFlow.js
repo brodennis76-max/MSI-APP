@@ -279,7 +279,24 @@ const EditAccountFlow = ({ onBack }) => {
           <View style={styles.pickerContainer}>
             <Picker
               selectedValue={selectedClientId}
-              onValueChange={(v) => setSelectedClientId(v)}
+              onValueChange={(v) => {
+                setSelectedClientId(v);
+                // Initialize QR code selection when client is selected
+                if (v) {
+                  const client = clients.find(c => c.id === v);
+                  if (client && (client.qrFileName || client.qrPath)) {
+                    setSelectedQRCode({
+                      qrFileName: client.qrFileName,
+                      qrPath: client.qrPath,
+                      qrUrl: client.qrUrl
+                    });
+                  } else {
+                    setSelectedQRCode(null);
+                  }
+                } else {
+                  setSelectedQRCode(null);
+                }
+              }}
               style={styles.picker}
             >
               <Picker.Item label="Select Client" value={null} />
@@ -289,12 +306,42 @@ const EditAccountFlow = ({ onBack }) => {
             </Picker>
           </View>
 
+          {/* Show QR Code Selector when client is selected */}
+          {selectedClientId && (
+            <View style={{ marginTop: 20, marginBottom: 20 }}>
+              <QRCodeSelector
+                selectedQRCode={selectedQRCode}
+                onSelectQRCode={setSelectedQRCode}
+                onClearSelection={() => setSelectedQRCode(null)}
+                label="Scanner QR Code"
+              />
+            </View>
+          )}
+
           <TouchableOpacity 
-            style={[styles.primaryButton, !selectedClientId && styles.disabled]}
-            onPress={() => selectedClientId && loadClient(selectedClientId)}
-            disabled={!selectedClientId}
+            style={[styles.primaryButton, (!selectedClientId || !selectedQRCode) && styles.disabled]}
+            onPress={() => {
+              if (selectedClientId) {
+                // Save QR code selection before proceeding
+                if (selectedQRCode) {
+                  const clientRef = doc(db, 'clients', selectedClientId);
+                  updateDoc(clientRef, {
+                    qrFileName: selectedQRCode.qrFileName,
+                    qrPath: selectedQRCode.qrPath,
+                    qrUrl: selectedQRCode.qrUrl,
+                  }).then(() => {
+                    loadClient(selectedClientId);
+                  });
+                } else {
+                  loadClient(selectedClientId);
+                }
+              }
+            }}
+            disabled={!selectedClientId || !selectedQRCode}
           >
-            <Text style={styles.primaryText}>Start Editing</Text>
+            <Text style={styles.primaryText}>
+              {selectedQRCode ? 'Start Editing' : 'Select QR Code to Continue'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -384,14 +431,6 @@ const EditAccountFlow = ({ onBack }) => {
               />
             </View>
 
-            <View style={styles.fieldContainer}>
-              <QRCodeSelector
-                selectedQRCode={selectedQRCode}
-                onSelectQRCode={setSelectedQRCode}
-                onClearSelection={() => setSelectedQRCode(null)}
-                label="Scanner QR Code"
-              />
-            </View>
           </View>
 
           <TouchableOpacity 
