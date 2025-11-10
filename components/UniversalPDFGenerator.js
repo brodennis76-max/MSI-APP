@@ -166,18 +166,30 @@ async function getFirebaseStorageImageDataUrl(storagePath) {
     const storageRef = ref(storage, storagePath);
     console.log('🔍 Attempting to load from Firebase Storage path:', storagePath);
     console.log('   Storage bucket:', storage._delegate?.bucket || 'unknown');
+    console.log('   Storage ref path:', storageRef.fullPath || storageRef._delegate?.fullPath || 'unknown');
     
     // Get the download URL
     const downloadURL = await getDownloadURL(storageRef);
-    console.log('✅ Firebase Storage download URL obtained:', downloadURL.substring(0, 80) + '...');
+    console.log('✅ Firebase Storage download URL obtained:', downloadURL.substring(0, 100) + '...');
+    
+    // Verify the URL points to the expected file
+    const urlPath = decodeURIComponent(downloadURL.match(/o\/([^?]+)/)?.[1] || '');
+    console.log('   URL decoded path:', urlPath);
+    if (urlPath && urlPath !== storagePath) {
+      console.warn('   ⚠️  WARNING: URL path does not match requested path!');
+      console.warn(`      Requested: ${storagePath}`);
+      console.warn(`      Got: ${urlPath}`);
+    }
     
     // Fetch the image and convert to data URL
     console.log('   Fetching image from download URL...');
     const dataUrl = await fetchAsDataURL(downloadURL);
     console.log('✅ Successfully converted to data URL (length:', dataUrl.length, 'chars)');
+    console.log('   Data URL type:', dataUrl.substring(5, dataUrl.indexOf(';')));
     
     // Validate it's a proper image data URL
     if (!/^data:image\//i.test(dataUrl)) {
+      console.error('❌ Invalid data URL format:', dataUrl.substring(0, 100));
       throw new Error('Fetched data is not a valid image data URL');
     }
     
@@ -188,8 +200,17 @@ async function getFirebaseStorageImageDataUrl(storagePath) {
       errorCode: error.code,
       errorMessage: error.message,
       errorName: error.name,
-      errorStack: error.stack
+      errorStack: error.stack?.substring(0, 500)
     });
+    
+    // Provide more specific error messages
+    if (error.code === 'storage/object-not-found') {
+      console.error(`   File not found at path: ${storagePath}`);
+      console.error('   Check if the file exists in Firebase Storage with this exact path');
+    } else if (error.code === 'storage/unauthorized') {
+      console.error('   Permission denied - check Firebase Storage security rules');
+    }
+    
     throw error;
   }
 }
@@ -716,8 +737,11 @@ export async function generateAccountInstructionsPDF(options) {
         if (qrDataUrl && /^data:image\//i.test(qrDataUrl)) {
           console.log('✅ Loaded QR code from Firebase Storage using qrFileName:', qrPath);
           console.log('   Data URL length:', qrDataUrl.length, 'chars');
+          console.log('   Data URL type:', qrDataUrl.substring(5, qrDataUrl.indexOf(';')));
+          console.log('   First 100 chars:', qrDataUrl.substring(0, 100));
         } else {
           console.error('❌ ERROR: Loaded data is not a valid image data URL!');
+          console.error('   Data received:', qrDataUrl ? qrDataUrl.substring(0, 100) : 'null/undefined');
           qrDataUrl = ''; // Clear invalid data
         }
       } catch (error) {
@@ -728,6 +752,7 @@ export async function generateAccountInstructionsPDF(options) {
           errorName: error.name,
           errorStack: error.stack?.substring(0, 500)
         });
+        console.error('   Will try fallback methods (qrUrl, qrPath, default)...');
         // Continue to try other methods
       }
     } else {
