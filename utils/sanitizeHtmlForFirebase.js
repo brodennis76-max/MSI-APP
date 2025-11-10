@@ -63,3 +63,4 @@ export function sanitizeHtmlForFirebase(html) {
     .replace(/<\/(?!b|strong|i|em|u|p|div|ul|ol|li|br)\w+>/gi, '');
 }
 
+

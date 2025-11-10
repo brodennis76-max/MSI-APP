@@ -44,3 +44,4 @@ After setting the rules, try uploading a PNG file again. The upload should work.
 - **Bucket not found**: Verify the storage bucket name in firebase-config.js
 - **Network error**: Check your internet connection
 
+
