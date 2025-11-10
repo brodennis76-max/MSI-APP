@@ -764,57 +764,71 @@ function buildHtml(client, assets) {
 // ---------- Main entry ----------
 
 export async function generateAccountInstructionsPDF(options) {
-  const { clientId, clientData } = options || {};
-  let client = clientData;
-  if (!client && clientId) {
-    const ref = doc(db, 'clients', clientId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) throw new Error('Client not found');
-    client = { id: snap.id, ...snap.data() };
-    console.log('📥 Loaded client data from Firestore:', {
-      id: client.id,
-      name: client.name,
-      inventoryType: client.inventoryType,
-      inventoryTypes: client.inventoryTypes,
-      qrFileName: client.qrFileName || '(not set)',
-      qrPath: client.qrPath || '(not set)',
-      qrUrl: client.qrUrl ? client.qrUrl.substring(0, 50) + '...' : '(not set)'
-    });
-  } else if (client) {
-    console.log('📥 Using provided client data:', {
-      id: client.id,
-      name: client.name,
-      inventoryType: client.inventoryType,
-      inventoryTypes: client.inventoryTypes,
-      qrFileName: client.qrFileName || '(not set)',
-      qrPath: client.qrPath || '(not set)',
-      qrUrl: client.qrUrl ? client.qrUrl.substring(0, 50) + '...' : '(not set)'
-    });
-  }
-  if (!client) throw new Error('Missing client data');
-
-  const assetBase = client.assetBase || DEFAULT_JSDELIVR_BASE;
-  let logoDataUrl = '';
-  if (client.logoDataUrl && /^data:image\//i.test(client.logoDataUrl)) {
-    logoDataUrl = client.logoDataUrl;
-  } else if (client.logoUrl) {
-    try { logoDataUrl = await fetchAsDataURL(client.logoUrl); } catch {}
-  }
+  console.log('🚀 PDF Generation Started');
+  console.log('   Options:', { clientId: options?.clientId, hasClientData: !!options?.clientData });
+  console.log('   Platform:', Platform.OS);
   
-  // Get QR code: Only load QR codes for scan accounts
-  // Check if client is a scan account (either inventoryType contains "scan" or inventoryTypes includes "scan")
-  // Uses case-insensitive regex matching to handle variations in data
-  const isScanAccount = 
-    /scan/i.test(String(client.inventoryType || '')) ||
-    (Array.isArray(client.inventoryTypes) && client.inventoryTypes.some(t => /scan/i.test(String(t))));
-  
-  let qrPath = '';
-  let qrDataUrl = '';
-  
-  // Wrap QR code loading in try-catch to ensure PDF generation continues even if QR code loading fails
   try {
-    if (isScanAccount) {
-    console.log('📱 Scan account detected - loading QR code for:', client.name || client.id);
+    const { clientId, clientData } = options || {};
+    let client = clientData;
+    
+    if (!client && clientId) {
+      console.log('📥 Loading client data from Firestore...');
+      const ref = doc(db, 'clients', clientId);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        console.error('❌ Client not found in Firestore:', clientId);
+        throw new Error('Client not found');
+      }
+      client = { id: snap.id, ...snap.data() };
+      console.log('✅ Loaded client data from Firestore:', {
+        id: client.id,
+        name: client.name,
+        inventoryType: client.inventoryType,
+        inventoryTypes: client.inventoryTypes,
+        qrFileName: client.qrFileName || '(not set)',
+        qrPath: client.qrPath || '(not set)',
+        qrUrl: client.qrUrl ? client.qrUrl.substring(0, 50) + '...' : '(not set)'
+      });
+    } else if (client) {
+      console.log('✅ Using provided client data:', {
+        id: client.id,
+        name: client.name,
+        inventoryType: client.inventoryType,
+        inventoryTypes: client.inventoryTypes,
+        qrFileName: client.qrFileName || '(not set)',
+        qrPath: client.qrPath || '(not set)',
+        qrUrl: client.qrUrl ? client.qrUrl.substring(0, 50) + '...' : '(not set)'
+      });
+    }
+    
+    if (!client) {
+      console.error('❌ Missing client data - both clientId and clientData are missing');
+      throw new Error('Missing client data');
+    }
+
+    const assetBase = client.assetBase || DEFAULT_JSDELIVR_BASE;
+    let logoDataUrl = '';
+    if (client.logoDataUrl && /^data:image\//i.test(client.logoDataUrl)) {
+      logoDataUrl = client.logoDataUrl;
+    } else if (client.logoUrl) {
+      try { logoDataUrl = await fetchAsDataURL(client.logoUrl); } catch {}
+    }
+    
+    // Get QR code: Only load QR codes for scan accounts
+    // Check if client is a scan account (either inventoryType contains "scan" or inventoryTypes includes "scan")
+    // Uses case-insensitive regex matching to handle variations in data
+    const isScanAccount = 
+      /scan/i.test(String(client.inventoryType || '')) ||
+      (Array.isArray(client.inventoryTypes) && client.inventoryTypes.some(t => /scan/i.test(String(t))));
+    
+    let qrPath = '';
+    let qrDataUrl = '';
+    
+    // Wrap QR code loading in try-catch to ensure PDF generation continues even if QR code loading fails
+    try {
+      if (isScanAccount) {
+        console.log('📱 Scan account detected - loading QR code for:', client.name || client.id);
     console.log('📋 Client QR code fields:', {
       qrFileName: client.qrFileName || '(not set)',
       qrFileNameType: typeof client.qrFileName,
@@ -1093,22 +1107,23 @@ export async function generateAccountInstructionsPDF(options) {
         qrDataUrl = ''; // Clear invalid data URL
       }
     }
-    } else {
-      console.log('ℹ️  Non-scan account - skipping QR code for:', client.name || client.id);
+      } else {
+        console.log('ℹ️  Non-scan account - skipping QR code for:', client.name || client.id);
+      }
+    } catch (qrError) {
+      // If QR code loading fails completely, log the error but continue PDF generation
+      console.error('❌ CRITICAL: QR code loading failed completely, but continuing PDF generation:', {
+        errorMessage: qrError.message,
+        errorName: qrError.name,
+        errorStack: qrError.stack?.substring(0, 500)
+      });
+      console.warn('⚠️ PDF will be generated without QR code');
+      qrDataUrl = ''; // Ensure qrDataUrl is empty
     }
-  } catch (qrError) {
-    // If QR code loading fails completely, log the error but continue PDF generation
-    console.error('❌ CRITICAL: QR code loading failed completely, but continuing PDF generation:', {
-      errorMessage: qrError.message,
-      errorName: qrError.name,
-      errorStack: qrError.stack?.substring(0, 500)
-    });
-    console.warn('⚠️ PDF will be generated without QR code');
-    qrDataUrl = ''; // Ensure qrDataUrl is empty
-  }
 
-  if (Platform.OS === 'web') {
-    const { default: jsPDF } = await import('jspdf');
+    if (Platform.OS === 'web') {
+      console.log('🌐 Generating PDF for web platform using jsPDF...');
+      const { default: jsPDF } = await import('jspdf');
     const pdf = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
     let y = MARGIN_PT;
     
@@ -1438,15 +1453,31 @@ Counters to number each display with a yellow tag to match posting sheet locatio
     }
 
     const filename = `Account_Instructions_${(client.name || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+    console.log('💾 Saving PDF as:', filename);
     pdf.save(filename);
+    console.log('✅ PDF saved successfully:', filename);
     return filename;
   }
 
   // Native: expo-print - FINAL SPACING FIX APPLIED
+  console.log('📱 Generating PDF for native platform using expo-print...');
   const { printToFileAsync } = await import('expo-print');
   const html = buildHtml(client, { logoDataUrl, qrDataUrl });
+  console.log('📄 HTML generated, length:', html.length);
   const result = await printToFileAsync({ html, base64: false, width: PAGE_WIDTH_PT, height: PAGE_HEIGHT_PT });
+  console.log('✅ PDF generated successfully:', result.uri);
   return result.uri;
+  
+  } catch (error) {
+    console.error('❌ CRITICAL ERROR in PDF generation:', {
+      errorMessage: error.message,
+      errorName: error.name,
+      errorStack: error.stack?.substring(0, 1000),
+      options: { clientId: options?.clientId, hasClientData: !!options?.clientData }
+    });
+    // Re-throw the error so calling code can handle it
+    throw error;
+  }
 }
 
 export default function UniversalPDFGenerator() { return null; }
