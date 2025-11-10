@@ -677,12 +677,13 @@ export async function generateAccountInstructionsPDF(options) {
         //   - qrFileName: Just the filename (e.g., "Redeemer QR Code.png")
         //   - qrPath: Full path (e.g., "qr-codes/Redeemer QR Code.png")
         // Priority: qrFileName > qrPath > default
-        if (client.qrFileName) {
+        // For scan accounts, always use default if none is explicitly selected
+        if (client.qrFileName && client.qrFileName.trim() !== '') {
           // qrFileName is just the filename, construct full path
           qrPath = `qr-codes/${client.qrFileName}`;
           console.log('🔍 Using qrFileName from database:', client.qrFileName);
           console.log('   Constructed GitHub path:', qrPath);
-        } else if (client.qrPath) {
+        } else if (client.qrPath && client.qrPath.trim() !== '') {
           // qrPath should already be in format "qr-codes/filename.png" from database
           // But handle edge cases where it might not have the prefix
           if (client.qrPath.startsWith('qr-codes/')) {
@@ -695,8 +696,9 @@ export async function generateAccountInstructionsPDF(options) {
           console.log('   Final GitHub path:', qrPath);
         } else {
           // Default QR code (fallback if no specific QR code is configured)
+          // For scan accounts, always use default if none is selected
           qrPath = 'qr-codes/1450 Scanner Program.png';
-          console.log('🔍 Using default QR code from GitHub:', qrPath);
+          console.log('🔍 No QR code selected - using default QR code from GitHub:', qrPath);
         }
         
         // Load QR code from GitHub repository
