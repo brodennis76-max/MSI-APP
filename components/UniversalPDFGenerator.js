@@ -132,7 +132,18 @@ async function fetchFromFirebaseStorageAsDataURL(storagePath) {
     
     console.log('📥 Fetching from Firebase Storage using SDK (bypasses CORS):', storagePath);
     const storageRef = ref(storage, storagePath);
-    const bytes = await getBytes(storageRef);
+    
+    // Add timeout to prevent hanging (30 seconds)
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Firebase Storage SDK fetch timeout after 30 seconds')), 30000);
+    });
+    
+    // Race between getBytes and timeout
+    const bytes = await Promise.race([
+      getBytes(storageRef),
+      timeoutPromise
+    ]);
+    
     console.log('📦 Bytes received from Firebase Storage:', {
       size: bytes.byteLength,
       path: storagePath
@@ -168,9 +179,17 @@ async function fetchFromFirebaseStorageAsDataURL(storagePath) {
       errorStack: error.stack?.substring(0, 500)
     });
     
-    // Check if it's a CORS error
-    if (error.message && (error.message.includes('CORS') || error.message.includes('Access-Control-Allow-Origin'))) {
+    // Check if it's a CORS error (check both error message and common CORS error patterns)
+    const isCorsError = error.message && (
+      error.message.includes('CORS') || 
+      error.message.includes('Access-Control-Allow-Origin') ||
+      error.message.includes('blocked by CORS') ||
+      error.code === 'storage/unauthorized'
+    );
+    
+    if (isCorsError) {
       console.error('⚠️ CORS ERROR: Firebase Storage SDK is being blocked by CORS policy');
+      console.error('   The SDK uses XMLHttpRequest internally, which requires CORS headers');
       console.error('   Solution: Apply CORS configuration to Firebase Storage bucket');
       console.error('   Run: ./complete-cors-setup.sh after authenticating with gcloud auth login');
     }
