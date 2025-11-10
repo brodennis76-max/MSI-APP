@@ -224,13 +224,25 @@ const EditAccountFlow = ({ onBack }) => {
     try {
       const clientRef = doc(db, 'clients', activeClient.id);
       const updateData = {
-        inventoryType: activeClient.inventoryType,
-        PIC: activeClient.PIC,
-        startTime: activeClient.startTime,
-        verification: activeClient.verification,
-        additionalNotes: activeClient.additionalNotes,
         updatedAt: new Date(),
       };
+      
+      // Only include fields that are not undefined (Firestore doesn't allow undefined)
+      if (activeClient.inventoryType !== undefined) {
+        updateData.inventoryType = activeClient.inventoryType;
+      }
+      if (activeClient.PIC !== undefined) {
+        updateData.PIC = activeClient.PIC;
+      }
+      if (activeClient.startTime !== undefined) {
+        updateData.startTime = activeClient.startTime;
+      }
+      if (activeClient.verification !== undefined) {
+        updateData.verification = activeClient.verification;
+      }
+      if (activeClient.additionalNotes !== undefined) {
+        updateData.additionalNotes = activeClient.additionalNotes;
+      }
       
       // Update QR code info from selectedQRCode state
       if (selectedQRCode) {
