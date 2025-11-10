@@ -125,6 +125,11 @@ function extractStoragePathFromURL(downloadURL) {
  */
 async function fetchFromFirebaseStorageAsDataURL(storagePath) {
   try {
+    // Check if SDK is available
+    if (!storage || typeof getBytes !== 'function') {
+      throw new Error('Firebase Storage SDK is not available');
+    }
+    
     console.log('📥 Fetching from Firebase Storage using SDK (bypasses CORS):', storagePath);
     const storageRef = ref(storage, storagePath);
     const bytes = await getBytes(storageRef);
@@ -159,7 +164,8 @@ async function fetchFromFirebaseStorageAsDataURL(storagePath) {
       path: storagePath,
       errorCode: error.code,
       errorMessage: error.message,
-      errorName: error.name
+      errorName: error.name,
+      errorStack: error.stack?.substring(0, 500)
     });
     throw error;
   }
@@ -170,8 +176,20 @@ async function fetchAsDataURL(url) {
   const storagePath = extractStoragePathFromURL(url);
   if (storagePath) {
     console.log('🔍 Detected Firebase Storage URL, using SDK instead of direct fetch to bypass CORS');
-    // ALWAYS use SDK for Firebase Storage URLs - never fall back to direct fetch (CORS will fail)
-    return await fetchFromFirebaseStorageAsDataURL(storagePath);
+    try {
+      // Try SDK first (bypasses CORS)
+      return await fetchFromFirebaseStorageAsDataURL(storagePath);
+    } catch (sdkError) {
+      // If SDK fails, log the error but don't break PDF generation
+      // The calling code will handle the error and continue without the image
+      console.error('⚠️ Firebase Storage SDK fetch failed, but continuing PDF generation:', {
+        path: storagePath,
+        errorCode: sdkError.code,
+        errorMessage: sdkError.message
+      });
+      // Re-throw the error so calling code can handle it gracefully
+      throw sdkError;
+    }
   }
   
   // For non-Firebase Storage URLs, use direct fetch
@@ -793,7 +811,9 @@ export async function generateAccountInstructionsPDF(options) {
   let qrPath = '';
   let qrDataUrl = '';
   
-  if (isScanAccount) {
+  // Wrap QR code loading in try-catch to ensure PDF generation continues even if QR code loading fails
+  try {
+    if (isScanAccount) {
     console.log('📱 Scan account detected - loading QR code for:', client.name || client.id);
     console.log('📋 Client QR code fields:', {
       qrFileName: client.qrFileName || '(not set)',
@@ -1073,8 +1093,18 @@ export async function generateAccountInstructionsPDF(options) {
         qrDataUrl = ''; // Clear invalid data URL
       }
     }
-  } else {
-    console.log('ℹ️  Non-scan account - skipping QR code for:', client.name || client.id);
+    } else {
+      console.log('ℹ️  Non-scan account - skipping QR code for:', client.name || client.id);
+    }
+  } catch (qrError) {
+    // If QR code loading fails completely, log the error but continue PDF generation
+    console.error('❌ CRITICAL: QR code loading failed completely, but continuing PDF generation:', {
+      errorMessage: qrError.message,
+      errorName: qrError.name,
+      errorStack: qrError.stack?.substring(0, 500)
+    });
+    console.warn('⚠️ PDF will be generated without QR code');
+    qrDataUrl = ''; // Ensure qrDataUrl is empty
   }
 
   if (Platform.OS === 'web') {
