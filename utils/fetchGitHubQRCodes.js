@@ -30,11 +30,11 @@ export async function fetchGitHubQRCodes() {
     
     const files = await response.json();
     
-    // Filter for image files (PNG, JPG, JPEG)
+    // Filter for image files (PNG, JPG, JPEG, GIF)
     const imageFiles = files
       .filter(file => 
         file.type === 'file' && 
-        /\.(png|jpg|jpeg)$/i.test(file.name)
+        /\.(png|jpg|jpeg|gif)$/i.test(file.name)
       )
       .map(file => ({
         name: file.name,

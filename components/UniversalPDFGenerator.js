@@ -336,13 +336,23 @@ function createHtmlRenderer(pdf, opts) {
       if (asFloat) {
         const side = (node.getAttribute('data-float') || '').toLowerCase() === 'left' ? 'left' : 'right';
         const fx = side === 'right' ? (pageWidth - margin - w) : (margin + (parseFloat(node.getAttribute('data-indent')) || 0));
-        const type = /^data:image\/jpeg/i.test(dataUrl) ? 'JPEG' : 'PNG';
+        let type = 'PNG';
+        if (/^data:image\/jpeg/i.test(dataUrl)) {
+          type = 'JPEG';
+        } else if (/^data:image\/gif/i.test(dataUrl)) {
+          type = 'PNG'; // jsPDF doesn't support GIF directly, convert to PNG
+        }
         pdf.addImage(dataUrl, type, fx, y, w, h);
         floatRegion = { side, x: fx, yTop: y - lineHeight, yBottom: y + h, w };
         return;
       }
       checkPage(h);
-      const type = /^data:image\/jpeg/i.test(dataUrl) ? 'JPEG' : 'PNG';
+      let type = 'PNG';
+      if (/^data:image\/jpeg/i.test(dataUrl)) {
+        type = 'JPEG';
+      } else if (/^data:image\/gif/i.test(dataUrl)) {
+        type = 'PNG'; // jsPDF doesn't support GIF directly, convert to PNG
+      }
       pdf.addImage(dataUrl, type, x, y, w, h);
       y += h;
     } catch {}
@@ -773,7 +783,12 @@ export async function generateAccountInstructionsPDF(options) {
     // Images
     if (logoDataUrl) {
       try {
-        const type = /^data:image\/jpeg/i.test(logoDataUrl) ? 'JPEG' : 'PNG';
+        let type = 'PNG';
+        if (/^data:image\/jpeg/i.test(logoDataUrl)) {
+          type = 'JPEG';
+        } else if (/^data:image\/gif/i.test(logoDataUrl)) {
+          type = 'PNG'; // jsPDF doesn't support GIF directly, convert to PNG
+        }
         pdf.addImage(logoDataUrl, type, MARGIN_PT, y - 44, 120, 36);
         console.log('✅ Logo image added to PDF');
       } catch (error) {
@@ -783,7 +798,12 @@ export async function generateAccountInstructionsPDF(options) {
     if (qrDataUrl) {
       try {
         // BYPASS Image() entirely — Chrome can't block data URLs this way
-        const type = qrDataUrl.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
+        let type = 'PNG';
+        if (qrDataUrl.startsWith('data:image/jpeg')) {
+          type = 'JPEG';
+        } else if (qrDataUrl.startsWith('data:image/gif')) {
+          type = 'PNG'; // jsPDF doesn't support GIF directly, convert to PNG
+        }
         const maxSize = 120;
         const x = PAGE_WIDTH_PT - MARGIN_PT - maxSize;
         const yPos = MARGIN_PT - 44;
