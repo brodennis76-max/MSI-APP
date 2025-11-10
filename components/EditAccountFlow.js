@@ -207,7 +207,13 @@ const EditAccountFlow = ({ onBack }) => {
   };
 
   const saveClientInfo = async () => {
-    if (!activeClient) return;
+    if (!activeClient) {
+      console.error('Cannot save: activeClient is null');
+      return;
+    }
+    console.log('💾 Starting save operation...');
+    console.log('   Active client:', activeClient.name);
+    console.log('   Selected QR code:', selectedQRCode ? selectedQRCode.qrFileName : 'None');
     setSaving(true);
     try {
       const clientRef = doc(db, 'clients', activeClient.id);

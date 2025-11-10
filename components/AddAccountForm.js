@@ -369,6 +369,9 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
         return;
       }
 
+      console.log('💾 Starting new client creation...');
+      console.log('   Client name:', newClientData.name);
+      console.log('   Selected QR code:', selectedQRCode ? selectedQRCode.qrFileName : 'None');
       setSaving(true);
 
       try {
