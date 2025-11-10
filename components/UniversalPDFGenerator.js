@@ -721,6 +721,19 @@ export async function generateAccountInstructionsPDF(options) {
     }
     console.log('✅ Firebase Storage initialized, bucket:', storage._delegate?.bucket || 'unknown');
     
+    // Test Firebase Storage accessibility by trying to list files
+    let firebaseStorageAccessible = false;
+    try {
+      const testRef = ref(storage, 'qr-codes');
+      // Just check if we can create a reference - actual access will be tested when fetching
+      firebaseStorageAccessible = true;
+      console.log('✅ Firebase Storage reference can be created');
+    } catch (storageTestError) {
+      console.error('❌ ERROR: Cannot create Firebase Storage reference:', storageTestError.message);
+      console.error('   Firebase Storage may not be accessible in this environment');
+      firebaseStorageAccessible = false;
+    }
+    
     // Priority 1: Use qrFileName first (most reliable - gets current file from Firebase Storage)
     if (client.qrFileName) {
       // If qrFileName exists, use Firebase Storage path to get the current file
@@ -822,29 +835,73 @@ export async function generateAccountInstructionsPDF(options) {
     }
     
     // Priority 4: Default QR code - try Firebase Storage first, then GitHub fallback
+    // ONLY use default if no specific QR code was configured
+    const hasSpecificQRCode = !!(client.qrFileName || client.qrPath || client.qrUrl);
+    
     if (!qrDataUrl) {
-      // Default QR code - try Firebase Storage first
-      qrPath = 'qr-codes/1450 Scanner Program.png';
-      try {
-        qrDataUrl = await getFirebaseStorageImageDataUrl(qrPath);
-        console.log('✅ Loaded default QR code from Firebase Storage:', qrPath);
-      } catch (error) {
-        console.warn('⚠️ Failed to load default QR code from Firebase Storage, trying GitHub fallback:', {
-          path: qrPath,
-          errorCode: error.code,
-          errorMessage: error.message
-        });
-        // GitHub fallback
-        try {
-          qrDataUrl = await getRepoImageDataUrl(qrPath, assetBase);
-          console.log('✅ Loaded default QR code from GitHub:', qrPath);
-        } catch (githubError) {
-          console.error('❌ Failed to load default QR code from GitHub:', {
-            path: qrPath,
-            errorMessage: githubError.message
-          });
-          console.error('   Path attempted:', qrPath);
-          console.error('   Make sure the default QR code file exists in Firebase Storage or GitHub at:', qrPath);
+      if (hasSpecificQRCode) {
+        console.error('❌ CRITICAL: Failed to load specific QR code for client:', client.name || client.id);
+        console.error('   qrFileName:', client.qrFileName || '(not set)');
+        console.error('   qrPath:', client.qrPath || '(not set)');
+        console.error('   qrUrl:', client.qrUrl ? 'set' : '(not set)');
+        console.error('   NOT using default QR code - client has specific QR code configured');
+        console.error('   Check Firebase Storage access and file existence');
+      } else {
+        console.log('⚠️ No specific QR code configured - attempting default QR code');
+        // Default QR code - try Firebase Storage first
+        qrPath = 'qr-codes/1450 Scanner Program.png';
+      
+        // Only try Firebase Storage if it's accessible
+        if (firebaseStorageAccessible) {
+          try {
+            qrDataUrl = await getFirebaseStorageImageDataUrl(qrPath);
+            console.log('✅ Loaded default QR code from Firebase Storage:', qrPath);
+          } catch (error) {
+            console.error('❌ CRITICAL: Failed to load default QR code from Firebase Storage:', {
+              path: qrPath,
+              errorCode: error.code,
+              errorMessage: error.message,
+              errorName: error.name
+            });
+            console.error('   This suggests Firebase Storage is not accessible!');
+            console.error('   Check:');
+            console.error('   1. Firebase Storage security rules');
+            console.error('   2. Network connectivity');
+            console.error('   3. CORS settings');
+            console.error('   4. Browser console for additional errors');
+            
+            // Only fall back to GitHub if Firebase Storage is clearly not accessible
+            if (error.code === 'storage/unauthorized' || error.code === 'storage/object-not-found') {
+              console.warn('⚠️ Trying GitHub fallback as last resort...');
+              try {
+                qrDataUrl = await getRepoImageDataUrl(qrPath, assetBase);
+                console.log('✅ Loaded default QR code from GitHub:', qrPath);
+              } catch (githubError) {
+                console.error('❌ Failed to load default QR code from GitHub:', {
+                  path: qrPath,
+                  errorMessage: githubError.message
+                });
+                console.error('   Path attempted:', qrPath);
+                console.error('   Make sure the default QR code file exists in Firebase Storage or GitHub at:', qrPath);
+              }
+            } else {
+              // For other errors, don't fall back to GitHub - Firebase Storage should work
+              console.error('   Not falling back to GitHub - Firebase Storage should be accessible');
+              throw error;
+            }
+          }
+        } else {
+          // Firebase Storage not accessible - use GitHub
+          console.warn('⚠️ Firebase Storage not accessible - using GitHub fallback for default QR code');
+          try {
+            qrDataUrl = await getRepoImageDataUrl(qrPath, assetBase);
+            console.log('✅ Loaded default QR code from GitHub:', qrPath);
+          } catch (githubError) {
+            console.error('❌ Failed to load default QR code from GitHub:', {
+              path: qrPath,
+              errorMessage: githubError.message
+            });
+          }
         }
       }
     }
