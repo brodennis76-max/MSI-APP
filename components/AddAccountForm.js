@@ -330,7 +330,8 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
 
   const handleClientSelect = (clientId) => {
     setSelectedClientId(clientId);
-    setShowForm(true);
+    // Don't show form immediately - let user see QR code selector first
+    setShowForm(false);
   };
 
   // Load client data when selected for editing
