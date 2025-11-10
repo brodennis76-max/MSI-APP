@@ -241,21 +241,26 @@ const EditAccountFlow = ({ onBack }) => {
       }
       
       await updateDoc(clientRef, updateData);
-      console.log('Client information saved successfully');
-      console.log('QR code info saved:', selectedQRCode ? 'Yes' : 'No (will use default)');
+      console.log('✅ Client information saved successfully');
+      console.log('   QR code info saved:', selectedQRCode ? 'Yes' : 'No (will use default)');
+      
+      // Reset saving state first
+      setSaving(false);
       
       // Navigate to next step immediately
+      console.log('🚀 Navigating to preInventory step...');
       setStep('preInventory');
+      console.log('✅ Step set to preInventory');
       
       // Show success message non-blocking (after a short delay to allow navigation)
       setTimeout(() => {
         Alert.alert('Success', 'Client information updated successfully!');
       }, 100);
     } catch (error) {
-      console.error('Error saving client info:', error);
-      Alert.alert('Error', 'Failed to save client information.');
-    } finally {
+      console.error('❌ Error saving client info:', error);
+      console.error('   Error details:', error.message, error.stack);
       setSaving(false);
+      Alert.alert('Error', `Failed to save client information: ${error.message}`);
     }
   };
 
