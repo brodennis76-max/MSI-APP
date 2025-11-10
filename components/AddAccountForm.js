@@ -376,7 +376,8 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
         const sanitizedName = newClientData.name.replace(/[^a-zA-Z0-9]/g, '_');
         const clientRef = doc(db, 'clients', sanitizedName);
         
-        await setDoc(clientRef, {
+        // Build client data object
+        const clientData = {
           name: newClientData.name,
           email: newClientData.email,
           inventoryTypes: Array.isArray(newClientData.inventoryTypes) ? newClientData.inventoryTypes : [],
@@ -409,7 +410,17 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
           createdAt: new Date(),
           updatedAt: new Date(),
           active: true
-        });
+        };
+        
+        // Add QR code info if one was selected
+        if (selectedQRCode) {
+          clientData.qrFileName = selectedQRCode.qrFileName;
+          clientData.qrPath = selectedQRCode.qrPath;
+          clientData.qrUrl = selectedQRCode.qrUrl;
+          console.log('Including QR code info in new client creation:', selectedQRCode);
+        }
+        
+        await setDoc(clientRef, clientData);
 
         // Store the created client data and navigate to PreInventoryForm
         const newClient = {
@@ -429,23 +440,15 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
           additionalNotes: newClientData.additionalNotes
         };
         
-        setCreatedClient(newClient);
-        
-        // Store selected QR code info if one was selected
+        // Include QR code info in the created client object
         if (selectedQRCode) {
-          try {
-            const clientRef = doc(db, 'clients', sanitizedName);
-            await updateDoc(clientRef, {
-              qrFileName: selectedQRCode.qrFileName,
-              qrPath: selectedQRCode.qrPath,
-              qrUrl: selectedQRCode.qrUrl,
-            });
-            console.log('QR code info saved to database:', selectedQRCode);
-          } catch (error) {
-            console.error('Error saving QR code info:', error);
-            // Don't block the flow if QR save fails
-          }
+          newClient.qrFileName = selectedQRCode.qrFileName;
+          newClient.qrPath = selectedQRCode.qrPath;
+          newClient.qrUrl = selectedQRCode.qrUrl;
         }
+        
+        setCreatedClient(newClient);
+        console.log('New client created successfully with QR code info');
         
         setShowPreInventoryForm(true);
         

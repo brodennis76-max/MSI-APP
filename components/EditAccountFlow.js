@@ -220,15 +220,22 @@ const EditAccountFlow = ({ onBack }) => {
         updatedAt: new Date(),
       };
       
-      // If QR code was uploaded, include qrPath and qrFileName
-      if (activeClient.qrPath) {
-        updateData.qrPath = activeClient.qrPath;
-      }
-      if (activeClient.qrFileName) {
-        updateData.qrFileName = activeClient.qrFileName;
+      // Update QR code info from selectedQRCode state
+      if (selectedQRCode) {
+        updateData.qrFileName = selectedQRCode.qrFileName;
+        updateData.qrPath = selectedQRCode.qrPath;
+        updateData.qrUrl = selectedQRCode.qrUrl;
+        console.log('Saving QR code info to database:', selectedQRCode);
+      } else {
+        // Clear QR code if selection was cleared
+        updateData.qrFileName = null;
+        updateData.qrPath = null;
+        updateData.qrUrl = null;
+        console.log('Clearing QR code info from database');
       }
       
       await updateDoc(clientRef, updateData);
+      console.log('Client information saved successfully');
       Alert.alert('Success', 'Client information updated successfully!');
       setStep('preInventory');
     } catch (error) {
