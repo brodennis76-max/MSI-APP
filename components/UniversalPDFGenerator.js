@@ -555,11 +555,11 @@ function buildHtml(client, assets) {
   <style>
     @page { size: letter; margin: 0.75in; }
     body { font-family: Helvetica, Arial, sans-serif; color: #000; line-height: 1.0; font-size: 12pt; }
-    .header { text-align: center; margin-bottom: ${LINE_HEIGHT_PT}pt; position: relative; }
+    .header { text-align: left; margin-bottom: ${LINE_HEIGHT_PT}pt; position: relative; }
     .header-top { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: flex-start; }
-    .logo { width: 180px; height: auto; max-width: 180px; }
+    .logo { width: 150px; height: auto; max-width: 150px; }
     .qr { width: 120px; height: auto; max-width: 120px; }
-    .header-content { margin-top: 50px; }
+    .header-content { margin-left: 162px; margin-top: 0; }
     .header h1 { font-size: 20px; margin: 0 0 8px 0; }
     .header h2 { font-size: 18px; margin: 0 0 8px 0; }
     .header h3 { font-size: 14px; font-weight: normal; color: #666; margin: 0 0 12px 0; }
@@ -616,76 +616,76 @@ function buildHtml(client, assets) {
         <p style="margin-bottom: 26pt; font-size: 13pt;">Date: ____________________</p>
         <table style="width: 100%; border-collapse: collapse; margin-top: 13pt; font-size: 13pt;">
           <tr>
-            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
-            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Computer, power cord, & power strip/extension cord</td>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 20pt; vertical-align: middle;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 20pt; font-size: 13pt; vertical-align: middle;">Computer, power cord, & power strip/extension cord</td>
           </tr>
           <tr>
-            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
-            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Printer, cable & toner</td>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 20pt; vertical-align: middle;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 20pt; font-size: 13pt; vertical-align: middle;">Printer, cable & toner</td>
           </tr>
           <tr>
-            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
-            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">base station, power cord, cable & antenna</td>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 20pt; vertical-align: middle;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 20pt; font-size: 13pt; vertical-align: middle;">base station, power cord, cable & antenna</td>
           </tr>
           <tr>
-            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
-            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Store packet</td>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 20pt; vertical-align: middle;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 20pt; font-size: 13pt; vertical-align: middle;">Store packet</td>
           </tr>
           <tr>
-            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
-            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Software properly loaded and updated (account disk, priors, etc.)</td>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 20pt; vertical-align: middle;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 20pt; font-size: 13pt; vertical-align: middle;">Software properly loaded and updated (account disk, priors, etc.)</td>
           </tr>
           <tr>
-            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
-            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Paper</td>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 20pt; vertical-align: middle;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 20pt; font-size: 13pt; vertical-align: middle;">Paper</td>
           </tr>
           <tr>
-            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
-            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Machine</td>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 20pt; vertical-align: middle;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 20pt; font-size: 13pt; vertical-align: middle;">Machine</td>
           </tr>
           <tr>
-            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
-            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Tape</td>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 20pt; vertical-align: middle;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 20pt; font-size: 13pt; vertical-align: middle;">Tape</td>
           </tr>
           <tr>
-            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
-            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Location tags</td>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 20pt; vertical-align: middle;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 20pt; font-size: 13pt; vertical-align: middle;">Location tags</td>
           </tr>
           <tr>
-            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
-            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Tags</td>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 20pt; vertical-align: middle;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 20pt; font-size: 13pt; vertical-align: middle;">Tags</td>
           </tr>
           <tr>
-            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
-            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Account Instructions</td>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 20pt; vertical-align: middle;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 20pt; font-size: 13pt; vertical-align: middle;">Account Instructions</td>
           </tr>
           <tr>
-            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
-            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Batteries</td>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 20pt; vertical-align: middle;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 20pt; font-size: 13pt; vertical-align: middle;">Batteries</td>
           </tr>
           <tr>
-            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
-            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Ladders</td>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 20pt; vertical-align: middle;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 20pt; font-size: 13pt; vertical-align: middle;">Ladders</td>
           </tr>
           <tr>
-            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
-            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Extra belts</td>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 20pt; vertical-align: middle;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 20pt; font-size: 13pt; vertical-align: middle;">Extra belts</td>
           </tr>
           <tr>
-            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
-            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Crew Schedule</td>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 20pt; vertical-align: middle;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 20pt; font-size: 13pt; vertical-align: middle;">Crew Schedule</td>
           </tr>
           <tr>
-            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
-            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Managers/Drivers Contact Numbers</td>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 20pt; vertical-align: middle;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 20pt; font-size: 13pt; vertical-align: middle;">Managers/Drivers Contact Numbers</td>
           </tr>
           <tr>
-            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
-            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Vans - Filled</td>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 20pt; vertical-align: middle;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 20pt; font-size: 13pt; vertical-align: middle;">Vans - Filled</td>
           </tr>
           <tr>
-            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
-            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;"><b><i>Backup computers, base station, and printer!!!</i></b></td>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 20pt; vertical-align: middle;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 20pt; font-size: 13pt; vertical-align: middle;"><b><i>Backup computers, base station, and printer!!!</i></b></td>
           </tr>
         </table>
       </div>
@@ -900,17 +900,29 @@ export async function generateAccountInstructionsPDF(options) {
     };
 
     // Images
-    // Logo in upper left corner
+    // Logo in upper left corner - load image to get proper aspect ratio
+    let logoWidth = 0;
+    let logoHeight = 0;
+    let logoX = MARGIN_PT;
+    let logoY = MARGIN_PT;
+    
     if (logoDataUrl) {
       try {
+        // Preload image to get natural dimensions for proper aspect ratio
+        const logoImg = await preloadImage(logoDataUrl);
+        const maxLogoWidth = 150; // Maximum width in points
+        const aspectRatio = logoImg.width / logoImg.height;
+        logoWidth = Math.min(maxLogoWidth, logoImg.width);
+        logoHeight = logoWidth / aspectRatio;
+        
         let type = 'PNG';
         if (/^data:image\/jpeg/i.test(logoDataUrl)) {
           type = 'JPEG';
         } else if (/^data:image\/gif/i.test(logoDataUrl)) {
           type = 'PNG'; // jsPDF doesn't support GIF directly, convert to PNG
         }
-        pdf.addImage(logoDataUrl, type, MARGIN_PT, MARGIN_PT, 120, 36);
-        console.log('✅ Logo image added to PDF (upper left corner)');
+        pdf.addImage(logoDataUrl, type, logoX, logoY, logoWidth, logoHeight);
+        console.log('✅ Logo image added to PDF (upper left corner)', { width: logoWidth, height: logoHeight, aspectRatio });
       } catch (error) {
         console.error('❌ Failed to add logo image to PDF:', error.message);
       }
@@ -940,26 +952,26 @@ export async function generateAccountInstructionsPDF(options) {
       console.warn('⚠️ No QR code data URL available - QR code will not be added to PDF');
     }
 
-    // Header text - spacing based on font size
-    // Start header text below the logo (logo is 36pt tall + some spacing)
-    if (logoDataUrl) {
-      y = MARGIN_PT + 36 + 12; // Logo height (36pt) + spacing (12pt)
-    }
+    // Header text - positioned to the right of the logo
+    const headerTextX = logoDataUrl ? logoX + logoWidth + 12 : MARGIN_PT; // Start after logo with 12pt spacing
+    let headerTextY = logoDataUrl ? logoY + (logoHeight / 2) - 10 : MARGIN_PT; // Vertically center with logo
+    
     const headerLines = ['MSI Inventory', 'Account Instructions:', client.name || client.id || 'Unknown Client'];
     headerLines.forEach((text, i) => {
       if (i < 2) { pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 0, 0); }
       else { pdf.setFont('helvetica', 'normal'); pdf.setTextColor(102, 102, 102); }
       const fontSize = i === 0 ? 20 : i === 1 ? 18 : 14;
       pdf.setFontSize(fontSize);
-      const textWidth = pdf.getTextWidth(text);
-      const x = (PAGE_WIDTH_PT - textWidth) / 2;
       // Use spacing proportional to font size (1.0x line height)
       const lineSpacing = fontSize;
       checkPageBreak(lineSpacing);
-      pdf.text(text, x, y);
+      pdf.text(text, headerTextX, headerTextY);
       if (i === 2) pdf.setTextColor(0, 0, 0);
-      y += lineSpacing; // Spacing based on font size
+      headerTextY += lineSpacing; // Spacing based on font size
     });
+    
+    // Set y position for content after header (use the bottom of logo or header text, whichever is lower)
+    y = logoDataUrl ? Math.max(logoY + logoHeight, headerTextY) + 12 : headerTextY + 12;
 
     const contentWidth = PAGE_WIDTH_PT - (2 * MARGIN_PT);
 
@@ -1251,19 +1263,9 @@ Counters to number each display with a yellow tag to match posting sheet locatio
     ];
     
     // Draw table structure and items (13pt font)
-    const checklistLineHeight = 13; // 13pt line height for 13pt font
+    const checklistLineHeight = 20; // Increased from 13pt to 20pt for better text fit
     checklistItems.forEach((item, index) => {
-      checkPageBreak(checklistLineHeight);
-      
-      // Draw checkbox column border (left side)
-      pdf.setDrawColor(0);
-      pdf.setLineWidth(0.5);
-      pdf.rect(MARGIN_PT, y - checklistLineHeight, checkboxColumnWidth, checklistLineHeight);
-      
-      // Draw content column border (right side)
-      pdf.rect(contentColumnX, y - checklistLineHeight, contentColumnWidth, checklistLineHeight);
-      
-      // Draw item text (13pt)
+      // Set font first
       if (index === checklistItems.length - 1) {
         // Last item: bold and italic
         pdf.setFont('helvetica', 'bolditalic');
@@ -1272,18 +1274,32 @@ Counters to number each display with a yellow tag to match posting sheet locatio
       }
       pdf.setFontSize(13);
       
-      // Wrap text if needed
+      // Wrap text if needed - calculate how many lines
       const lines = pdf.splitTextToSize(item, contentColumnWidth - 8);
+      const cellHeight = lines.length * checklistLineHeight;
+      
+      // Check page break before drawing
+      checkPageBreak(cellHeight);
+      
+      const cellTopY = y;
+      const cellBottomY = y + cellHeight;
+      
+      // Draw checkbox column border (left side)
+      pdf.setDrawColor(0);
+      pdf.setLineWidth(0.5);
+      pdf.rect(MARGIN_PT, cellTopY, checkboxColumnWidth, cellHeight);
+      
+      // Draw content column border (right side)
+      pdf.rect(contentColumnX, cellTopY, contentColumnWidth, cellHeight);
+      
+      // Draw text lines, vertically centered in cell
       lines.forEach((line, lineIndex) => {
-        if (lineIndex > 0) {
-          checkPageBreak(checklistLineHeight);
-          // Redraw borders for wrapped lines
-          pdf.rect(MARGIN_PT, y - checklistLineHeight, checkboxColumnWidth, checklistLineHeight);
-          pdf.rect(contentColumnX, y - checklistLineHeight, contentColumnWidth, checklistLineHeight);
-        }
-        pdf.text(line, contentColumnX + 4, y);
-        y += checklistLineHeight;
+        const lineY = cellTopY + (lineIndex * checklistLineHeight) + (checklistLineHeight / 2) + 4;
+        pdf.text(line, contentColumnX + 4, lineY);
       });
+      
+      // Move y position down for next item
+      y = cellBottomY;
     });
 
     const filename = `Account_Instructions_${(client.name || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
