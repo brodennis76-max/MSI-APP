@@ -740,26 +740,24 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
                 </View>
               )}
 
-              {/* Scan Type Selector - shown when scan is selected */}
-              {(clientAction === 'new' ? (Array.isArray(newClientData.inventoryTypes) && newClientData.inventoryTypes.includes('scan')) : (Array.isArray(formData.inventoryTypes) && formData.inventoryTypes.includes('scan'))) && (
-                <View style={{ marginTop: 10 }}>
-                  <Text style={styles.label}>Scan Type</Text>
-                  <View style={styles.pickerContainer}>
-                    <Picker
-                      selectedValue={clientAction === 'new' ? newClientData.scanType : formData.scanType}
-                      onValueChange={(value) => clientAction === 'new' ? handleNewClientInputChange('scanType', value) : handleInputChange('scanType', value)}
-                      style={styles.picker}
-                    >
-                      <Picker.Item label="Select Scan Type" value="" />
-                      <Picker.Item label="Full Flavor" value="Full Flavor" />
-                      <Picker.Item label="Price-Point" value="Price-Point" />
-                    </Picker>
-                  </View>
+              {/* Scan Type Selector */}
+              <View style={styles.fieldContainer}>
+                <Text style={styles.label}>Scan Type</Text>
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={clientAction === 'new' ? newClientData.scanType : formData.scanType}
+                    onValueChange={(value) => clientAction === 'new' ? handleNewClientInputChange('scanType', value) : handleInputChange('scanType', value)}
+                    style={styles.picker}
+                  >
+                    <Picker.Item label="Select Scan Type" value="" />
+                    <Picker.Item label="Full Flavor" value="Full Flavor" />
+                    <Picker.Item label="Price-Point" value="Price-Point" />
+                  </Picker>
                 </View>
-              )}
+              </View>
 
               {/* QR Code Selector - shown for both new and edit accounts */}
-              <View style={{ marginTop: 20, marginBottom: 20 }}>
+              <View style={styles.fieldContainer}>
                 <QRCodeSelector
                   selectedQRCode={selectedQRCode}
                   onSelectQRCode={setSelectedQRCode}
@@ -1104,6 +1102,9 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 10,
     marginBottom: 20,
+  },
+  fieldContainer: {
+    marginBottom: 15,
   },
   label: {
     fontSize: 16,
