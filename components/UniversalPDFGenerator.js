@@ -601,6 +601,89 @@ function buildHtml(client, assets) {
   ${finRep ? `<div class="subsection"><div class="subsection-title">Final Reports:</div><div class="info rich">${rich(finRep)}</div></div>` : ''}
   ${processing ? `<div class="subsection"><div class="subsection-title">Final Processing:</div><div class="info rich">${rich(processing)}</div></div>` : ''}
   </div></div>` : ''}
+  <div style="page-break-before: always;">
+    <div class="section">
+      <div style="text-align: center; margin-top: 0; font-size: 22pt; font-weight: bold;">INVENTORY CHECKLIST</div>
+      <div class="info" style="margin-top: 44pt; font-size: 13pt;">
+        <p style="margin-bottom: 26pt; font-size: 13pt;">Store:____________________</p>
+        <p style="margin-bottom: 26pt; font-size: 13pt;">Date: ____________________</p>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 13pt; font-size: 13pt;">
+          <tr>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Computer, power cord, & power strip/extension cord</td>
+          </tr>
+          <tr>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Printer, cable & toner</td>
+          </tr>
+          <tr>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">base station, power cord, cable & antenna</td>
+          </tr>
+          <tr>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Store packet</td>
+          </tr>
+          <tr>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Software properly loaded and updated (account disk, priors, etc.)</td>
+          </tr>
+          <tr>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Paper</td>
+          </tr>
+          <tr>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Machine</td>
+          </tr>
+          <tr>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Tape</td>
+          </tr>
+          <tr>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Location tags</td>
+          </tr>
+          <tr>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Tags</td>
+          </tr>
+          <tr>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Account Instructions</td>
+          </tr>
+          <tr>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Batteries</td>
+          </tr>
+          <tr>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Ladders</td>
+          </tr>
+          <tr>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Extra belts</td>
+          </tr>
+          <tr>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Crew Schedule</td>
+          </tr>
+          <tr>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Managers/Drivers Contact Numbers</td>
+          </tr>
+          <tr>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;">Vans - Filled</td>
+          </tr>
+          <tr>
+            <td style="width: 0.5in; border: 1px solid #000; padding: 0; height: 13pt;"></td>
+            <td style="border: 1px solid #000; padding: 4pt; height: 13pt; font-size: 13pt;"><b><i>Backup computers, base station, and printer!!!</i></b></td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
   </body></html>`;
 }
 
@@ -1075,6 +1158,94 @@ Counters to number each display with a yellow tag to match posting sheet locatio
         }
       }
     }
+
+    // Add Inventory Checklist page (on its own page)
+    pdf.addPage();
+    y = MARGIN_PT;
+    
+    // Title: INVENTORY CHECKLIST (centered, 22pt)
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(22);
+    const titleText = 'INVENTORY CHECKLIST';
+    const titleWidth = pdf.getTextWidth(titleText);
+    const titleX = (PAGE_WIDTH_PT - titleWidth) / 2;
+    pdf.text(titleText, titleX, y);
+    y += 22 * 2; // Double space after title (22pt line height for 22pt font)
+    
+    // Store:____________________ (left justified, double space after, 13pt)
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(13);
+    const storeText = 'Store:____________________';
+    pdf.text(storeText, MARGIN_PT, y);
+    y += 13 * 2; // Double space after (13pt line height for 13pt font)
+    
+    // Date: ____________________ (left justified, double space after, 13pt)
+    const dateText = 'Date: ____________________';
+    pdf.text(dateText, MARGIN_PT, y);
+    y += 13 * 2; // Double space after
+    
+    // Two column table
+    const checkboxColumnWidth = 36; // 0.5 inch = 36 points
+    const contentColumnX = MARGIN_PT + checkboxColumnWidth;
+    const contentColumnWidth = PAGE_WIDTH_PT - MARGIN_PT - contentColumnX;
+    
+    // Checklist items
+    const checklistItems = [
+      'Computer, power cord, & power strip/extension cord',
+      'Printer, cable & toner',
+      'base station, power cord, cable & antenna',
+      'Store packet',
+      'Software properly loaded and updated (account disk, priors, etc.)',
+      'Paper',
+      'Machine',
+      'Tape',
+      'Location tags',
+      'Tags',
+      'Account Instructions',
+      'Batteries',
+      'Ladders',
+      'Extra belts',
+      'Crew Schedule',
+      'Managers/Drivers Contact Numbers',
+      'Vans - Filled',
+      'Backup computers, base station, and printer!!!'
+    ];
+    
+    // Draw table structure and items (13pt font)
+    const checklistLineHeight = 13; // 13pt line height for 13pt font
+    checklistItems.forEach((item, index) => {
+      checkPageBreak(checklistLineHeight);
+      
+      // Draw checkbox column border (left side)
+      pdf.setDrawColor(0);
+      pdf.setLineWidth(0.5);
+      pdf.rect(MARGIN_PT, y - checklistLineHeight, checkboxColumnWidth, checklistLineHeight);
+      
+      // Draw content column border (right side)
+      pdf.rect(contentColumnX, y - checklistLineHeight, contentColumnWidth, checklistLineHeight);
+      
+      // Draw item text (13pt)
+      if (index === checklistItems.length - 1) {
+        // Last item: bold and italic
+        pdf.setFont('helvetica', 'bolditalic');
+      } else {
+        pdf.setFont('helvetica', 'normal');
+      }
+      pdf.setFontSize(13);
+      
+      // Wrap text if needed
+      const lines = pdf.splitTextToSize(item, contentColumnWidth - 8);
+      lines.forEach((line, lineIndex) => {
+        if (lineIndex > 0) {
+          checkPageBreak(checklistLineHeight);
+          // Redraw borders for wrapped lines
+          pdf.rect(MARGIN_PT, y - checklistLineHeight, checkboxColumnWidth, checklistLineHeight);
+          pdf.rect(contentColumnX, y - checklistLineHeight, contentColumnWidth, checklistLineHeight);
+        }
+        pdf.text(line, contentColumnX + 4, y);
+        y += checklistLineHeight;
+      });
+    });
 
     const filename = `Account_Instructions_${(client.name || 'Client').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
     console.log('💾 Saving PDF as:', filename);
