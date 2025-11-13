@@ -526,7 +526,9 @@ function extractPreInventoryBundle(sections) {
 // ---------- Native HTML builder (FINAL SPACING FIX) ----------
 
 function buildHtml(client, assets) {
-  const safeName = client.name || client.id || 'Unknown Client';
+  const baseName = (client.name || client.id || 'Unknown Client').toUpperCase();
+  const inventoryType = client.inventoryType ? ` ${client.inventoryType.toUpperCase()}` : '';
+  const safeName = `${baseName}${inventoryType}`;
   const updatedAt = formatUpdatedAt(client.updatedAt);
   const extracted = extractPreInventoryBundle(client.sections);
   const preInv = String(extracted.generalText || client.preInventory || '').trim();
@@ -956,7 +958,12 @@ export async function generateAccountInstructionsPDF(options) {
     const headerTextX = logoDataUrl ? logoX + logoWidth + 12 : MARGIN_PT; // Start after logo with 12pt spacing
     let headerTextY = logoDataUrl ? logoY + (logoHeight / 2) - 10 : MARGIN_PT; // Vertically center with logo
     
-    const headerLines = ['MSI Inventory', 'Account Instructions:', client.name || client.id || 'Unknown Client'];
+    // Build customer name with inventory type
+    const customerName = (client.name || client.id || 'Unknown Client').toUpperCase();
+    const inventoryType = client.inventoryType ? ` ${client.inventoryType.toUpperCase()}` : '';
+    const customerNameWithType = `${customerName}${inventoryType}`;
+    
+    const headerLines = ['MSI Inventory', 'Account Instructions:', customerNameWithType];
     headerLines.forEach((text, i) => {
       if (i < 2) { pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 0, 0); }
       else { pdf.setFont('helvetica', 'normal'); pdf.setTextColor(102, 102, 102); }
