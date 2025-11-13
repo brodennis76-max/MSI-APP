@@ -521,10 +521,11 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
 
               <View style={styles.fieldContainer}>
                 <Text style={styles.label}>PIC</Text>
-              <RichTextEditor
-                value={newClientData.PIC}
-                onChange={(text) => handleNewClientInputChange('PIC', text)}
-              />
+                <RichTextEditor
+                  value={newClientData.PIC}
+                  onChange={(text) => handleNewClientInputChange('PIC', text)}
+                />
+              </View>
 
               <View style={styles.fieldContainer}>
                 <Text style={styles.label}>Start Time</Text>
