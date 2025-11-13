@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -18,7 +18,14 @@ import { sanitizeHtmlForFirebase } from '../utils/sanitizeHtmlForFirebase';
 
 const FinalReportsForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
-  const [finRepText, setFinRepText] = useState(clientData.Fin_Rep || '');
+  const [finRepText, setFinRepText] = useState(clientData?.Fin_Rep || '');
+
+  // Update state when clientData changes
+  useEffect(() => {
+    if (clientData?.Fin_Rep) {
+      setFinRepText(clientData.Fin_Rep);
+    }
+  }, [clientData?.Fin_Rep]);
 
   // Ref for keyboard navigation
   const finRepRef = React.useRef(null);

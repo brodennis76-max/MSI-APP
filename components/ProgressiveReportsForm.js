@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -60,6 +60,13 @@ All posting sheets must be reviewed by the inventory manager before they can be 
   const existingData = parseExistingData(clientData.Prog_Rep);
   const [postingSheetsText, setPostingSheetsText] = useState(existingData.postingSheets);
   const [utilityReportsText, setUtilityReportsText] = useState(existingData.utilityReports);
+
+  // Update state when clientData changes
+  useEffect(() => {
+    const parsed = parseExistingData(clientData?.Prog_Rep);
+    setPostingSheetsText(parsed.postingSheets);
+    setUtilityReportsText(parsed.utilityReports);
+  }, [clientData?.Prog_Rep]);
 
   // Refs for keyboard navigation
   const postingSheetsRef = React.useRef(null);

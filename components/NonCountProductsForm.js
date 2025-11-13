@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -18,7 +18,14 @@ import { sanitizeHtmlForFirebase } from '../utils/sanitizeHtmlForFirebase';
 
 const NonCountProductsForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
-  const [nonCountText, setNonCountText] = useState(clientData.noncount || '');
+  const [nonCountText, setNonCountText] = useState(clientData?.noncount || '');
+
+  // Update state when clientData changes
+  useEffect(() => {
+    if (clientData?.noncount !== undefined) {
+      setNonCountText(clientData.noncount || '');
+    }
+  }, [clientData?.noncount]);
 
   // Ref for keyboard navigation
   const nonCountRef = React.useRef(null);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -20,7 +20,14 @@ import { sanitizeHtmlForFirebase } from '../utils/sanitizeHtmlForFirebase';
 
 const FinalProcessingForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
-  const [processingText, setProcessingText] = useState(clientData.Processing || 'MSI Inventory Reports');
+  const [processingText, setProcessingText] = useState(clientData?.Processing || 'MSI Inventory Reports');
+
+  // Update state when clientData changes
+  useEffect(() => {
+    if (clientData?.Processing) {
+      setProcessingText(clientData.Processing);
+    }
+  }, [clientData?.Processing]);
 
   // Ref for keyboard navigation
   const processingRef = React.useRef(null);

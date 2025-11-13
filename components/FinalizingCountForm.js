@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -74,8 +74,19 @@ Review the following reports with the store manager/DM and determine if 3 more r
   };
 
   const [finalizeText, setFinalizeText] = useState(
-    clientData.Finalize || getDefaultContentByStoreType(clientData.storeType || clientData.accountType || 'Convenience')
+    clientData?.Finalize || getDefaultContentByStoreType(clientData?.storeType || clientData?.accountType || 'Convenience')
   );
+
+  // Update state when clientData changes
+  useEffect(() => {
+    if (clientData?.Finalize) {
+      setFinalizeText(clientData.Finalize);
+    } else {
+      // If no Finalize data, use default based on store type
+      const defaultText = getDefaultContentByStoreType(clientData?.storeType || clientData?.accountType || 'Convenience');
+      setFinalizeText(defaultText);
+    }
+  }, [clientData?.Finalize, clientData?.storeType, clientData?.accountType]);
 
   // Ref for keyboard navigation
   const finalizeRef = React.useRef(null);

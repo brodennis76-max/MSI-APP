@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -20,13 +20,34 @@ import { sanitizeHtmlForFirebase } from '../utils/sanitizeHtmlForFirebase';
 
 const AuditsInventoryFlowForm = ({ clientData, onBack, onComplete }) => {
   const [saving, setSaving] = useState(false);
-  const [auditsText, setAuditsText] = useState(clientData.Audits || `Posting sheets will be provided progressively to the store managers as areas are completed.
+  const defaultAuditsText = `Posting sheets will be provided progressively to the store managers as areas are completed.
 
-Audit trails will be provided as requested based on posting sheet results, within reason, during the count.`);
-  const [inventoryFlowText, setInventoryFlowText] = useState(clientData.Inv_Flow || '');
+Audit trails will be provided as requested based on posting sheet results, within reason, during the count.`;
+  
+  const [auditsText, setAuditsText] = useState(clientData?.Audits || defaultAuditsText);
+  const [inventoryFlowText, setInventoryFlowText] = useState(clientData?.Inv_Flow || '');
   const [showTeamInstructions, setShowTeamInstructions] = useState(false);
   const [hasSpecialNotes, setHasSpecialNotes] = useState(false);
-  const [specialNotes, setSpecialNotes] = useState(clientData.Special_Notes || '');
+  const [specialNotes, setSpecialNotes] = useState(clientData?.Special_Notes || '');
+
+  // Update state when clientData changes
+  useEffect(() => {
+    if (clientData?.Audits !== undefined) {
+      setAuditsText(clientData.Audits || defaultAuditsText);
+    }
+  }, [clientData?.Audits]);
+
+  useEffect(() => {
+    if (clientData?.Inv_Flow !== undefined) {
+      setInventoryFlowText(clientData.Inv_Flow || '');
+    }
+  }, [clientData?.Inv_Flow]);
+
+  useEffect(() => {
+    if (clientData?.Special_Notes !== undefined) {
+      setSpecialNotes(clientData.Special_Notes || '');
+    }
+  }, [clientData?.Special_Notes]);
 
   // Refs for keyboard navigation
   const auditsRef = React.useRef(null);
