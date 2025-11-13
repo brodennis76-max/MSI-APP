@@ -555,14 +555,14 @@ function buildHtml(client, assets) {
   <style>
     @page { size: letter; margin: 0.75in; }
     body { font-family: Helvetica, Arial, sans-serif; color: #000; line-height: 1.0; font-size: 12pt; }
-    .header { text-align: center; margin-bottom: ${LINE_HEIGHT_PT}pt; }
+    .header { text-align: center; margin-bottom: ${LINE_HEIGHT_PT}pt; position: relative; }
+    .header-top { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: flex-start; }
+    .logo { width: 180px; height: auto; max-width: 180px; }
+    .qr { width: 120px; height: auto; max-width: 120px; }
+    .header-content { margin-top: 50px; }
     .header h1 { font-size: 20px; margin: 0 0 8px 0; }
     .header h2 { font-size: 18px; margin: 0 0 8px 0; }
     .header h3 { font-size: 14px; font-weight: normal; color: #666; margin: 0 0 12px 0; }
-    .row { text-align: center; margin-bottom: 6px; }
-    .row img { display: inline-block; vertical-align: middle; margin: 0 8px; }
-    .logo { width: 180px; height: auto; max-width: 180px; }
-    .qr { width: 120px; height: auto; max-width: 120px; }
     /* ALL SPACING MATCHES TEXT SIZE (12pt font = 12pt line height), DOUBLE SPACE BEFORE H1 */
     .section { ${sectionStyle} }
     .subsection { ${subsectionStyle} }
@@ -577,8 +577,15 @@ function buildHtml(client, assets) {
     .rich ul, .rich ol { margin: 0 0 0 1.2em; padding: 0; }
     .rich li { margin: 0 0 ${LINE_HEIGHT_PT}pt 0; }
   </style></head><body>
-  <div class="header"><div class="row">${logoDataUrl ? `<img class="logo" src="${logoDataUrl}" />` : ''}${qrDataUrl ? `<img class="qr" src="${qrDataUrl}" />` : ''}</div>
-  <h1>MSI Inventory</h1><h2>Account Instructions:</h2><h3>${escapeHtml(safeName)}</h3></div>
+  <div class="header">
+    <div class="header-top">
+      ${logoDataUrl ? `<img class="logo" src="${logoDataUrl}" />` : '<div></div>'}
+      ${qrDataUrl ? `<img class="qr" src="${qrDataUrl}" />` : '<div></div>'}
+    </div>
+    <div class="header-content">
+      <h1>MSI Inventory</h1><h2>Account Instructions:</h2><h3>${escapeHtml(safeName)}</h3>
+    </div>
+  </div>
   <div class="section"><div class="section-title">Client Information</div><div class="info">
   <p><strong>Inventory Type:</strong> ${escapeHtml(client.inventoryType ?? '')}</p>
   ${client.scanType ? `<p><strong>Scan Type:</strong> Scan ${escapeHtml(client.scanType)}</p>` : ''}
@@ -735,10 +742,36 @@ export async function generateAccountInstructionsPDF(options) {
 
     const assetBase = client.assetBase || DEFAULT_JSDELIVR_BASE;
     let logoDataUrl = '';
+    
+    // Load logo: Priority: logoDataUrl > logoUrl > GitHub default
     if (client.logoDataUrl && /^data:image\//i.test(client.logoDataUrl)) {
       logoDataUrl = client.logoDataUrl;
+      console.log('✅ Using logoDataUrl from client data');
     } else if (client.logoUrl) {
-      try { logoDataUrl = await fetchAsDataURL(client.logoUrl); } catch {}
+      try {
+        logoDataUrl = await fetchAsDataURL(client.logoUrl);
+        console.log('✅ Loaded logo from logoUrl:', client.logoUrl);
+      } catch (error) {
+        console.warn('⚠️ Failed to load logo from logoUrl:', error.message);
+      }
+    } else {
+      // Load default logo from GitHub repository
+      const logoPath = 'qr-codes/MSI LOGO.png';
+      try {
+        console.log('📥 Loading logo from GitHub:', logoPath);
+        logoDataUrl = await getRepoImageDataUrl(logoPath, assetBase);
+        console.log('✅ Successfully loaded logo from GitHub:', logoPath);
+        console.log('   Data URL length:', logoDataUrl.length, 'chars');
+        console.log('   GitHub URL:', `${RAW_BASE}/${encodePathPreserveSlashes(logoPath)}`);
+      } catch (error) {
+        console.error('❌ Failed to load logo from GitHub:', {
+          path: logoPath,
+          errorMessage: error.message,
+          githubUrl: `${RAW_BASE}/${encodePathPreserveSlashes(logoPath)}`
+        });
+        console.warn('⚠️ PDF will be generated without logo');
+        logoDataUrl = '';
+      }
     }
     
     // Get QR code: Only load QR codes for scan accounts
@@ -867,6 +900,7 @@ export async function generateAccountInstructionsPDF(options) {
     };
 
     // Images
+    // Logo in upper left corner
     if (logoDataUrl) {
       try {
         let type = 'PNG';
@@ -875,12 +909,13 @@ export async function generateAccountInstructionsPDF(options) {
         } else if (/^data:image\/gif/i.test(logoDataUrl)) {
           type = 'PNG'; // jsPDF doesn't support GIF directly, convert to PNG
         }
-        pdf.addImage(logoDataUrl, type, MARGIN_PT, y - 44, 120, 36);
-        console.log('✅ Logo image added to PDF');
+        pdf.addImage(logoDataUrl, type, MARGIN_PT, MARGIN_PT, 120, 36);
+        console.log('✅ Logo image added to PDF (upper left corner)');
       } catch (error) {
         console.error('❌ Failed to add logo image to PDF:', error.message);
       }
     }
+    // QR code in upper right corner
     if (qrDataUrl) {
       try {
         // BYPASS Image() entirely — Chrome can't block data URLs this way
@@ -892,7 +927,7 @@ export async function generateAccountInstructionsPDF(options) {
         }
         const maxSize = 120;
         const x = PAGE_WIDTH_PT - MARGIN_PT - maxSize;
-        const yPos = MARGIN_PT - 44;
+        const yPos = MARGIN_PT;
 
         // Direct addImage — NO preload, NO canvas, NO CORS
         pdf.addImage(qrDataUrl, type, x, yPos, maxSize, maxSize, '', 'FAST');
@@ -906,6 +941,10 @@ export async function generateAccountInstructionsPDF(options) {
     }
 
     // Header text - spacing based on font size
+    // Start header text below the logo (logo is 36pt tall + some spacing)
+    if (logoDataUrl) {
+      y = MARGIN_PT + 36 + 12; // Logo height (36pt) + spacing (12pt)
+    }
     const headerLines = ['MSI Inventory', 'Account Instructions:', client.name || client.id || 'Unknown Client'];
     headerLines.forEach((text, i) => {
       if (i < 2) { pdf.setFont('helvetica', 'bold'); pdf.setTextColor(0, 0, 0); }
