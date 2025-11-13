@@ -214,7 +214,7 @@ function createHtmlRenderer(pdf, opts) {
     
     const headerY = margin - 10;
     pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(10);
+    pdf.setFontSize(18);
     pdf.setTextColor(0, 0, 0);
     
     // Client name
@@ -602,13 +602,13 @@ function buildHtml(client, assets) {
       @top-left {
         content: "${escapeHtml(headerClientName)}";
         font-family: Helvetica, Arial, sans-serif;
-        font-size: 10pt;
+        font-size: 18pt;
         color: #000;
       }
       @top-right {
         content: "${escapeHtml(headerScanType)}";
         font-family: Helvetica, Arial, sans-serif;
-        font-size: 10pt;
+        font-size: 18pt;
         color: #000;
       }
     }
@@ -931,7 +931,7 @@ export async function generateAccountInstructionsPDF(options) {
       
       const headerY = MARGIN_PT - 10; // Position header slightly above margin
       pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(10);
+      pdf.setFontSize(18);
       pdf.setTextColor(0, 0, 0);
       
       // Client name
