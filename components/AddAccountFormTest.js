@@ -14,6 +14,7 @@ import { Picker } from '@react-native-picker/picker';
 import { db } from '../firebase-config';
 import { collection, onSnapshot, doc, setDoc } from 'firebase/firestore';
 import RichTextEditor from './RichTextEditor';
+import QRCodeSelector from './QRCodeSelector';
 import PreInventoryForm from './PreInventoryForm';
 import InventoryProceduresForm from './InventoryProceduresForm';
 import AuditsInventoryFlowForm from './AuditsInventoryFlowForm';
@@ -39,6 +40,7 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
   const [showReports, setShowReports] = useState(false);
   const [showCompletion, setShowCompletion] = useState(false);
   const [createdClient, setCreatedClient] = useState(null);
+  const [selectedQRCode, setSelectedQRCode] = useState(null);
 
   // Refs for keyboard navigation
   const clientNameRef = React.useRef(null);
@@ -51,6 +53,7 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
   // Form data state
   const [formData, setFormData] = useState({
     inventoryTypes: ['scan'],
+    scanType: '',
     PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
     startTime: '',
     verification: 'Audit trails will be provided, as requested, during the count, within reason (do not provide audit trails on the entire store.)',
@@ -62,6 +65,7 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
     name: '',
     email: '',
     inventoryTypes: ['scan'],
+    scanType: '',
     PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
     startTime: '',
     verification: 'Audit trails will be provided, as requested, during the count, within reason (do not provide audit trails on the entire store.)',
@@ -73,6 +77,7 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
     name: '',
     email: '',
     inventoryTypes: ['scan'],
+    scanType: '',
     PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
     startTime: '',
     verification: 'Audit trails will be provided, as requested, during the count, within reason (do not provide audit trails on the entire store.)',
@@ -140,11 +145,22 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
       if (clientToEdit) {
         setFormData({
           inventoryTypes: Array.isArray(clientToEdit.inventoryTypes) ? clientToEdit.inventoryTypes : (clientToEdit.inventoryType ? [clientToEdit.inventoryType] : ['scan']),
+          scanType: clientToEdit.scanType || '',
           PIC: clientToEdit.PIC || 'Stores to be contacted via phone prior to counts to confirm inventory.',
           startTime: clientToEdit.startTime || '',
           verification: clientToEdit.verification || 'Audit trails will be provided, as requested, during the count, within reason (do not provide audit trails on the entire store.)',
           additionalNotes: clientToEdit.additionalNotes || ''
         });
+        // Initialize selected QR code from client data
+        if (clientToEdit.qrFileName || clientToEdit.qrPath) {
+          setSelectedQRCode({
+            qrFileName: clientToEdit.qrFileName,
+            qrPath: clientToEdit.qrPath,
+            qrUrl: clientToEdit.qrUrl
+          });
+        } else {
+          setSelectedQRCode(null);
+        }
       }
     }
   }, [clientAction, selectedClientId, clients]);
@@ -175,6 +191,7 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
       name: '',
       email: '',
       inventoryTypes: ['scan'],
+      scanType: '',
       PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
       startTime: '',
       verification: 'Audit trails will be provided, as requested, during the count, within reason (do not provide audit trails on the entire store.)',
@@ -202,10 +219,11 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
         const sanitizedName = newClientData.name.replace(/[^a-zA-Z0-9]/g, '_');
         const clientRef = doc(db, 'clients', sanitizedName);
         
-        await setDoc(clientRef, {
+        const clientData = {
           name: newClientData.name,
           email: newClientData.email,
           inventoryTypes: Array.isArray(newClientData.inventoryTypes) ? newClientData.inventoryTypes : [],
+          scanType: newClientData.scanType || '',
           PIC: newClientData.PIC,
           startTime: newClientData.startTime,
           verification: newClientData.verification,
@@ -229,7 +247,16 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
           createdAt: new Date(),
           updatedAt: new Date(),
           active: true
-        });
+        };
+        
+        // Add QR code info if one was selected
+        if (selectedQRCode) {
+          clientData.qrFileName = selectedQRCode.qrFileName;
+          clientData.qrPath = selectedQRCode.qrPath;
+          clientData.qrUrl = selectedQRCode.qrUrl;
+        }
+        
+        await setDoc(clientRef, clientData);
 
         const newClient = {
           id: sanitizedName,
@@ -249,11 +276,13 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
           name: '',
           email: '',
           inventoryTypes: ['scan'],
+          scanType: '',
           PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
           startTime: '',
           verification: 'Audit trails will be provided, as requested, during the count, within reason (do not provide audit trails on the entire store.)',
           additionalNotes: ''
         });
+        setSelectedQRCode(null);
 
         Alert.alert('Success', `New client "${newClientData.name}" added successfully!`);
 
@@ -434,60 +463,97 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
                 onSubmitEditing={() => picRef.current?.focus()}
               />
 
-              <Text style={styles.label}>Inventory Type (Select all that apply)</Text>
-              <View style={styles.inventoryTypeContainer}>
-                {['scan', 'financial', 'hand written', 'price verification'].map((type) => {
-                  const current = Array.isArray(newClientData.inventoryTypes) ? newClientData.inventoryTypes : [];
-                  const isSelected = current.includes(type);
-                  const toggle = () => {
-                    const next = isSelected ? current.filter(t => t !== type) : [...current, type];
-                    handleNewClientInputChange('inventoryTypes', next);
-                  };
-                  return (
-                    <TouchableOpacity
-                      key={type}
-                      style={[styles.inventoryTypeOption, isSelected && styles.inventoryTypeOptionSelected]}
-                      onPress={toggle}
-                    >
-                      <View style={[styles.inventoryTypeRadio, isSelected && styles.inventoryTypeRadioSelected]}>
-                        {isSelected && <View style={styles.inventoryTypeRadioInner} />}
-                      </View>
-                      <Text style={[styles.inventoryTypeText, isSelected && styles.inventoryTypeTextSelected]}>
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+              <View style={styles.fieldContainer}>
+                <Text style={styles.label}>Inventory Type</Text>
+                <View style={styles.inventoryTypeContainer}>
+                  {['scan', 'financial', 'hand written', 'price verification'].map((type) => {
+                    const current = Array.isArray(newClientData.inventoryTypes) ? newClientData.inventoryTypes : [];
+                    const isSelected = current.includes(type);
+                    const toggle = () => {
+                      const next = isSelected ? current.filter(t => t !== type) : [...current, type];
+                      handleNewClientInputChange('inventoryTypes', next);
+                    };
+                    return (
+                      <TouchableOpacity
+                        key={type}
+                        style={[styles.inventoryTypeOption, isSelected && styles.inventoryTypeOptionSelected]}
+                        onPress={toggle}
+                      >
+                        <View style={[styles.inventoryTypeRadio, isSelected && styles.inventoryTypeRadioSelected]}>
+                          {isSelected && <View style={styles.inventoryTypeRadioInner} />}
+                        </View>
+                        <Text style={[styles.inventoryTypeText, isSelected && styles.inventoryTypeTextSelected]}>
+                          {type.charAt(0).toUpperCase() + type.slice(1)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </View>
 
-              <Text style={styles.label}>PIC (Pre Inventory Call)</Text>
+              {/* Scan Type Selector - shown when scan is selected */}
+              {(Array.isArray(newClientData.inventoryTypes) && newClientData.inventoryTypes.includes('scan')) && (
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.label}>Scan Type</Text>
+                  <View style={styles.pickerContainer}>
+                    <Picker
+                      selectedValue={newClientData.scanType || ''}
+                      onValueChange={(value) => handleNewClientInputChange('scanType', value)}
+                      style={styles.picker}
+                    >
+                      <Picker.Item label="Select Scan Type" value="" />
+                      <Picker.Item label="Full Flavor" value="Full Flavor" />
+                      <Picker.Item label="Price-Point" value="Price-Point" />
+                    </Picker>
+                  </View>
+                </View>
+              )}
+
+              {/* QR Code Selector */}
+              <View style={styles.fieldContainer}>
+                <QRCodeSelector
+                  selectedQRCode={selectedQRCode}
+                  onSelectQRCode={setSelectedQRCode}
+                  onClearSelection={() => setSelectedQRCode(null)}
+                  label="Scanner QR Code"
+                />
+              </View>
+
+              <View style={styles.fieldContainer}>
+                <Text style={styles.label}>PIC</Text>
               <RichTextEditor
                 value={newClientData.PIC}
                 onChange={(text) => handleNewClientInputChange('PIC', text)}
               />
 
-              <Text style={styles.label}>Start Time</Text>
-              <TextInput
-                ref={startTimeRef}
-                style={styles.input}
-                value={newClientData.startTime}
-                onChangeText={(text) => handleNewClientInputChange('startTime', text)}
-                placeholder="e.g., 8:00 AM"
-                returnKeyType="next"
-                onSubmitEditing={() => verificationRef.current?.focus()}
-              />
+              <View style={styles.fieldContainer}>
+                <Text style={styles.label}>Start Time</Text>
+                <TextInput
+                  ref={startTimeRef}
+                  style={styles.input}
+                  value={newClientData.startTime}
+                  onChangeText={(text) => handleNewClientInputChange('startTime', text)}
+                  placeholder="e.g., 8:00 AM"
+                  returnKeyType="next"
+                  onSubmitEditing={() => verificationRef.current?.focus()}
+                />
+              </View>
 
-              <Text style={styles.label}>Verification</Text>
-              <RichTextEditor
-                value={newClientData.verification}
-                onChange={(text) => handleNewClientInputChange('verification', text)}
-              />
+              <View style={styles.fieldContainer}>
+                <Text style={styles.label}>Verification</Text>
+                <RichTextEditor
+                  value={newClientData.verification}
+                  onChange={(text) => handleNewClientInputChange('verification', text)}
+                />
+              </View>
 
-              <Text style={styles.label}>Additional Notes</Text>
-              <RichTextEditor
-                value={newClientData.additionalNotes}
-                onChange={(text) => handleNewClientInputChange('additionalNotes', text)}
-              />
+              <View style={styles.fieldContainer}>
+                <Text style={styles.label}>Additional Notes</Text>
+                <RichTextEditor
+                  value={newClientData.additionalNotes}
+                  onChange={(text) => handleNewClientInputChange('additionalNotes', text)}
+                />
+              </View>
             </View>
           )}
         </ScrollView>
@@ -637,12 +703,29 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 20,
   },
+  fieldContainer: {
+    marginBottom: 15,
+  },
   label: {
     fontSize: 16,
     fontWeight: 'bold',
     marginTop: 15,
     marginBottom: 8,
     color: '#333',
+  },
+  pickerContainer: {
+    width: '100%',
+    marginBottom: 20,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  picker: {
+    height: 50,
+    width: '100%',
+    backgroundColor: '#fff',
   },
   input: {
     height: 50,
