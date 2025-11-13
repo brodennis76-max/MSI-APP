@@ -196,10 +196,44 @@ function createHtmlRenderer(pdf, opts) {
     if (floatRegion && y > floatRegion.yBottom) floatRegion = null;
   };
 
+  // Get client info from closure or pass it in
+  let clientInfo = null;
+  let isFirstPage = true;
+  let isInventoryChecklistPage = false;
+  
+  const setClientInfo = (client) => {
+    clientInfo = client;
+  };
+  
+  const setInventoryChecklistFlag = (flag) => {
+    isInventoryChecklistPage = flag;
+  };
+  
+  const drawPageHeader = () => {
+    if (isFirstPage || isInventoryChecklistPage || !clientInfo) return;
+    
+    const headerY = margin - 10;
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(10);
+    pdf.setTextColor(0, 0, 0);
+    
+    // Client name
+    const clientName = (clientInfo.name || clientInfo.id || 'Unknown Client').toUpperCase();
+    pdf.text(clientName, margin, headerY);
+    
+    // Scan type (if available)
+    if (clientInfo.scanType) {
+      const scanTypeText = `Scan ${clientInfo.scanType.toUpperCase()}`;
+      const scanTypeWidth = pdf.getTextWidth(scanTypeText);
+      pdf.text(scanTypeText, pageWidth - margin - scanTypeWidth, headerY);
+    }
+  };
+  
   const checkPage = (advance = 0) => {
     if (y + advance > pageHeight - margin) {
       pdf.addPage();
-      y = margin;
+      drawPageHeader(); // Add header to new page
+      y = margin + 10; // Start content below header
       floatRegion = null;
     }
   };
@@ -454,6 +488,9 @@ function createHtmlRenderer(pdf, opts) {
   return {
     getY: () => y,
     setY: v => { y = v; },
+    setClientInfo: (client) => setClientInfo(client),
+    setInventoryChecklistFlag: (flag) => setInventoryChecklistFlag(flag),
+    markFirstPageComplete: () => { isFirstPage = false; },
     async renderHtmlString(html, indentPx = 0) {
       if (!HAS_DOM) return;
       // Only normalize bullet characters if they exist in the text
@@ -553,9 +590,36 @@ function buildHtml(client, assets) {
   const subsectionStyle = 'margin-top: 0;';
   const LINE_HEIGHT_PT = 12; // Line height matches font size (12pt font = 12pt line height)
 
+  // Build header text for pages
+  const headerClientName = (client.name || client.id || 'Unknown Client').toUpperCase();
+  const headerScanType = client.scanType ? `Scan ${client.scanType.toUpperCase()}` : '';
+  
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Account Instructions - ${escapeHtml(safeName)}</title>
   <style>
-    @page { size: letter; margin: 0.75in; }
+    @page { 
+      size: letter; 
+      margin: 0.75in;
+      @top-left {
+        content: "${escapeHtml(headerClientName)}";
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 10pt;
+        color: #000;
+      }
+      @top-right {
+        content: "${escapeHtml(headerScanType)}";
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 10pt;
+        color: #000;
+      }
+    }
+    @page:first {
+      @top-left { content: ""; }
+      @top-right { content: ""; }
+    }
+    @page.inventory-checklist {
+      @top-left { content: ""; }
+      @top-right { content: ""; }
+    }
     body { font-family: Helvetica, Arial, sans-serif; color: #000; line-height: 1.0; font-size: 12pt; }
     .header { text-align: left; margin-bottom: ${LINE_HEIGHT_PT}pt; position: relative; }
     .header-top { position: absolute; top: 0; left: 0; right: 0; display: flex; justify-content: space-between; align-items: flex-start; }
@@ -602,6 +666,7 @@ function buildHtml(client, assets) {
   ${audits ? `<div class="section"><div class="section-title">Audits</div><div class="info rich">${rich(audits)}</div></div>` : ''}
   ${invFlow ? `<div class="section"><div class="section-title">Inventory Flow</div><div class="info rich">${rich(invFlow)}</div></div>` : ''}
   ${specialNotes ? `<div class="section"><div class="section-title">Special Notes</div><div class="info rich">${rich(specialNotes)}</div></div>` : ''}
+  ${client.Departments ? `<div class="section"><div class="section-title">Departments</div><div class="info rich">${rich(client.Departments)}</div></div>` : ''}
   ${teamInstr ? `<div class="section"><div class="section-title">Pre-Inventory Crew Instructions</div><div class="info rich">${rich(teamInstr)}</div></div>` : ''}
   ${noncount ? `<div class="section"><div class="section-title">Non-Count Products</div><div class="info rich">${rich(noncount)}</div></div>` : ''}
   ${progRep || finalize || finRep || processing ? `<div class="section"><div class="section-title">REPORTS</div><div class="info">
@@ -610,7 +675,7 @@ function buildHtml(client, assets) {
   ${finRep ? `<div class="subsection"><div class="subsection-title">Final Reports:</div><div class="info rich">${rich(finRep)}</div></div>` : ''}
   ${processing ? `<div class="subsection"><div class="subsection-title">Final Processing:</div><div class="info rich">${rich(processing)}</div></div>` : ''}
   </div></div>` : ''}
-  <div style="page-break-before: always;">
+  <div style="page-break-before: always;" class="inventory-checklist-page">
     <div class="section">
       <div style="text-align: center; margin-top: 0; font-size: 22pt; font-weight: bold;">INVENTORY CHECKLIST</div>
       <div class="info" style="margin-top: 44pt; font-size: 13pt;">
@@ -857,9 +922,38 @@ export async function generateAccountInstructionsPDF(options) {
       const { default: jsPDF } = await import('jspdf');
     const pdf = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
     let y = MARGIN_PT;
+    let isFirstPage = true;
+    let isInventoryChecklistPage = false;
+    
+    // Function to draw page header with client name and scan type
+    const drawPageHeader = () => {
+      if (isFirstPage || isInventoryChecklistPage) return;
+      
+      const headerY = MARGIN_PT - 10; // Position header slightly above margin
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+      pdf.setTextColor(0, 0, 0);
+      
+      // Client name
+      const clientName = (client.name || client.id || 'Unknown Client').toUpperCase();
+      pdf.text(clientName, MARGIN_PT, headerY);
+      
+      // Scan type (if available)
+      if (client.scanType) {
+        const scanTypeText = `Scan ${client.scanType.toUpperCase()}`;
+        const scanTypeWidth = pdf.getTextWidth(scanTypeText);
+        pdf.text(scanTypeText, PAGE_WIDTH_PT - MARGIN_PT - scanTypeWidth, headerY);
+      }
+    };
     
     // FIXED: Use the corrected line height constant
-    const checkPageBreak = (advance) => { if (y + advance > PAGE_HEIGHT_PT - MARGIN_PT) { pdf.addPage(); y = MARGIN_PT; } };
+    const checkPageBreak = (advance) => { 
+      if (y + advance > PAGE_HEIGHT_PT - MARGIN_PT) { 
+        pdf.addPage(); 
+        drawPageHeader(); // Add header to new page
+        y = MARGIN_PT + 10; // Start content below header
+      } 
+    };
 
     // FIXED: Pass correct spacing parameters to renderer
     const htmlRenderer = createHtmlRenderer(pdf, { 
@@ -869,6 +963,10 @@ export async function generateAccountInstructionsPDF(options) {
       lineHeight: LINE_HEIGHT, // Single spacing: 12pt (1.0 line height)
       baseFontSize: 12 
     });
+    
+    // Set client info for page headers in htmlRenderer
+    htmlRenderer.setClientInfo(client);
+    htmlRenderer.markFirstPageComplete(); // Mark first page as complete after header is drawn
 
     // Helper function to preload image and get dimensions
     const preloadImage = (dataUrl) => {
@@ -979,6 +1077,7 @@ export async function generateAccountInstructionsPDF(options) {
     
     // Set y position for content after header (use the bottom of logo or header text, whichever is lower)
     y = logoDataUrl ? Math.max(logoY + logoHeight, headerTextY) + 12 : headerTextY + 12;
+    isFirstPage = false; // Mark that we've finished the first page
 
     const contentWidth = PAGE_WIDTH_PT - (2 * MARGIN_PT);
 
@@ -1156,6 +1255,19 @@ Counters to number each display with a yellow tag to match posting sheet locatio
     await writeRichSection('Audits', client.Audits);
     await writeRichSection('Inventory Flow', client.Inv_Flow);
     await writeRichSection('Special Notes', client.Special_Notes);
+    
+    // Departments section (after Special Notes)
+    if (client.Departments) {
+      const departmentsText = String(client.Departments).trim();
+      if (departmentsText) {
+        sectionHeader('Departments');
+        const cleanText = departmentsText.replace(/\n{2,}/g, '\n');
+        htmlRenderer.setY(y);
+        await htmlRenderer.renderHtmlString(cleanText);
+        y = htmlRenderer.getY();
+      }
+    }
+    
     await writeRichSection('Pre-Inventory Crew Instructions', client['Team-Instr']);
     await writeRichSection('Non-Count Products', client.noncount);
 
@@ -1218,6 +1330,10 @@ Counters to number each display with a yellow tag to match posting sheet locatio
     }
 
     // Add Inventory Checklist page (on its own page)
+    isInventoryChecklistPage = true; // Mark this as the inventory checklist page (no header)
+    if (htmlRenderer && htmlRenderer.setInventoryChecklistFlag) {
+      htmlRenderer.setInventoryChecklistFlag(true); // Also mark in htmlRenderer
+    }
     pdf.addPage();
     y = MARGIN_PT;
     
