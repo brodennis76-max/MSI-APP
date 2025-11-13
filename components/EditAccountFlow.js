@@ -231,6 +231,9 @@ const EditAccountFlow = ({ onBack }) => {
       if (activeClient.inventoryType !== undefined) {
         updateData.inventoryType = activeClient.inventoryType;
       }
+      if (activeClient.scanType !== undefined) {
+        updateData.scanType = activeClient.scanType || '';
+      }
       if (activeClient.PIC !== undefined) {
         updateData.PIC = activeClient.PIC;
       }
@@ -421,6 +424,24 @@ const EditAccountFlow = ({ onBack }) => {
                 ))}
               </View>
             </View>
+
+            {/* Scan Type Selector - shown when scan is selected */}
+            {(activeClient.inventoryType === 'scan' || (Array.isArray(activeClient.inventoryTypes) && activeClient.inventoryTypes.includes('scan'))) && (
+              <View style={styles.fieldContainer}>
+                <Text style={styles.fieldLabel}>Scan Type</Text>
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={activeClient.scanType || ''}
+                    onValueChange={(value) => setActiveClient({...activeClient, scanType: value})}
+                    style={styles.picker}
+                  >
+                    <Picker.Item label="Select Scan Type" value="" />
+                    <Picker.Item label="Full Flavor" value="Full Flavor" />
+                    <Picker.Item label="Price-Point" value="Price-Point" />
+                  </Picker>
+                </View>
+              </View>
+            )}
 
             <View style={styles.fieldContainer}>
               <QRCodeSelector

@@ -80,6 +80,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
     inventoryTypes: ['scan'],
     financialPrice: '',
     storeType: 'Convenience',
+    scanType: '',
     PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
     startTime: '',
     verification: 'Audit trails will be provided, as requested, during the count, within reason (do not provide audit trails on the entire store.)',
@@ -93,6 +94,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
     inventoryTypes: ['scan'],
     financialPrice: '',
     storeType: 'Convenience',
+    scanType: '',
     PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
     startTime: '',
     verification: 'Audit trails will be provided, as requested, during the count, within reason (do not provide audit trails on the entire store.)',
@@ -341,6 +343,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
           inventoryTypes: Array.isArray(clientToEdit.inventoryTypes) ? clientToEdit.inventoryTypes : (clientToEdit.inventoryType ? [clientToEdit.inventoryType] : ['scan']),
           financialPrice: clientToEdit.financialPrice || '',
           storeType: clientToEdit.storeType || 'Convenience',
+          scanType: clientToEdit.scanType || '',
           PIC: clientToEdit.PIC || 'Stores to be contacted via phone prior to counts to confirm inventory.',
           startTime: clientToEdit.startTime || '',
           verification: clientToEdit.verification || 'Audit trails will be provided, as requested, during the count, within reason (do not provide audit trails on the entire store.)',
@@ -390,6 +393,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
             .join(', '),
           storeType: newClientData.storeType,
           accountType: newClientData.storeType,
+          scanType: newClientData.scanType || '',
           PIC: newClientData.PIC,
           startTime: newClientData.startTime,
           verification: newClientData.verification,
@@ -462,6 +466,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
           inventoryTypes: ['scan'],
           financialPrice: '',
           storeType: 'Convenience',
+          scanType: '',
           PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
           startTime: '',
           verification: '',
@@ -495,6 +500,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
             .concat((Array.isArray(formData.inventoryTypes) && formData.inventoryTypes.includes('financial') && formData.financialPrice) ? [formData.financialPrice] : [])
             .join(', '),
           storeType: formData.storeType,
+          scanType: formData.scanType || '',
           PIC: formData.PIC,
           startTime: formData.startTime,
           verification: formData.verification,
@@ -528,6 +534,7 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
                 inventoryTypes: ['scan'],
                 financialPrice: '',
                 storeType: 'Convenience',
+                scanType: '',
                 PIC: 'Stores to be contacted via phone prior to counts to confirm inventory.',
                 startTime: '',
                 verification: '',
@@ -653,15 +660,6 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
                     onSubmitEditing={() => picRef.current?.focus()}
                   />
 
-                  <View style={{ marginTop: 20, marginBottom: 20 }}>
-                    <QRCodeSelector
-                      selectedQRCode={selectedQRCode}
-                      onSelectQRCode={setSelectedQRCode}
-                      onClearSelection={() => setSelectedQRCode(null)}
-                      label="Scanner QR Code"
-                    />
-                  </View>
-
                 </>
               )}
               <Text style={styles.label}>Store Type</Text>
@@ -738,6 +736,24 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
                         </TouchableOpacity>
                       );
                     })}
+                  </View>
+                </View>
+              )}
+
+              {/* Scan Type Selector - shown when scan is selected */}
+              {(clientAction === 'new' ? (Array.isArray(newClientData.inventoryTypes) && newClientData.inventoryTypes.includes('scan')) : (Array.isArray(formData.inventoryTypes) && formData.inventoryTypes.includes('scan'))) && (
+                <View style={{ marginTop: 10 }}>
+                  <Text style={styles.label}>Scan Type</Text>
+                  <View style={styles.pickerContainer}>
+                    <Picker
+                      selectedValue={clientAction === 'new' ? newClientData.scanType : formData.scanType}
+                      onValueChange={(value) => clientAction === 'new' ? handleNewClientInputChange('scanType', value) : handleInputChange('scanType', value)}
+                      style={styles.picker}
+                    >
+                      <Picker.Item label="Select Scan Type" value="" />
+                      <Picker.Item label="Full Flavor" value="Full Flavor" />
+                      <Picker.Item label="Price-Point" value="Price-Point" />
+                    </Picker>
                   </View>
                 </View>
               )}

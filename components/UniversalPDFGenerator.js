@@ -581,6 +581,7 @@ function buildHtml(client, assets) {
   <h1>MSI Inventory</h1><h2>Account Instructions:</h2><h3>${escapeHtml(safeName)}</h3></div>
   <div class="section"><div class="section-title">Client Information</div><div class="info">
   <p><strong>Inventory Type:</strong> ${escapeHtml(client.inventoryType ?? '')}</p>
+  ${client.scanType ? `<p><strong>Scan Type:</strong> Scan ${escapeHtml(client.scanType)}</p>` : ''}
   <p><strong>Updated:</strong> ${escapeHtml(updatedAt)}</p>
   <p><strong>PIC:</strong> ${escapeHtml(client.PIC ?? '')}</p>
   <p><strong>Verification:</strong> ${escapeHtml(client.verification ?? '')}</p>
@@ -892,6 +893,7 @@ export async function generateAccountInstructionsPDF(options) {
     };
 
     if (client.inventoryType) renderKV('Inventory Type', client.inventoryType);
+    if (client.scanType) renderKV('Scan Type', `Scan ${client.scanType}`);
     if (updatedAt) { checkPageBreak(LINE_HEIGHT); pdf.text(`Updated: ${updatedAt}`, MARGIN_PT, y); y += LINE_HEIGHT; }
     if (client.PIC) renderKV('PIC', client.PIC);
     if (client.verification) renderKV('Verification', client.verification);
