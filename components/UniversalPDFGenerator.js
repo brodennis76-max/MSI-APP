@@ -666,7 +666,66 @@ function buildHtml(client, assets) {
   ${audits ? `<div class="section"><div class="section-title">Audits</div><div class="info rich">${rich(audits)}</div></div>` : ''}
   ${invFlow ? `<div class="section"><div class="section-title">Inventory Flow</div><div class="info rich">${rich(invFlow)}</div></div>` : ''}
   ${specialNotes ? `<div class="section"><div class="section-title">Special Notes</div><div class="info rich">${rich(specialNotes)}</div></div>` : ''}
-  ${client.Departments ? `<div class="section"><div class="section-title">Departments</div><div class="info rich">${rich(client.Departments)}</div></div>` : ''}
+  ${client.Departments ? (() => {
+    // Parse departments: extract categories with their numbers
+    const lines = String(client.Departments).trim().split('\n');
+    const categoryItems = [];
+    let currentCategory = '';
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      
+      // Category headers don't start with "_"
+      if (!trimmed.startsWith('_')) {
+        currentCategory = trimmed.toUpperCase();
+        continue;
+      }
+      
+      // Department items start with "_" - extract number for the category
+      if (currentCategory && trimmed.startsWith('_')) {
+        const cleaned = trimmed.replace(/^_\s*/, '');
+        const parts = cleaned.split(/\s+/);
+        if (parts.length < 2) continue;
+        
+        // Last part should be the number
+        const maybeNum = parts[parts.length - 1];
+        if (!/^\d+(?:-\d+)?$/.test(maybeNum)) continue;
+        
+        const number = maybeNum;
+        
+        // Extract numeric value for sorting (handle ranges like "100-200" by taking first number)
+        const sortNum = parseInt(number.split('-')[0], 10);
+        if (!isNaN(sortNum)) {
+          // Only add category once, use first number found for that category
+          if (!categoryItems.find(item => item.category === currentCategory)) {
+            categoryItems.push({ category: currentCategory, number, sortNum });
+          }
+        }
+      }
+    }
+    
+    // Sort by department number
+    categoryItems.sort((a, b) => a.sortNum - b.sortNum);
+    
+    if (categoryItems.length > 0) {
+      return `<div class="section"><div class="section-title">Departments</div><div class="info">
+        <table style="width: 100%; border-collapse: collapse; margin-top: ${LINE_HEIGHT_PT}pt; font-size: 12pt; border: none;">
+          <tr>
+            <th style="text-align: left; font-weight: bold; padding: 4pt; border: none;">Category</th>
+            <th style="text-align: left; font-weight: bold; padding: 4pt; border: none;">Number</th>
+          </tr>
+          ${categoryItems.map(item => `
+            <tr>
+              <td style="text-align: left; padding: 4pt; border: none;">${escapeHtml(item.category)}</td>
+              <td style="text-align: left; padding: 4pt; border: none;">${escapeHtml(item.number)}</td>
+            </tr>
+          `).join('')}
+        </table>
+      </div></div>`;
+    }
+    return '';
+  })() : ''}
   ${teamInstr ? `<div class="section"><div class="section-title">Pre-Inventory Crew Instructions</div><div class="info rich">${rich(teamInstr)}</div></div>` : ''}
   ${noncount ? `<div class="section"><div class="section-title">Non-Count Products</div><div class="info rich">${rich(noncount)}</div></div>` : ''}
   ${progRep || finalize || finRep || processing ? `<div class="section"><div class="section-title">REPORTS</div><div class="info">
@@ -1261,10 +1320,66 @@ Counters to number each display with a yellow tag to match posting sheet locatio
       const departmentsText = String(client.Departments).trim();
       if (departmentsText) {
         sectionHeader('Departments');
-        const cleanText = departmentsText.replace(/\n{2,}/g, '\n');
-        htmlRenderer.setY(y);
-        await htmlRenderer.renderHtmlString(cleanText);
-        y = htmlRenderer.getY();
+        
+        // Parse departments: extract categories with their numbers
+        const lines = departmentsText.split('\n');
+        const categoryItems = [];
+        let currentCategory = '';
+        
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          
+          // Category headers don't start with "_"
+          if (!trimmed.startsWith('_')) {
+            currentCategory = trimmed.toUpperCase();
+            continue;
+          }
+          
+          // Department items start with "_" - extract number for the category
+          if (currentCategory && trimmed.startsWith('_')) {
+            const cleaned = trimmed.replace(/^_\s*/, '');
+            const parts = cleaned.split(/\s+/);
+            if (parts.length < 2) continue;
+            
+            // Last part should be the number
+            const maybeNum = parts[parts.length - 1];
+            if (!/^\d+(?:-\d+)?$/.test(maybeNum)) continue;
+            
+            const number = maybeNum;
+            
+            // Extract numeric value for sorting (handle ranges like "100-200" by taking first number)
+            const sortNum = parseInt(number.split('-')[0], 10);
+            if (!isNaN(sortNum)) {
+              // Only add category once, use first number found for that category
+              if (!categoryItems.find(item => item.category === currentCategory)) {
+                categoryItems.push({ category: currentCategory, number, sortNum });
+              }
+            }
+          }
+        }
+        
+        // Sort by department number
+        categoryItems.sort((a, b) => a.sortNum - b.sortNum);
+        
+        if (categoryItems.length > 0) {
+          // Draw table header
+          checkPageBreak(LINE_HEIGHT * 2);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(12);
+          pdf.text('Category', MARGIN_PT, y);
+          pdf.text('Number', MARGIN_PT + contentWidth * 0.6, y);
+          y += LINE_HEIGHT;
+          
+          // Draw table rows (no borders)
+          pdf.setFont('helvetica', 'normal');
+          categoryItems.forEach((item) => {
+            checkPageBreak(LINE_HEIGHT);
+            pdf.text(item.category, MARGIN_PT, y);
+            pdf.text(item.number, MARGIN_PT + contentWidth * 0.6, y);
+            y += LINE_HEIGHT;
+          });
+        }
       }
     }
     
