@@ -635,51 +635,58 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
             <View style={styles.formContainer}>
               {clientAction === 'new' && (
                 <>
-                  <Text style={styles.label}>Client Name *</Text>
-                  <TextInput
-                    ref={clientNameRef}
-                    style={styles.input}
-                    value={newClientData.name}
-                    onChangeText={(text) => handleNewClientInputChange('name', text)}
-                    placeholder="Enter client name..."
-                    returnKeyType="next"
-                    onSubmitEditing={() => emailRef.current?.focus()}
-                  />
+                  <View style={styles.fieldContainer}>
+                    <Text style={styles.label}>Client Name *</Text>
+                    <TextInput
+                      ref={clientNameRef}
+                      style={styles.input}
+                      value={newClientData.name}
+                      onChangeText={(text) => handleNewClientInputChange('name', text)}
+                      placeholder="Enter client name..."
+                      returnKeyType="next"
+                      onSubmitEditing={() => emailRef.current?.focus()}
+                    />
+                  </View>
 
-                  <Text style={styles.label}>Email Address</Text>
-                  <TextInput
-                    ref={emailRef}
-                    style={styles.input}
-                    value={newClientData.email}
-                    onChangeText={(text) => handleNewClientInputChange('email', text)}
-                    placeholder="Enter client email address..."
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    returnKeyType="next"
-                    onSubmitEditing={() => picRef.current?.focus()}
-                  />
-
+                  <View style={styles.fieldContainer}>
+                    <Text style={styles.label}>Email Address</Text>
+                    <TextInput
+                      ref={emailRef}
+                      style={styles.input}
+                      value={newClientData.email}
+                      onChangeText={(text) => handleNewClientInputChange('email', text)}
+                      placeholder="Enter client email address..."
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      returnKeyType="next"
+                      onSubmitEditing={() => picRef.current?.focus()}
+                    />
+                  </View>
                 </>
               )}
-              <Text style={styles.label}>Store Type</Text>
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={clientAction === 'new' ? newClientData.storeType : formData.storeType}
-                  onValueChange={(value) => clientAction === 'new' ? handleNewClientInputChange('storeType', value) : handleInputChange('storeType', value)}
-                  style={styles.picker}
-                >
-                  <Picker.Item label="Select Store Type" value="" />
-                  <Picker.Item label="Convenience" value="Convenience" />
-                  <Picker.Item label="Grocery" value="Grocery" />
-                  <Picker.Item label="Clothing" value="Clothing" />
-                  <Picker.Item label="Hardware" value="Hardware" />
-                  <Picker.Item label="Other" value="Other" />
-                </Picker>
+
+              <View style={styles.fieldContainer}>
+                <Text style={styles.label}>Store Type</Text>
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={clientAction === 'new' ? newClientData.storeType : formData.storeType}
+                    onValueChange={(value) => clientAction === 'new' ? handleNewClientInputChange('storeType', value) : handleInputChange('storeType', value)}
+                    style={styles.picker}
+                  >
+                    <Picker.Item label="Select Store Type" value="" />
+                    <Picker.Item label="Convenience" value="Convenience" />
+                    <Picker.Item label="Grocery" value="Grocery" />
+                    <Picker.Item label="Clothing" value="Clothing" />
+                    <Picker.Item label="Hardware" value="Hardware" />
+                    <Picker.Item label="Other" value="Other" />
+                  </Picker>
+                </View>
               </View>
 
-              <Text style={styles.label}>Inventory Type (Select all that apply)</Text>
-              <View style={styles.inventoryTypeContainer}>
+              <View style={styles.fieldContainer}>
+                <Text style={styles.label}>Inventory Type</Text>
+                <View style={styles.inventoryTypeContainer}>
                 {['scan', 'financial', 'hand written', 'price verification'].map((type) => {
                   const current = clientAction === 'new' ? (Array.isArray(newClientData.inventoryTypes) ? newClientData.inventoryTypes : []) : (Array.isArray(formData.inventoryTypes) ? formData.inventoryTypes : []);
                   const isSelected = current.includes(type);
@@ -706,10 +713,12 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
                     </TouchableOpacity>
                   );
                 })}
+                </View>
               </View>
+
               {(clientAction === 'new' ? (Array.isArray(newClientData.inventoryTypes) && newClientData.inventoryTypes.includes('financial')) : (Array.isArray(formData.inventoryTypes) && formData.inventoryTypes.includes('financial'))) && (
-                <View style={{ marginTop: 10 }}>
-                  <Text style={styles.helperText}>Financial Count - select price to take</Text>
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.label}>Financial Count - select price to take</Text>
                   <View style={styles.inventoryTypeContainer}>
                     {['Retail Price', 'Sale Price', 'Cost'].map((price) => {
                       const currentPrice = clientAction === 'new' ? newClientData.financialPrice : formData.financialPrice;
@@ -740,21 +749,25 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
                 </View>
               )}
 
-              {/* Scan Type Selector */}
-              <View style={styles.fieldContainer}>
-                <Text style={styles.label}>Scan Type</Text>
-                <View style={styles.pickerContainer}>
-                  <Picker
-                    selectedValue={clientAction === 'new' ? newClientData.scanType : formData.scanType}
-                    onValueChange={(value) => clientAction === 'new' ? handleNewClientInputChange('scanType', value) : handleInputChange('scanType', value)}
-                    style={styles.picker}
-                  >
-                    <Picker.Item label="Select Scan Type" value="" />
-                    <Picker.Item label="Full Flavor" value="Full Flavor" />
-                    <Picker.Item label="Price-Point" value="Price-Point" />
-                  </Picker>
+              {/* Scan Type Selector - shown when scan is selected */}
+              {(clientAction === 'new' 
+                ? (Array.isArray(newClientData.inventoryTypes) && newClientData.inventoryTypes.includes('scan'))
+                : (Array.isArray(formData.inventoryTypes) && formData.inventoryTypes.includes('scan'))) && (
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.label}>Scan Type</Text>
+                  <View style={styles.pickerContainer}>
+                    <Picker
+                      selectedValue={clientAction === 'new' ? (newClientData.scanType || '') : (formData.scanType || '')}
+                      onValueChange={(value) => clientAction === 'new' ? handleNewClientInputChange('scanType', value) : handleInputChange('scanType', value)}
+                      style={styles.picker}
+                    >
+                      <Picker.Item label="Select Scan Type" value="" />
+                      <Picker.Item label="Full Flavor" value="Full Flavor" />
+                      <Picker.Item label="Price-Point" value="Price-Point" />
+                    </Picker>
+                  </View>
                 </View>
-              </View>
+              )}
 
               {/* QR Code Selector - shown for both new and edit accounts */}
               <View style={styles.fieldContainer}>
@@ -766,54 +779,42 @@ const AddAccountForm = ({ onBack, onMenuPress }) => {
                 />
               </View>
 
-              <Text style={styles.label}>PIC (Pre Inventory Call)</Text>
-              <TextInput
-                ref={picRef}
-                style={styles.textArea}
-                value={clientAction === 'new' ? newClientData.PIC : formData.PIC}
-                onChangeText={(text) => clientAction === 'new' ? handleNewClientInputChange('PIC', text) : handleInputChange('PIC', text)}
-                placeholder="Enter PIC information..."
-                multiline
-                numberOfLines={3}
-                returnKeyType="next"
-                onSubmitEditing={() => startTimeRef.current?.focus()}
-              />
+              <View style={styles.fieldContainer}>
+                <Text style={styles.label}>PIC</Text>
+                <RichTextEditor
+                  value={clientAction === 'new' ? newClientData.PIC : formData.PIC}
+                  onChange={(text) => clientAction === 'new' ? handleNewClientInputChange('PIC', text) : handleInputChange('PIC', text)}
+                />
+              </View>
 
-              <Text style={styles.label}>Start Time</Text>
-              <TextInput
-                ref={startTimeRef}
-                style={styles.input}
-                value={clientAction === 'new' ? newClientData.startTime : formData.startTime}
-                onChangeText={(text) => clientAction === 'new' ? handleNewClientInputChange('startTime', text) : handleInputChange('startTime', text)}
-                placeholder="e.g., 8:00 AM"
-                returnKeyType="next"
-                onSubmitEditing={() => verificationRef.current?.focus()}
-              />
+              <View style={styles.fieldContainer}>
+                <Text style={styles.label}>Start Time</Text>
+                <TextInput
+                  ref={startTimeRef}
+                  style={styles.input}
+                  value={clientAction === 'new' ? newClientData.startTime : formData.startTime}
+                  onChangeText={(text) => clientAction === 'new' ? handleNewClientInputChange('startTime', text) : handleInputChange('startTime', text)}
+                  placeholder="e.g., 8:00 AM"
+                  returnKeyType="next"
+                  onSubmitEditing={() => verificationRef.current?.focus()}
+                />
+              </View>
 
-              <Text style={styles.label}>Verification</Text>
-              <TextInput
-                ref={verificationRef}
-                style={styles.textArea}
-                value={clientAction === 'new' ? newClientData.verification : formData.verification}
-                onChangeText={(text) => clientAction === 'new' ? handleNewClientInputChange('verification', text) : handleInputChange('verification', text)}
-                placeholder="Edit verification details as needed..."
-                multiline
-                numberOfLines={3}
-                returnKeyType="next"
-                onSubmitEditing={() => additionalNotesRef.current?.focus()}
-              />
+              <View style={styles.fieldContainer}>
+                <Text style={styles.label}>Verification</Text>
+                <RichTextEditor
+                  value={clientAction === 'new' ? newClientData.verification : formData.verification}
+                  onChange={(text) => clientAction === 'new' ? handleNewClientInputChange('verification', text) : handleInputChange('verification', text)}
+                />
+              </View>
 
-              <Text style={styles.label}>Additional Notes</Text>
-              <TextInput
-                ref={additionalNotesRef}
-                style={styles.textArea}
-                value={clientAction === 'new' ? newClientData.additionalNotes : formData.additionalNotes}
-                onChangeText={(text) => clientAction === 'new' ? handleNewClientInputChange('additionalNotes', text) : handleInputChange('additionalNotes', text)}
-                placeholder="Any additional notes or comments..."
-                multiline
-                numberOfLines={4}
-                returnKeyType="done"
-              />
+              <View style={styles.fieldContainer}>
+                <Text style={styles.label}>Additional Notes</Text>
+                <RichTextEditor
+                  value={clientAction === 'new' ? newClientData.additionalNotes : formData.additionalNotes}
+                  onChange={(text) => clientAction === 'new' ? handleNewClientInputChange('additionalNotes', text) : handleInputChange('additionalNotes', text)}
+                />
+              </View>
             </View>
           </>
         )}
