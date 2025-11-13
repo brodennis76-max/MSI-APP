@@ -491,23 +491,21 @@ const AddAccountFormTest = ({ onBack, onMenuPress }) => {
                 </View>
               </View>
 
-              {/* Scan Type Selector - shown when scan is selected */}
-              {(Array.isArray(newClientData.inventoryTypes) && newClientData.inventoryTypes.includes('scan')) && (
-                <View style={styles.fieldContainer}>
-                  <Text style={styles.label}>Scan Type</Text>
-                  <View style={styles.pickerContainer}>
-                    <Picker
-                      selectedValue={newClientData.scanType || ''}
-                      onValueChange={(value) => handleNewClientInputChange('scanType', value)}
-                      style={styles.picker}
-                    >
-                      <Picker.Item label="Select Scan Type" value="" />
-                      <Picker.Item label="Full Flavor" value="Full Flavor" />
-                      <Picker.Item label="Price-Point" value="Price-Point" />
-                    </Picker>
-                  </View>
+              {/* Scan Type Selector */}
+              <View style={styles.fieldContainer}>
+                <Text style={styles.label}>Scan Type</Text>
+                <View style={styles.pickerContainer}>
+                  <Picker
+                    selectedValue={newClientData.scanType || ''}
+                    onValueChange={(value) => handleNewClientInputChange('scanType', value)}
+                    style={styles.picker}
+                  >
+                    <Picker.Item label="Select Scan Type" value="" />
+                    <Picker.Item label="Full Flavor" value="Full Flavor" />
+                    <Picker.Item label="Price-Point" value="Price-Point" />
+                  </Picker>
                 </View>
-              )}
+              </View>
 
               {/* QR Code Selector */}
               <View style={styles.fieldContainer}>
